@@ -1,11 +1,11 @@
 #ifndef _TELEM_H_
 #define _TELEM_H_
 
-#include "Arduino.h"
 
 #define HWSERIAL Serial2
 
-#include "src/mavlink/common/mavlink.h"
+#include "common/mavlink.h"
+#include "ardupilotmega/mavlink_msg_pid_tuning.h"
 #include <eigen.h>
 #include <cstdint>
 #include "commonDefinitions.h"

@@ -103,7 +103,7 @@ LIBRARYPATH = libraries
 INCLUDEPATH = include
 
 # path location for the arm-none-eabi compiler
-COMPILERPATH = tools/arm/bin
+COMPILERPATH = /Applications/ARM/bin
 
 
 #************************************************************************
@@ -111,7 +111,7 @@ COMPILERPATH = tools/arm/bin
 #************************************************************************
 
 # CPPFLAGS = compiler options for C and C++
-CPPFLAGS = -Wall -g -O2 $(CPUOPTIONS) -MMD $(OPTIONS) -I. -ffunction-sections -fdata-sections
+CPPFLAGS = -Wall -g -O2 $(CPUOPTIONS) -MMD $(OPTIONS) -Isrc -I$(COREPATH) -ffunction-sections -fdata-sections
 
 # compiler options for C++ only
 CXXFLAGS = -std=gnu++17 -felide-constructors -fno-exceptions -fpermissive -fno-rtti -Wno-error=narrowing
@@ -119,11 +119,15 @@ CXXFLAGS = -std=gnu++17 -felide-constructors -fno-exceptions -fpermissive -fno-r
 # compiler options for C only
 CFLAGS =
 
+# linker script
+LD_PATH = $(COREPATH)/$(MCU_LD)
+
 # linker options
-LDFLAGS = -Os -Wl,--gc-sections,--relax $(SPECS) $(CPUOPTIONS) -T$(MCU_LD)
+LDFLAGS = -Os -Wl,--gc-sections,--relax $(SPECS) $(CPUOPTIONS) -T$(LD_PATH)
 
 # additional libraries to link
-LIBS = -larm_cortexM7lfsp_math -lm -lstdc++
+#LIBS = -larm_cortexM7lfsp_math -lm -lstdc++
+LIBS = -lm -lstdc++
 
 
 # names for the compiler programs
@@ -140,13 +144,13 @@ SIZE = $(COMPILERPATH)/arm-none-eabi-size
 
 LC_FILES := $(wildcard $(LIBRARYPATH)/*/*.c)
 LCPP_FILES := $(wildcard $(LIBRARYPATH)/*/*.cpp)
-TC_FILES := $(wildcard $(COREPATH)/*/*.c)
-TCPP_FILES := $(wildcard $(COREPATH)/*/*.cpp)
+TC_FILES := $(wildcard $(COREPATH)/*.c)
+TCPP_FILES := $(wildcard $(COREPATH)/*.cpp)
 C_FILES := $(wildcard src/*.c)
 CPP_FILES := $(wildcard src/*.cpp)
 INO_FILES := $(wildcard src/*.ino)
 
-INC := $(foreach inc,$(filter %/, $(wildcard $(INCLUDEPATH)/)), -I$(inc))
+INC := $(foreach inc,$(filter %/, $(wildcard $(INCLUDEPATH)/*/)), -I$(inc))
 L_INC := $(foreach lib,$(filter %/, $(wildcard $(LIBRARYPATH)/*/src/)), -I$(lib))
 
 SOURCES := $(C_FILES:.c=.o) $(CPP_FILES:.cpp=.o) $(INO_FILES:.ino=.o) $(TC_FILES:.c=.o) $(TCPP_FILES:.cpp=.o) $(LC_FILES:.c=.o) $(LCPP_FILES:.cpp=.o)

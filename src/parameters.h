@@ -2,9 +2,8 @@
 #define PARAM_H
 
 #include <stdint.h>
-#include <Arduino.h>
 
-#include "src/mavlink/common/mavlink.h"
+#include "mavlink.h"
 
 // Define class for a single parameter
 class Parameter {

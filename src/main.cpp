@@ -1,3 +1,4 @@
+#include <cstdint>
 //================================================================================================//
 //                                    USER-SPECIFIED DEFINES  																		//
 //                                    																														//
@@ -48,19 +49,19 @@ static const uint8_t num_DSM_channels = 6; // If using DSM RX, change this to ma
 #include "telemetry.h"
 
 #if defined USE_SBUS_RX
-#include "src/SBUS/SBUS.h" //sBus interface
+#include "SBUS.h" //sBus interface
 #endif
 
 #if defined USE_DSM_RX
-#include "src/DSMRX/DSMRX.h"
+#include "DSMRX/DSMRX.h"
 #endif
 
 #if defined USE_MPU6050_I2C
-#include "src/MPU6050/MPU6050.h"
+#include "MPU6050.h"
 MPU6050 quadIMU;
 MPU6050 imu2(MPU6050_ADDRESS_AD0_HIGH);
 #elif defined USE_MPU9250_SPI
-#include "src/MPU9250/MPU9250.h"
+#include "MPU9250/MPU9250.h"
 MPU9250 mpu9250(SPI2, 36);
 #else
 #error No MPU defined...
@@ -375,297 +376,35 @@ Telemetry telem;
 Eigen::Vector3f mocapPosition(0, 0, 0);
 bool newPositionReceived;
 
-//========================================================================================================================//
-//                                                      VOID SETUP 																												//
-//========================================================================================================================//
-
-void setup() {
-  Serial.begin(500000); // USB serial
-  delay(500);
-
-  // Initialize all pins
-  pinMode(13, OUTPUT); // Pin 13 LED blinker on board, do not modify
-
-  pinMode(m1Pin, OUTPUT);
-  pinMode(m2Pin, OUTPUT);
-  pinMode(m3Pin, OUTPUT);
-  pinMode(m4Pin, OUTPUT);
-
-	#ifdef USE_ONESHOT
-  // Initialize timers for OneShot125
-  m1_timer.begin(m1_EndPulse);
-  m2_timer.begin(m2_EndPulse);
-  m3_timer.begin(m3_EndPulse);
-  m4_timer.begin(m4_EndPulse);
-	#else
-  servo1.attach(m1Pin, 1000, 2100); // Pin, min PWM value, max PWM value
-  servo2.attach(m2Pin, 1000, 2100);
-  servo3.attach(m3Pin, 1000, 2100);
-  servo4.attach(m4Pin, 1000, 2100);
-	#endif
-
-  // Set built in LED to turn on to signal startup
-  digitalWrite(13, HIGH);
-
-  delay(5);
-
-  // Initialize radio communication (defined in header file)
-  radioSetup();
-
-  // Begin mavlink telemetry module
-  telem.InitTelemetry();
-
-  // Set radio channels to default (safe) values before entering main loop
-  channel_1_pwm = channel_1_fs;
-  channel_2_pwm = channel_2_fs;
-  channel_3_pwm = channel_3_fs;
-  channel_4_pwm = channel_4_fs;
-  channel_5_pwm = channel_5_fs;
-  channel_6_pwm = channel_6_fs;
-  channel_7_pwm = channel_7_fs;
-  channel_8_pwm = channel_8_fs;
-  channel_9_pwm = channel_9_fs;
-  channel_10_pwm = channel_10_fs;
-  channel_11_pwm = channel_11_fs;
-  channel_12_pwm = channel_12_fs;
-  channel_13_pwm = channel_13_fs;
-  channel_14_pwm = channel_14_fs;
-
-  IMUinit(&quadIMU);
-
-
-	// IMUinit(&imu2);
-
-  // Initialize the SD card, returns 1 if no sd card is detected or it can't be
-  // initialized
-  SD_is_present = !logData_setup();
-
-
-  // Get IMU error to zero accelerometer and gyro readings, assuming vehicle is
-  // level when powered up Calibration parameters printed to serial monitor.
-  // Paste these in the user specified variables section, then comment this out
-  // forever.
-
-  // calculate_IMU_error(&quadIMU_info, &quadIMU);
-
-  quadIMU_info.AccErrorX = -0.0121f;
-  quadIMU_info.AccErrorY = 0.0126f;
-  quadIMU_info.AccErrorZ = 0.0770f;
-  quadIMU_info.GyroErrorX = -4.7787f;
-  quadIMU_info.GyroErrorY = -2.1795f;
-  quadIMU_info.GyroErrorZ = -0.6910f;
-
-  // Arm servo channels
-	#ifndef USE_ONESHOT
-  servo1.write(0); // Command servo angle from 0-180 degrees (1000 to 2000 PWM)
-  servo2.write(0); // Set these to 90 for servos if you do not want them to
-                   // briefly max out on startup
-  servo3.write(0); // Keep these at 0 if you are using servo outputs for motors
-  servo4.write(0);
-	#endif
-
-  delay(5);
-
-  // PROPS OFF. Uncomment this to calibrate your ESCs by setting throttle stick
-  // to max, powering on, and lowering throttle to zero after the beeps
-  //  calibrateESCs();
-  // Code will not proceed past here if this function is uncommented!
-
-#ifdef USE_ONESHOT
-  // Arm OneShot125 motors
-  m1_command_PWM = 125; // Command OneShot125 ESC from 125 to 250us pulse length
-  m2_command_PWM = 125;
-  m3_command_PWM = 125;
-  m4_command_PWM = 125;
-  armMotors(); // Loop over commandMotors() until ESCs happily arm
-#endif
-
-  // Indicate entering main loop with 3 quick blinks
-  setupBlink(3, 160, 70); // numBlinks, upTime (ms), downTime (ms)
-
-  doneWithSetup = 1;
-}
-
-//================================================================================================//
-//                                      MAIN LOOP //
-//================================================================================================//
-void loop() {
-  // Keep track of what time it is and how much time has elapsed since the last loop
-  prev_time = current_time;
-  current_time = micros();
-  dt = (current_time - prev_time) / 1000000.0;
-
-  loopBlink(); // Indicate we are in main loop with short blink every 1.5 seconds
-
-  //  Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
-  //  Prints radio pwm values (expected: 1000 to 2000)
-  // printRadioData();
-  //  Prints desired vehicle state commanded in either degrees or deg/sec (expected: +/- maxAXIS for roll, pitch, yaw; 0
-  //  to 1 for throttle)
-  // printDesiredState();
-  //  Prints filtered gyro data direct from IMU (expected: ~ -250 to 250, 0 at rest)
-  // printGyroData();
-  //  Prints filtered accelerometer data direct from IMU (expected: ~ -2 to 2; x,y 0 when level, z 1 when level)
-  // printAccelData();
-  //  Prints filtered magnetometer data direct from IMU (expected: ~ -300 to 300)
-  // printMagData();
-  //  Prints roll, pitch, and yaw angles in degrees from Madgwick filter (expected: degrees, 0 when level)
-  // printRollPitchYaw();
-  //  Prints computed stabilized PID variables from controller and desired setpoint (expected: ~ -1 to 1)
-  // printPIDoutput();
-  //  Prints the values being written to the motors (expected: 120 to 250)
-  // printMotorCommands();
-  //  Prints the values being written to the servos (expected: 0 to 180)
-  // printServoCommands();
-  //  Prints the time between loops in microseconds (expected: microseconds between loop iterations)
-  // printLoopRate();
-  //  Prints the angles alpha, beta, pitch, roll, alpha + roll, beta + pitch
-  // printRIPAngles();
-
-  //  Prints desired and imu roll state for serial plotter
-  // displayRoll();
-  //  Prints desired and imu pitch state for serial plotter
-  // displayPitch();
-
-  // Check if rotors should be armed
-  if (!flightLoopStarted && channel_5_pwm < 1500) {
-    flightLoopStarted = 1;
-    telem.SetSystemState(MAV_STATE_ACTIVE);
-    telem.SetSystemMode(MAV_MODE_MANUAL_ARMED);
-  }
-
-  // Sine sweep check
-  if (channel_7_pwm > 1750) {
-    conductSineSweep = 1;
-  } else {
-    conductSineSweep = 0;
-    sineTime = 0;
-  }
-
-  // Write to SD card buffer
-  if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
-    print_counterSD = micros();
-    logData_writeBuffer();
-    Serial.println("logged");
-  }
-
-  if (loopCount > 2000) {
-    telem.SendHeartbeat();
-    loopCount = 0;
-  }
-  if ((loopCount % 250) == 0) {
-		telem.UpdateReceived();
-    telem.SendAttitude(quadIMU_info.roll_IMU, quadIMU_info.pitch_IMU, 0.0f, quadIMU_info.GyroX, quadIMU_info.GyroY,
-                       0.0f);
-    telem.SendPIDGains_core(Kp_roll_angle * pScaleRoll, Ki_roll_angle * iScaleRoll, Kd_roll_angle * dScaleRoll);
-  }
-  loopCount++;
-
-	// Check for a new position value
-	if (telem.CheckForNewPosition(mocapPosition)) {
-		newPositionReceived = true;
-	} else {
-		newPositionReceived = false;
-	}
-
-  // Get vehicle state
-  getIMUData(&quadIMU_info, &quadIMU); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
-  Madgwick6DOF(&quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
-
-	// getIMUData(&imu2_info, &imu2);
-	// Madgwick6DOF(&imu2_info, dt);
-
-  // Compute desired state based on radio inputs
-  getDesState(); // Convert raw commands to normalized values based on saturated control limits
-
-  if (useSerialAngleCommands) {
-    // Overwrites axisToRotate in getDesState()
-    setDesStateSerial(axisToRotate);
-  }
-
-  if (conductSineSweep) {
-    // Overwrites axisToRotate in getDesState()
-    performSineSweep(axisToRotate);
-  }
-
-  if (channel_8_pwm > 1250 && channel_8_pwm < 1750) {
-    rollStep();
-  }
-
-  if (channel_8_pwm > 1750) {
-    pitchStep();
-  }
-
-  getPScale();
-  getIScale();
-  getDScale();
-  scaleBoth();
-
-  // PID Controller - SELECT ONE:
-  controlANGLE();
-  // controlANGLE2(); //Stabilize on angle setpoint using cascaded method. Rate controller must be tuned well first!
-  // controlRATE(); //Stabilize on rate setpoint
-
-  // Actuator mixing and scaling to PWM values
-  controlMixer();  // Mixes PID outputs to scaled actuator commands -- custom
-                   // mixing assignments done here
-  scaleCommands(); // Scales motor commands to 125 to 250 range (oneshot125
-                   // protocol) and servo PWM commands to 0 to 180 (for servo
-                   // library)
-
-  // Throttle cut check
-  bool killThrottle = throttleCut(); // Directly sets motor commands to low
-                                     // based on state of ch5
-
-	#ifdef USE_ONESHOT
-  commandMotors(); // Sends command pulses to each motor pin using OneShot125 protocol
-  // Command actuators
-	#else
-  servo1.write(m1_command_PWM); // Writes PWM value to servo object
-  servo2.write(m2_command_PWM);
-  servo3.write(m3_command_PWM);
-  servo4.write(m4_command_PWM);
-	#endif
-
-  // Get vehicle commands for next loop iteration
-  getCommands(); // Pulls current available radio commands
-  failSafe();    // Prevent failures in event of bad receiver connection, defaults
-                 // to failsafe values assigned in setup
-
-  if (killThrottle && (throttleCutCount > 100) && flightLoopStarted) {
-    logData_endProcess();
-    while (1) {
-      getCommands();
-			#ifdef USE_ONESHOT
-			commandMotors(); // Sends command pulses to each motor pin using OneShot125 protocol
-			// Command actuators
-			#else
-			servo1.write(m1_command_PWM); // Writes PWM value to servo object
-			servo2.write(m2_command_PWM);
-			servo3.write(m3_command_PWM);
-			servo4.write(m4_command_PWM);
-			#endif
-
-      if (channel_14_pwm > 1500) {
-        CPU_RESTART;
-      }
-    }
-  } else if (killThrottle && flightLoopStarted) {
-    throttleCutCount++;
-    Serial.print("throttleCutCount: ");
-    Serial.println(throttleCutCount);
-  } else {
-    throttleCutCount = 0;
-  }
-
-  // Regulate loop rate
-  loopRate(2000); // Do not exceed 2000Hz, all filter parameters tuned to 2000Hz by default
-}
 
 //========================================================================================================================//
 //                                                      FUNCTIONS //
 //========================================================================================================================//
 
+// HELPER FUNCTIONS
+float invSqrt(float x) {
+  // Fast inverse sqrt for madgwick filter
+  /*
+  float halfx = 0.5f * x;
+  float y = x;
+  long i = *(long*)&y;
+  i = 0x5f3759df - (i>>1);
+  y = *(float*)&i;
+  y = y * (1.5f - (halfx * y * y));
+  y = y * (1.5f - (halfx * y * y));
+  return y;
+  */
+  /*
+  //alternate form:
+  unsigned int i = 0x5F1F1412 - (*(unsigned int*)&x >> 1);
+  float tmp = *(float*)&i;
+  float y = tmp * (1.69000231f - 0.714158168f * x * tmp * tmp)
+  return y;
+  */
+  return 1.0 / sqrtf(x); // Teensy is fast enough to just take the compute
+                         // penalty lol suck it arduino nano
+}
+//
 void controlMixer() {
   // DESCRIPTION: Mixes scaled commands from PID controller to actuator outputs based on vehicle configuration
   /*
@@ -839,24 +578,6 @@ void calculate_IMU_error(attInfo *imu, MPU6050 *mpu6050) {
   for (;;);
 }
 
-void calibrateAttitude() {
-  // DESCRIPTION: Used to warm up the main loop to allow the madwick filter to
-  // converge before commands can be sent to the actuators Assuming vehicle is
-  // powered up on level surface!
-  /*
-   * This function is used on startup to warm up the attitude estimation and is
-   * what causes startup to take a few seconds to boot.
-   */
-  // Warm up IMU and madgwick filter in simulated main loop
-  for (int i = 0; i <= 10000; i++) {
-    prev_time = current_time;
-    current_time = micros();
-    dt = (current_time - prev_time) / 1000000.0;
-    getIMUData(&quadIMU_info, &quadIMU);
-    Madgwick6DOF(&quadIMU_info, dt);
-    loopRate(2000); // do not exceed 2000Hz
-  }
-}
 
 void Madgwick6DOF(attInfo *imu, float invSampleFreq) {
   // DESCRIPTION: Attitude estimation through sensor fusion - 6DOF
@@ -1522,58 +1243,6 @@ void armMotors() {
   }
 }
 
-void calibrateESCs() {
-  // DESCRIPTION: Used in void setup() to allow standard ESC calibration
-  // procedure with the radio to take place.
-  /*
-   *  Simulates the void loop(), but only for the purpose of providing throttle
-   * pass through to the motors, so that you can power up with throttle at full,
-   * let ESCs begin arming sequence, and lower throttle to zero. This function
-   * should only be uncommented when performing an ESC calibration.
-   */
-  while (true) {
-    prev_time = current_time;
-    current_time = micros();
-    dt = (current_time - prev_time) / 1000000.0;
-
-    digitalWrite(13, HIGH); // LED on to indicate we are not in main loop
-
-    getCommands();                       // Pulls current available radio commands
-    failSafe();                          // Prevent failures in event of bad receiver connection,
-                                         // defaults to failsafe values assigned in setup
-    getDesState();                       // Convert raw commands to normalized values based on
-                                         // saturated control limits
-    getIMUData(&quadIMU_info, &quadIMU); // Pulls raw gyro, accelerometer, and magnetometer data from
-                                         // IMU and LP filters to remove noise
-    Madgwick6DOF(&quadIMU_info, dt);
-    getDesState(); // Convert raw commands to normalized values based on
-                   // saturated control limits
-
-    m1_command_scaled = thro_des;
-    m2_command_scaled = thro_des;
-    m3_command_scaled = thro_des;
-    m4_command_scaled = thro_des;
-    scaleCommands(); // Scales motor commands to 125 to 250 range (oneshot125
-                     // protocol) and servo PWM commands to 0 to 180 (for servo
-                     // library)
-
-    // throttleCut(); //Directly sets motor commands to low based on state of ch5
-
-		#ifdef USE_ONESHOT
-    commandMotors();
-		#else
-    servo1.write(m1_command_PWM);
-    servo2.write(m2_command_PWM);
-    servo3.write(m3_command_PWM);
-    servo4.write(m4_command_PWM);
-		#endif
-
-    // printRadioData(); //Radio pwm values (expected: 1000 to 2000)
-
-    loopRate(2000); // Do not exceed 2000Hz, all filter parameters tuned to
-                    // 2000Hz by default
-  }
-}
 
 float floatFaderLinear(float param, float param_min, float param_max, float fadeTime, int state, int loopFreq) {
   // DESCRIPTION: Linearly fades a float type variable between min and max
@@ -1830,57 +1499,8 @@ void scaleBoth() {
 
 //=========================================================================================//
 
-// HELPER FUNCTIONS
-float invSqrt(float x) {
-  // Fast inverse sqrt for madgwick filter
-  /*
-  float halfx = 0.5f * x;
-  float y = x;
-  long i = *(long*)&y;
-  i = 0x5f3759df - (i>>1);
-  y = *(float*)&i;
-  y = y * (1.5f - (halfx * y * y));
-  y = y * (1.5f - (halfx * y * y));
-  return y;
-  */
-  /*
-  //alternate form:
-  unsigned int i = 0x5F1F1412 - (*(unsigned int*)&x >> 1);
-  float tmp = *(float*)&i;
-  float y = tmp * (1.69000231f - 0.714158168f * x * tmp * tmp)
-  return y;
-  */
-  return 1.0 / sqrtf(x); // Teensy is fast enough to just take the compute
-                         // penalty lol suck it arduino nano
-}
-//
 // Datalogger
-int logData_setup() {
-	// Initialize the SD
-	if (!sd.begin(SD_CONFIG)) {
-		sd.initErrorPrint(&Serial); // Prints message to serial if SD can't init
-		return 1;
-	}
-	// Determine logfile name
-	int fileIncrement = 0;
-	fileName = filePrefix + String(fileIncrement) + fileExtension;
-	while(sd.exists(fileName)) {
-		// Increment file name if it exists and try again
-		fileIncrement++;
-		fileName = filePrefix + String(fileIncrement) + fileExtension;
-	}
-	// Open or create file - truncate existing
-	if (!file.open(fileName.c_str(), O_RDWR | O_CREAT | O_TRUNC)) {
-		Serial.println("open failed\n");
-		return 1;
-	}
-	// Initialize ring buffer
-	buffer.begin(&file);
-	Serial.println("Buffer initialized");
-	logData_printCSVHeader();
-	return 0;
-}
-
+//
 void logData_printCSVHeader() {
 	buffer.print("roll_imu");
 	buffer.write(",");
@@ -1999,6 +1619,33 @@ void logData_printCSVHeader() {
 
 	buffer.println();
 }
+
+int logData_setup() {
+	// Initialize the SD
+	if (!sd.begin(SD_CONFIG)) {
+		sd.initErrorPrint(&Serial); // Prints message to serial if SD can't init
+		return 1;
+	}
+	// Determine logfile name
+	int fileIncrement = 0;
+	fileName = filePrefix + String(fileIncrement) + fileExtension;
+	while(sd.exists(fileName)) {
+		// Increment file name if it exists and try again
+		fileIncrement++;
+		fileName = filePrefix + String(fileIncrement) + fileExtension;
+	}
+	// Open or create file - truncate existing
+	if (!file.open(fileName.c_str(), O_RDWR | O_CREAT | O_TRUNC)) {
+		Serial.println("open failed\n");
+		return 1;
+	}
+	// Initialize ring buffer
+	buffer.begin(&file);
+	Serial.println("Buffer initialized");
+	logData_printCSVHeader();
+	return 0;
+}
+
 
 int logData_writeBuffer() {
 	size_t amtDataInBuf = buffer.bytesUsed();
@@ -2534,6 +2181,365 @@ void getCh6() {
   else if(trigger == 0) {
     channel_6_raw = micros() - rising_edge_start_6;
   }
+}
+
+void calibrateAttitude() {
+  // DESCRIPTION: Used to warm up the main loop to allow the madwick filter to
+  // converge before commands can be sent to the actuators Assuming vehicle is
+  // powered up on level surface!
+  /*
+   * This function is used on startup to warm up the attitude estimation and is
+   * what causes startup to take a few seconds to boot.
+   */
+  // Warm up IMU and madgwick filter in simulated main loop
+  for (int i = 0; i <= 10000; i++) {
+    prev_time = current_time;
+    current_time = micros();
+    dt = (current_time - prev_time) / 1000000.0;
+    getIMUData(&quadIMU_info, &quadIMU);
+    Madgwick6DOF(&quadIMU_info, dt);
+    loopRate(2000); // do not exceed 2000Hz
+  }
+}
+
+void calibrateESCs() {
+  // DESCRIPTION: Used in void setup() to allow standard ESC calibration
+  // procedure with the radio to take place.
+  /*
+   *  Simulates the void loop(), but only for the purpose of providing throttle
+   * pass through to the motors, so that you can power up with throttle at full,
+   * let ESCs begin arming sequence, and lower throttle to zero. This function
+   * should only be uncommented when performing an ESC calibration.
+   */
+  while (true) {
+    prev_time = current_time;
+    current_time = micros();
+    dt = (current_time - prev_time) / 1000000.0;
+
+    digitalWrite(13, HIGH); // LED on to indicate we are not in main loop
+
+    getCommands();                       // Pulls current available radio commands
+    failSafe();                          // Prevent failures in event of bad receiver connection,
+                                         // defaults to failsafe values assigned in setup
+    getDesState();                       // Convert raw commands to normalized values based on
+                                         // saturated control limits
+    getIMUData(&quadIMU_info, &quadIMU); // Pulls raw gyro, accelerometer, and magnetometer data from
+                                         // IMU and LP filters to remove noise
+    Madgwick6DOF(&quadIMU_info, dt);
+    getDesState(); // Convert raw commands to normalized values based on
+                   // saturated control limits
+
+    m1_command_scaled = thro_des;
+    m2_command_scaled = thro_des;
+    m3_command_scaled = thro_des;
+    m4_command_scaled = thro_des;
+    scaleCommands(); // Scales motor commands to 125 to 250 range (oneshot125
+                     // protocol) and servo PWM commands to 0 to 180 (for servo
+                     // library)
+
+    // throttleCut(); //Directly sets motor commands to low based on state of ch5
+
+		#ifdef USE_ONESHOT
+    commandMotors();
+		#else
+    servo1.write(m1_command_PWM);
+    servo2.write(m2_command_PWM);
+    servo3.write(m3_command_PWM);
+    servo4.write(m4_command_PWM);
+		#endif
+
+    // printRadioData(); //Radio pwm values (expected: 1000 to 2000)
+
+    loopRate(2000); // Do not exceed 2000Hz, all filter parameters tuned to
+                    // 2000Hz by default
+  }
+}
+
+//========================================================================================================================//
+//                                                      VOID SETUP 																												//
+//========================================================================================================================//
+
+void setup() {
+  Serial.begin(500000); // USB serial
+  delay(500);
+
+  // Initialize all pins
+  pinMode(13, OUTPUT); // Pin 13 LED blinker on board, do not modify
+
+  pinMode(m1Pin, OUTPUT);
+  pinMode(m2Pin, OUTPUT);
+  pinMode(m3Pin, OUTPUT);
+  pinMode(m4Pin, OUTPUT);
+
+	#ifdef USE_ONESHOT
+  // Initialize timers for OneShot125
+  m1_timer.begin(m1_EndPulse);
+  m2_timer.begin(m2_EndPulse);
+  m3_timer.begin(m3_EndPulse);
+  m4_timer.begin(m4_EndPulse);
+	#else
+  servo1.attach(m1Pin, 1000, 2100); // Pin, min PWM value, max PWM value
+  servo2.attach(m2Pin, 1000, 2100);
+  servo3.attach(m3Pin, 1000, 2100);
+  servo4.attach(m4Pin, 1000, 2100);
+	#endif
+
+  // Set built in LED to turn on to signal startup
+  digitalWrite(13, HIGH);
+
+  delay(5);
+
+  // Initialize radio communication (defined in header file)
+  radioSetup();
+
+  // Begin mavlink telemetry module
+  telem.InitTelemetry();
+
+  // Set radio channels to default (safe) values before entering main loop
+  channel_1_pwm = channel_1_fs;
+  channel_2_pwm = channel_2_fs;
+  channel_3_pwm = channel_3_fs;
+  channel_4_pwm = channel_4_fs;
+  channel_5_pwm = channel_5_fs;
+  channel_6_pwm = channel_6_fs;
+  channel_7_pwm = channel_7_fs;
+  channel_8_pwm = channel_8_fs;
+  channel_9_pwm = channel_9_fs;
+  channel_10_pwm = channel_10_fs;
+  channel_11_pwm = channel_11_fs;
+  channel_12_pwm = channel_12_fs;
+  channel_13_pwm = channel_13_fs;
+  channel_14_pwm = channel_14_fs;
+
+  IMUinit(&quadIMU);
+
+
+	// IMUinit(&imu2);
+
+  // Initialize the SD card, returns 1 if no sd card is detected or it can't be
+  // initialized
+  SD_is_present = !logData_setup();
+
+
+  // Get IMU error to zero accelerometer and gyro readings, assuming vehicle is
+  // level when powered up Calibration parameters printed to serial monitor.
+  // Paste these in the user specified variables section, then comment this out
+  // forever.
+
+  // calculate_IMU_error(&quadIMU_info, &quadIMU);
+
+  quadIMU_info.AccErrorX = -0.0121f;
+  quadIMU_info.AccErrorY = 0.0126f;
+  quadIMU_info.AccErrorZ = 0.0770f;
+  quadIMU_info.GyroErrorX = -4.7787f;
+  quadIMU_info.GyroErrorY = -2.1795f;
+  quadIMU_info.GyroErrorZ = -0.6910f;
+
+  // Arm servo channels
+	#ifndef USE_ONESHOT
+  servo1.write(0); // Command servo angle from 0-180 degrees (1000 to 2000 PWM)
+  servo2.write(0); // Set these to 90 for servos if you do not want them to
+                   // briefly max out on startup
+  servo3.write(0); // Keep these at 0 if you are using servo outputs for motors
+  servo4.write(0);
+	#endif
+
+  delay(5);
+
+  // PROPS OFF. Uncomment this to calibrate your ESCs by setting throttle stick
+  // to max, powering on, and lowering throttle to zero after the beeps
+  //  calibrateESCs();
+  // Code will not proceed past here if this function is uncommented!
+
+#ifdef USE_ONESHOT
+  // Arm OneShot125 motors
+  m1_command_PWM = 125; // Command OneShot125 ESC from 125 to 250us pulse length
+  m2_command_PWM = 125;
+  m3_command_PWM = 125;
+  m4_command_PWM = 125;
+  armMotors(); // Loop over commandMotors() until ESCs happily arm
+#endif
+
+  // Indicate entering main loop with 3 quick blinks
+  setupBlink(3, 160, 70); // numBlinks, upTime (ms), downTime (ms)
+
+  doneWithSetup = 1;
+}
+
+//================================================================================================//
+//                                      MAIN LOOP //
+//================================================================================================//
+void loop() {
+  // Keep track of what time it is and how much time has elapsed since the last loop
+  prev_time = current_time;
+  current_time = micros();
+  dt = (current_time - prev_time) / 1000000.0;
+
+  loopBlink(); // Indicate we are in main loop with short blink every 1.5 seconds
+
+  //  Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
+  //  Prints radio pwm values (expected: 1000 to 2000)
+  // printRadioData();
+  //  Prints desired vehicle state commanded in either degrees or deg/sec (expected: +/- maxAXIS for roll, pitch, yaw; 0
+  //  to 1 for throttle)
+  // printDesiredState();
+  //  Prints filtered gyro data direct from IMU (expected: ~ -250 to 250, 0 at rest)
+  // printGyroData();
+  //  Prints filtered accelerometer data direct from IMU (expected: ~ -2 to 2; x,y 0 when level, z 1 when level)
+  // printAccelData();
+  //  Prints filtered magnetometer data direct from IMU (expected: ~ -300 to 300)
+  // printMagData();
+  //  Prints roll, pitch, and yaw angles in degrees from Madgwick filter (expected: degrees, 0 when level)
+  // printRollPitchYaw();
+  //  Prints computed stabilized PID variables from controller and desired setpoint (expected: ~ -1 to 1)
+  // printPIDoutput();
+  //  Prints the values being written to the motors (expected: 120 to 250)
+  // printMotorCommands();
+  //  Prints the values being written to the servos (expected: 0 to 180)
+  // printServoCommands();
+  //  Prints the time between loops in microseconds (expected: microseconds between loop iterations)
+  // printLoopRate();
+  //  Prints the angles alpha, beta, pitch, roll, alpha + roll, beta + pitch
+  // printRIPAngles();
+
+  //  Prints desired and imu roll state for serial plotter
+  // displayRoll();
+  //  Prints desired and imu pitch state for serial plotter
+  // displayPitch();
+
+  // Check if rotors should be armed
+  if (!flightLoopStarted && channel_5_pwm < 1500) {
+    flightLoopStarted = 1;
+    telem.SetSystemState(MAV_STATE_ACTIVE);
+    telem.SetSystemMode(MAV_MODE_MANUAL_ARMED);
+  }
+
+  // Sine sweep check
+  if (channel_7_pwm > 1750) {
+    conductSineSweep = 1;
+  } else {
+    conductSineSweep = 0;
+    sineTime = 0;
+  }
+
+  // Write to SD card buffer
+  if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
+    print_counterSD = micros();
+    logData_writeBuffer();
+    Serial.println("logged");
+  }
+
+  if (loopCount > 2000) {
+    telem.SendHeartbeat();
+    loopCount = 0;
+  }
+  if ((loopCount % 250) == 0) {
+		telem.UpdateReceived();
+    telem.SendAttitude(quadIMU_info.roll_IMU, quadIMU_info.pitch_IMU, 0.0f, quadIMU_info.GyroX, quadIMU_info.GyroY,
+                       0.0f);
+    telem.SendPIDGains_core(Kp_roll_angle * pScaleRoll, Ki_roll_angle * iScaleRoll, Kd_roll_angle * dScaleRoll);
+  }
+  loopCount++;
+
+	// Check for a new position value
+	if (telem.CheckForNewPosition(mocapPosition)) {
+		newPositionReceived = true;
+	} else {
+		newPositionReceived = false;
+	}
+
+  // Get vehicle state
+  getIMUData(&quadIMU_info, &quadIMU); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
+  Madgwick6DOF(&quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
+
+	// getIMUData(&imu2_info, &imu2);
+	// Madgwick6DOF(&imu2_info, dt);
+
+  // Compute desired state based on radio inputs
+  getDesState(); // Convert raw commands to normalized values based on saturated control limits
+
+  if (useSerialAngleCommands) {
+    // Overwrites axisToRotate in getDesState()
+    setDesStateSerial(axisToRotate);
+  }
+
+  if (conductSineSweep) {
+    // Overwrites axisToRotate in getDesState()
+    performSineSweep(axisToRotate);
+  }
+
+  if (channel_8_pwm > 1250 && channel_8_pwm < 1750) {
+    rollStep();
+  }
+
+  if (channel_8_pwm > 1750) {
+    pitchStep();
+  }
+
+  getPScale();
+  getIScale();
+  getDScale();
+  scaleBoth();
+
+  // PID Controller - SELECT ONE:
+  controlANGLE();
+  // controlANGLE2(); //Stabilize on angle setpoint using cascaded method. Rate controller must be tuned well first!
+  // controlRATE(); //Stabilize on rate setpoint
+
+  // Actuator mixing and scaling to PWM values
+  controlMixer();  // Mixes PID outputs to scaled actuator commands -- custom
+                   // mixing assignments done here
+  scaleCommands(); // Scales motor commands to 125 to 250 range (oneshot125
+                   // protocol) and servo PWM commands to 0 to 180 (for servo
+                   // library)
+
+  // Throttle cut check
+  bool killThrottle = throttleCut(); // Directly sets motor commands to low
+                                     // based on state of ch5
+
+	#ifdef USE_ONESHOT
+  commandMotors(); // Sends command pulses to each motor pin using OneShot125 protocol
+  // Command actuators
+	#else
+  servo1.write(m1_command_PWM); // Writes PWM value to servo object
+  servo2.write(m2_command_PWM);
+  servo3.write(m3_command_PWM);
+  servo4.write(m4_command_PWM);
+	#endif
+
+  // Get vehicle commands for next loop iteration
+  getCommands(); // Pulls current available radio commands
+  failSafe();    // Prevent failures in event of bad receiver connection, defaults
+                 // to failsafe values assigned in setup
+
+  if (killThrottle && (throttleCutCount > 100) && flightLoopStarted) {
+    logData_endProcess();
+    while (1) {
+      getCommands();
+			#ifdef USE_ONESHOT
+			commandMotors(); // Sends command pulses to each motor pin using OneShot125 protocol
+			// Command actuators
+			#else
+			servo1.write(m1_command_PWM); // Writes PWM value to servo object
+			servo2.write(m2_command_PWM);
+			servo3.write(m3_command_PWM);
+			servo4.write(m4_command_PWM);
+			#endif
+
+      if (channel_14_pwm > 1500) {
+        CPU_RESTART;
+      }
+    }
+  } else if (killThrottle && flightLoopStarted) {
+    throttleCutCount++;
+    Serial.print("throttleCutCount: ");
+    Serial.println(throttleCutCount);
+  } else {
+    throttleCutCount = 0;
+  }
+
+  // Regulate loop rate
+  loopRate(2000); // Do not exceed 2000Hz, all filter parameters tuned to 2000Hz by default
 }
 
 int main() {

@@ -1,6 +1,8 @@
+#ifndef PI
+  #define PI               3.14159265358979f
+#endif
 #include "telemetry.h"
-#include "src/mavlink/common/mavlink_msg_local_position_ned.h"
-#include "src/mavlink/ardupilotmega/mavlink_msg_pid_tuning.h"
+#include "Arduino.h"
 
 Telemetry::Telemetry() {
 }
