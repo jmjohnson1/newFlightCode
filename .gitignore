@@ -7,3 +7,6 @@ compile_commands.json
 
 # ignore macOS file
 .DS_Store
+
+# ignore lsp stuff
+.cache/
