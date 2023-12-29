@@ -178,7 +178,6 @@ $(BUILDDIR)/%.o: %.c
 	@$(CC) $(CPPFLAGS) $(CFLAGS) $(INC) $(L_INC) -o "$@" -c "$<"
 
 $(BUILDDIR)/%.o: %.cpp
-	@echo "$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INC) $(L_INC)"
 	@echo -e "[CXX]\t$<"
 	@mkdir -p "$(dir $@)"
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INC) $(L_INC) -o "$@" -c "$<"

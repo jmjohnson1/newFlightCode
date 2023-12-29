@@ -1,0 +1,9 @@
+# ignore build files and binaries
+build/
+bin/
+
+# ignore compile_commands
+compile_commands.json
+
+# ignore macOS file
+.DS_Store
