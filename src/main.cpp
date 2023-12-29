@@ -1,4 +1,5 @@
 #include <cstdint>
+
 //================================================================================================//
 //                                    USER-SPECIFIED DEFINES  																		//
 //                                    																														//
@@ -814,7 +815,7 @@ void controlANGLE() {
 
   integral_roll = integral_roll_prev + error_roll * dt;
   if (channel_1_pwm < 1060) { // Don't let integrator build if throttle is too low
-    integral_pitch = 0;
+    integral_roll = 0;
   }
   integral_roll =
       constrain(integral_roll, -i_limit, i_limit); // Saturate integrator to prevent unsafe buildup integral_roll =
