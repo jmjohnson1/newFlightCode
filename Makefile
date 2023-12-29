@@ -98,12 +98,11 @@ TOOLSPATH = tools
 # path for teensy core files
 COREPATH = teensy4
 
-# path location for Arduino libraries (currently not used)
-LIBRARYPATH = libraries
+ARDUINOLIBPATH = src/ArduinoLibs
 INCLUDEPATH = include
 
 # path location for the arm-none-eabi compiler
-COMPILERPATH = /Applications/ARM/bin
+COMPILERPATH = /opt/gcc-arm-none-eabi-10-2020-q4-major/bin
 
 
 #************************************************************************
@@ -142,16 +141,16 @@ SIZE = $(COMPILERPATH)/arm-none-eabi-size
 #CPP_FILES := $(wildcard *.cpp)
 #OBJS := $(C_FILES:.c=.o) $(CPP_FILES:.cpp=.o)
 
-LC_FILES := $(wildcard $(LIBRARYPATH)/*/*.c)
-LCPP_FILES := $(wildcard $(LIBRARYPATH)/*/*.cpp)
+LC_FILES := $(shell find $(ARDUINOLIBPATH) -type f -name *.c)
+LCPP_FILES := $(shell find $(ARDUINOLIBPATH) -type f -name *.cpp)
 TC_FILES := $(wildcard $(COREPATH)/*.c)
 TCPP_FILES := $(wildcard $(COREPATH)/*.cpp)
 C_FILES := $(wildcard src/*.c)
 CPP_FILES := $(wildcard src/*.cpp)
 INO_FILES := $(wildcard src/*.ino)
 
-INC := $(foreach inc,$(filter %/, $(wildcard $(INCLUDEPATH)/*/)), -I$(inc))
-L_INC := $(foreach lib,$(filter %/, $(wildcard $(LIBRARYPATH)/*/src/)), -I$(lib))
+INC := $(foreach inc,$(wildcard $(INCLUDEPATH)/*/), -I$(inc))
+L_INC := $(foreach lib,$(wildcard $(ARDUINOLIBPATH)/*/), -I$(lib))
 
 SOURCES := $(C_FILES:.c=.o) $(CPP_FILES:.cpp=.o) $(INO_FILES:.ino=.o) $(TC_FILES:.c=.o) $(TCPP_FILES:.cpp=.o) $(LC_FILES:.c=.o) $(LCPP_FILES:.cpp=.o)
 OBJS := $(foreach src,$(SOURCES), $(BUILDDIR)/$(src))
