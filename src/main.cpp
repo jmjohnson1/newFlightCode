@@ -1,43 +1,8 @@
-#include <cstdint>
-
-//================================================================================================//
-//                                    USER-SPECIFIED DEFINES  																		//
-//                                    																														//
 //================================================================================================//
 
-// Uncomment only one receiver type
-// #define USE_PWM_RX
-// #define USE_PPM_RX
-#define USE_SBUS_RX
-// #define USE_DSM_RX
-static const uint8_t num_DSM_channels = 6; // If using DSM RX, change this to match the number of
-// transmitter channels you have
+#include "UserDefines.h"
 
-// Uncomment only one IMU
-#define USE_MPU6050_I2C // Default
-// #define USE_MPU9250_SPI
-
-// Uncomment only one full scale gyro range (deg/sec)
-#define GYRO_250DPS // Default
-// #define GYRO_500DPS
-// #define GYRO_1000DPS
-// #define GYRO_2000DPS
-
-// Uncomment only one full scale accelerometer range (G's)
-#define ACCEL_2G // Default
-                 // #define ACCEL_4G
-                 // #define ACCEL_8G
-                 // #define ACCEL_16G
-
-// Define whether tuning RIP gains or core PID gains
-// #define TUNE_RIP
-#define TUNE_CORE
-
-// Use OneShot125 or PWM
-#define USE_ONESHOT
- 
-//================================================================================================//
-
+#include <stdint.h>
 #include <RingBuf.h>  // Ring buffer used to store values for SD card
 #include <SdFat.h>    // Library used for SD card
 #include <TeensyTimerTool.h>  // Oneshot timer
@@ -166,6 +131,8 @@ unsigned long channel_11_fs = 1500; // I gain scale
 unsigned long channel_12_fs = 1500; // D gain scale
 unsigned long channel_13_fs = 1500; // Pitch and roll pid offset
 unsigned long channel_14_fs = 1000; // Reset switch
+
+static const uint8_t num_DSM_channels = 6; // If using DSM RX, change this to match the number of
 
 // Controller parameters (take note of defaults before modifying!):
 // Integrator saturation level, mostly for safety (default 25.0)
@@ -1203,17 +1170,6 @@ void m4_EndPulse() {
 }
 
 void commandMotors() {
-  //  if (current_time - print_counter > 10000) {
-  //   print_counter = micros();
-  //   Serial.print("M1: ");
-  //   Serial.print(m1_command_PWM);
-  //   Serial.print(" M2: ");
-  //   Serial.print(m2_command_PWM);
-  //   Serial.print(" M3: ");
-  //   Serial.print(m3_command_PWM);
-  //   Serial.print(" M4: ");
-  //   Serial.println(m4_command_PWM);
-  //  }
 
   digitalWrite(m1Pin, HIGH);
   m1_writing = true;
@@ -1244,90 +1200,6 @@ void armMotors() {
   }
 }
 
-
-float floatFaderLinear(float param, float param_min, float param_max, float fadeTime, int state, int loopFreq) {
-  // DESCRIPTION: Linearly fades a float type variable between min and max
-  // bounds based on desired high or low state and time
-  /*
-   *  Takes in a float variable, desired minimum and maximum bounds, fade time,
-   * high or low desired state, and the loop frequency and linearly interpolates
-   * that param variable between the maximum and minimum bounds. This function
-   * can be called in controlMixer() and high/low states can be determined by
-   * monitoring the state of an auxillarly radio channel. For example, if
-   * channel_6_pwm is being monitored to switch between two dynamic
-   * configurations (hover and forward flight), this function can be called
-   * within the logical statements in order to fade controller gains, for
-   * example between the two dynamic configurations. The 'state' (1 or 0) can be
-   * used to designate the two final options for that control gain based on the
-   * dynamic configuration assignment to the auxillary radio channel.
-   *
-   */
-  float diffParam = (param_max - param_min) / (fadeTime * loopFreq); // Difference to add or subtract from param for
-                                                                     // each loop iteration for desired fadeTime
-
-  if (state == 1) { // Maximum param bound desired, increase param by diffParam
-                    // for each loop iteration
-    param = param + diffParam;
-  } else if (state == 0) { // Minimum param bound desired, decrease param by
-                           // diffParam for each loop iteration
-    param = param - diffParam;
-  }
-
-  param = constrain(param, param_min,
-                    param_max); // Constrain param within max bounds
-
-  return param;
-}
-
-float floatFaderLinear2(float param, float param_des, float param_lower, float param_upper, float fadeTime_up,
-                        float fadeTime_down, int loopFreq) {
-  // DESCRIPTION: Linearly fades a float type variable from its current value to
-  // the desired value, up or down
-  /*
-   *  Takes in a float variable to be modified, desired new position, upper
-   * value, lower value, fade time, and the loop frequency and linearly fades
-   * that param variable up or down to the desired value. This function can be
-   * called in controlMixer() to fade up or down between flight modes monitored
-   * by an auxillary radio channel. For example, if channel_6_pwm is being
-   *  monitored to switch between two dynamic configurations (hover and forward
-   * flight), this function can be called within the logical statements in order
-   * to fade controller gains, for example between the two dynamic
-   * configurations.
-   *
-   */
-  if (param > param_des) { // Need to fade down to get to desired
-    float diffParam = (param_upper - param_des) / (fadeTime_down * loopFreq);
-    param = param - diffParam;
-  } else if (param < param_des) { // Need to fade up to get to desired
-    float diffParam = (param_des - param_lower) / (fadeTime_up * loopFreq);
-    param = param + diffParam;
-  }
-
-  param = constrain(param, param_lower,
-                    param_upper); // Constrain param within max bounds
-
-  return param;
-}
-
-void switchRollYaw(int reverseRoll, int reverseYaw) {
-  // DESCRIPTION: Switches roll_des and yaw_des variables for tailsitter-type
-  // configurations
-  /*
-   * Takes in two integers (either 1 or -1) corresponding to the desired
-   * reversing of the roll axis and yaw axis, respectively. Reversing of the
-   * roll or yaw axis may be needed when switching between the two for some
-   * dynamic configurations. Inputs of 1, 1 does not reverse either of them,
-   * while -1, 1 will reverse the output corresponding to the new roll axis.
-   * This function may be replaced in the future by a function that switches the
-   * IMU data instead (so that angle can also be estimated with the IMU tilted
-   * 90 degrees from default level).
-   */
-  float switch_holder;
-
-  switch_holder = yaw_des;
-  yaw_des = reverseYaw * roll_des;
-  roll_des = reverseRoll * switch_holder;
-}
 
 int throttleCut() {
   // DESCRIPTION: Directly set actuator outputs to minimum value if triggered
