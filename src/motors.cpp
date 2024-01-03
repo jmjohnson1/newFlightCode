@@ -35,7 +35,7 @@ int ScaleCommand(float motorCommandNormalized) {
 
 void CommandMotor(const TeensyTimerTool::OneShotTimer &timer, int commandValue, uint8_t motorPin) {
 	digitalWriteFast(motorPin, HIGH);
-	timer->trigger(commandValue);
+	timer.trigger(commandValue);
 }
 
 void ArmMotors(const TeensyTimerTool::OneShotTimer *timers, uint8_t *motorPins, uint8_t numberOfMotors) {

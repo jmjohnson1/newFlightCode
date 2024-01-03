@@ -4,7 +4,7 @@
 class AnglePID {
 public:
 	AnglePID(float Kp, float Ki, float Kd, float iLimit = 25.0f);
-	void Update(float setpoint, float measuredAngle, float dt, float gyroRate, bool noIntegral);
+	float Update(float setpoint, float measuredAngle, float dt, float gyroRate, bool noIntegral);
 	
 	float GetPIDOutput() {return PIDOutput_;}
 	float GetKp() {return Kp_;}
@@ -26,7 +26,7 @@ protected:
 class RatePID : public AnglePID {
 public:
 	RatePID(float Kp, float Ki, float Kd, float iLimit = 25.0f);
-	void Update(float setpoint, float measuredRate, float dt, bool noIntegral);
+	float Update(float setpoint, float measuredRate, float dt, bool noIntegral);
 
 protected:
 	float error_prev_;

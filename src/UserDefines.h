@@ -7,10 +7,6 @@
 #define USE_SBUS_RX
 // #define USE_DSM_RX
 
-/**Uncomment only one IMU**/
-#define USE_MPU6050_I2C // Default
-// #define USE_MPU9250_SPI
-
 /**Uncomment only one full scale gyro range (deg/sec)**/
 #define GYRO_250DPS // Default
 // #define GYRO_500DPS

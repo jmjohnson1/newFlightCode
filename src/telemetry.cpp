@@ -58,13 +58,13 @@ void Telemetry::SendAttitude(float roll, float pitch, float yaw, float rollspeed
 	SendMessage(&msg);
 }
 
-void Telemetry::SendScaledIMU(uint64_t timeSinceBoot, attInfo *imuInfo) {
-	int16_t xacc = imuInfo->AccX*1000;  // mG
-	int16_t yacc = imuInfo->AccY*1000;
-	int16_t zacc = imuInfo->AccZ*1000;
-	int16_t xgyro = imuInfo->GyroX*1000 * deg2rad; // mrad/s
-	int16_t ygyro = imuInfo->GyroY*1000 * deg2rad;
-	int16_t zgyro = imuInfo->GyroZ*1000 * deg2rad;
+void Telemetry::SendScaledIMU(uint64_t timeSinceBoot, const IMU &imu) {
+	int16_t xacc = imu.GetAccX()*1000;  // mG
+	int16_t yacc = imu.GetAccY()*1000;
+	int16_t zacc = imu.GetAccZ()*1000;
+	int16_t xgyro = imu.GetGyroX()*1000 * deg2rad; // mrad/s
+	int16_t ygyro = imu.GetGyroY()*1000 * deg2rad;
+	int16_t zgyro = imu.GetGyroZ()*1000 * deg2rad;
 	//mavlink_msg_scale
 
 }

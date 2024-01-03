@@ -42,6 +42,8 @@ BUILDDIR = build
 # The name of your project (used to name the compiled .hex file)
 TARGET = bin/main
 
+OS_NAME := $(shell uname -s | tr A-Z a-z)
+
 # configurable options
 OPTIONS = -DF_CPU=600000000 -DUSB_SERIAL -DLAYOUT_US_ENGLISH -DUSING_MAKEFILE
 #
@@ -102,7 +104,14 @@ ARDUINOLIBPATH = src/ArduinoLibs
 INCLUDEPATH = include
 
 # path location for the arm-none-eabi compiler
-COMPILERPATH = /opt/gcc-arm-none-eabi-10-2020-q4-major/bin
+
+
+ifeq ($(OS_NAME), linux)
+	COMPILERPATH = /opt/gcc-arm-none-eabi-10-2020-q4-major/bin
+endif
+ifeq ($(OS_NAME), darwin)
+	COMPILERPATH = /Applications/ARM/bin
+endif
 
 
 #************************************************************************
@@ -171,6 +180,9 @@ reboot:
 	@-$(abspath $(TOOLSPATH))/teensy_reboot
 
 upload: post_compile reboot
+
+os: 
+	@echo $(OS_NAME)
 
 $(BUILDDIR)/%.o: %.c
 	@echo -e "[CC]\t$<"

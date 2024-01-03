@@ -1,5 +1,5 @@
-build/src/main.o: src/main.cpp src/ArduinoLibs/SdFat/RingBuf.h \
- src/ArduinoLibs/SdFat/common/FmtNumber.h \
+build/src/main.o: src/main.cpp src/UserDefines.h \
+ src/ArduinoLibs/SdFat/RingBuf.h src/ArduinoLibs/SdFat/common/FmtNumber.h \
  src/ArduinoLibs/SdFat/common/SysCall.h \
  src/ArduinoLibs/SdFat/common/../SdFatConfig.h teensy4/Arduino.h \
  teensy4/WProgram.h teensy4/avr/pgmspace.h teensy4/avr/interrupt.h \
@@ -436,6 +436,7 @@ build/src/main.o: src/main.cpp src/ArduinoLibs/SdFat/RingBuf.h \
  include/mavlink/common/../standard/../minimal/./mavlink_msg_heartbeat.h \
  include/mavlink/common/../standard/../minimal/./mavlink_msg_protocol_version.h \
  include/mavlink/common/../mavlink_get_info.h \
- include/mavlink/ardupilotmega/mavlink_msg_pid_tuning.h \
- src/ArduinoLibs/SBUS/SBUS.h src/ArduinoLibs/SBUS/elapsedMillis.h \
- src/ArduinoLibs/MPU6050/MPU6050.h src/ArduinoLibs/MPU6050/I2Cdev.h
+ include/mavlink/ardupilotmega/mavlink_msg_pid_tuning.h src/IMU.h \
+ src/ArduinoLibs/MPU6050/MPU6050.h src/ArduinoLibs/MPU6050/I2Cdev.h \
+ src/madgwick.h src/controller.h src/motors.h src/ArduinoLibs/SBUS/SBUS.h \
+ src/ArduinoLibs/SBUS/elapsedMillis.h

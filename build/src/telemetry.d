@@ -353,7 +353,8 @@ build/src/telemetry.o: src/telemetry.cpp src/telemetry.h \
  include/eigen/Eigen/src/Core/StlIterators.h \
  include/eigen/Eigen/src/Core/GlobalFunctions.h \
  include/eigen/Eigen/src/Core/util/ReenableStupidWarnings.h \
- src/commonDefinitions.h teensy4/Arduino.h teensy4/WProgram.h \
+ src/commonDefinitions.h src/IMU.h src/ArduinoLibs/MPU6050/MPU6050.h \
+ src/ArduinoLibs/MPU6050/I2Cdev.h teensy4/Arduino.h teensy4/WProgram.h \
  teensy4/avr/pgmspace.h teensy4/avr/interrupt.h teensy4/avr_functions.h \
  teensy4/wiring.h teensy4/binary.h teensy4/core_id.h teensy4/core_pins.h \
  teensy4/imxrt.h teensy4/pins_arduino.h teensy4/HardwareSerial.h \
@@ -365,4 +366,5 @@ build/src/telemetry.o: src/telemetry.cpp src/telemetry.h \
  teensy4/usb_rawhid.h teensy4/usb_flightsim.h teensy4/usb_audio.h \
  teensy4/usb_touch.h teensy4/WCharacter.h teensy4/elapsedMillis.h \
  teensy4/Arduino.h teensy4/IntervalTimer.h teensy4/CrashReport.h \
- teensy4/Printable.h teensy4/WString.h
+ teensy4/Printable.h teensy4/WString.h src/ArduinoLibs/Wire/Wire.h \
+ src/ArduinoLibs/Wire/WireIMXRT.h src/UserDefines.h
