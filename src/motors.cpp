@@ -2,6 +2,7 @@
 #include "UserDefines.h"
 #include "Arduino.h"
 
+// TODO: Remove this. It's handled by the attitude controller.
 float ControlMixer(float throttle, float pitchPID, float rollPID, float yawPID, uint8_t motor) {
 	switch (motor) {
 		case 1: // Front left

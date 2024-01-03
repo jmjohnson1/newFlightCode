@@ -290,6 +290,12 @@ AnglePID rollPID = AnglePID(Kp_roll_angle, Ki_roll_angle, Kd_roll_angle);
 AnglePID pitchPID = AnglePID(Kp_pitch_angle, Ki_pitch_angle, Kd_pitch_angle);
 RatePID yawPID = RatePID(Kp_yaw, Ki_yaw, Kd_yaw);
 
+float Kp_array[3] = {Kp_roll_angle, Kp_pitch_angle, Kp_yaw};
+float Ki_array[3] = {Ki_roll_angle, Ki_pitch_angle, Ki_yaw};
+float Kd_array[3] = {Kd_roll_angle, Kd_pitch_angle, Kd_yaw};
+
+AngleAttitudeController controller = AngleAttitudeController(Kp_array, Ki_array, Kd_array);
+
 
 //========================================================================================================================//
 //                                                      FUNCTIONS //
@@ -1727,22 +1733,17 @@ void loop() {
 	if (channel_1_pwm < 1060) {
 		bool noIntegral = true;
 	}
-	roll_PID = rollPID.Update(roll_des, quadIMU_info.roll, dt, quadIMU.GetGyroX(), noIntegral);
-	pitch_PID = pitchPID.Update(pitch_des, quadIMU_info.pitch, dt, quadIMU.GetGyroY(), noIntegral);
-	yaw_PID = yawPID.Update(yaw_des, quadIMU.GetGyroZ(), dt, noIntegral);
+	float setpoints[3] = {roll_des, pitch_des, yaw_des};
+	float gyroRates[3] = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
+	controller.Update(setpoints, quadIMU_info, gyroRates, dt, noIntegral);
+	float motorCommandsNormalized[4];
+	controller.GetMotorCommands(motorCommandsNormalized, thro_des);
 
-  // Actuator mixing and scaling to PWM values
-//  controlMixer();  // Mixes PID outputs to scaled actuator commands -- custom
-                   // mixing assignments done here
- // scaleCommands(); // Scales motor commands to 125 to 250 range (oneshot125
-                   // protocol) and servo PWM commands to 0 to 180 (for servo
-                   // library)
-	
-	// TODO: Fix these god awful names
-	m1_command_scaled = ControlMixer(thro_des, pitch_PID, roll_PID, yaw_PID, 1);
-	m2_command_scaled = ControlMixer(thro_des, pitch_PID, roll_PID, yaw_PID, 2);
-	m3_command_scaled = ControlMixer(thro_des, pitch_PID, roll_PID, yaw_PID, 3);
-	m4_command_scaled = ControlMixer(thro_des, pitch_PID, roll_PID, yaw_PID, 4);
+	// TODO: Fix these god awful names and maybe put things in arrays
+	m1_command_scaled = motorCommandsNormalized[0];
+	m2_command_scaled = motorCommandsNormalized[1];
+	m3_command_scaled = motorCommandsNormalized[2];
+	m4_command_scaled = motorCommandsNormalized[3];
 
 	m1_command_PWM = ScaleCommand(m1_command_scaled);
 	m2_command_PWM = ScaleCommand(m2_command_scaled);
