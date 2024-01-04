@@ -1318,7 +1318,9 @@ void setup() {
   channel_13_pwm = channel_13_fs;
   channel_14_pwm = channel_14_fs;
 
-	quadIMU.Init();	
+	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
+	Serial.print("IMU initialization successful: ");
+	Serial.println(IMU_initSuccessful);
 
   // Initialize the SD card, returns 1 if no sd card is detected or it can't be
   // initialized

@@ -1,5 +1,5 @@
 #include "IMU.h"
-#include "Wire.h"
+
 
 IMU::IMU(float accNSX, float accNSY, float accNSZ, float gyroNSX, float gyroNSY, float gyroNSZ){
 	mpu6050_ = new MPU6050;
@@ -22,9 +22,10 @@ IMU::~IMU() {
 	delete[] mpu6050_;
 }
 
-bool IMU::Init() {
-	Wire.begin();
-	Wire.setClock(1000000);
+bool IMU::Init(TwoWire *bus) {
+	bus_ = bus;
+	bus->begin();
+	bus->setClock(1000000);
 
 	mpu6050_->initialize();
 
@@ -32,8 +33,10 @@ bool IMU::Init() {
 		return false;
 	}
 
+
 	mpu6050_->setFullScaleGyroRange(GYRO_SCALE);
 	mpu6050_->setFullScaleAccelRange(ACCEL_SCALE);
+	return true;
 }
 
 void IMU::Update() {

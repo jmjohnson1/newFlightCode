@@ -2,6 +2,7 @@
 #define IMU_H
 
 #include <stdint.h>
+#include "Wire.h"
 #include "MPU6050.h"
 #include "UserDefines.h"
 
@@ -50,7 +51,7 @@ public:
 	~IMU();
 
 	void Update();
-	bool Init();
+	bool Init(TwoWire *bus);
 	float GetAccX() const {return accX_;}
 	float GetAccY() const {return accY_;}
 	float GetAccZ() const {return accZ_;}
@@ -60,6 +61,7 @@ public:
 
 private:
 	MPU6050 *mpu6050_ = NULL;
+	TwoWire *bus_ = NULL;
 
 	float accX_, accY_, accZ_;
 	float gyroX_, gyroY_, gyroZ_;
