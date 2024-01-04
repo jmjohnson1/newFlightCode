@@ -1,12 +1,6 @@
 #ifndef USER_DEFINE_H
 #define USER_DEFINE_H
 
-/**Uncomment only one receiver type**/
-// #define USE_PWM_RX
-// #define USE_PPM_RX
-#define USE_SBUS_RX
-// #define USE_DSM_RX
-
 /**Uncomment only one full scale gyro range (deg/sec)**/
 #define GYRO_250DPS // Default
 // #define GYRO_500DPS

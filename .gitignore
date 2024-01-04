@@ -1,6 +1,6 @@
 # ignore build files and binaries
-build/
-bin/
+build/*
+bin/*
 
 # ignore compile_commands
 compile_commands.json

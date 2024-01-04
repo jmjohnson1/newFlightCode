@@ -18,13 +18,7 @@
 #include "controller.h"
 #include "motors.h"
 
-#if defined USE_SBUS_RX
 #include "SBUS.h" //sBus interface
-#endif
-
-#if defined USE_DSM_RX
-#include "DSMRX/DSMRX.h"
-#endif
 
 IMU quadIMU = IMU(-0.0121f, 0.0126f, 0.0770f, -4.7787f, -2.1795f, -0.6910f);
 
@@ -54,7 +48,7 @@ FsFile file;
 RingBuf<FsFile, RING_BUF_CAPACITY> buffer;
 
 //================================================================================================//
-//                                     USER-SPECIFIED VARIABLES //
+//                                     USER-SPECIFIED VARIABLES 																	//
 //================================================================================================//
 
 // Radio failsafe values for every channel in the event that bad reciever data
@@ -73,8 +67,6 @@ unsigned long channel_11_fs = 1500; // I gain scale
 unsigned long channel_12_fs = 1500; // D gain scale
 unsigned long channel_13_fs = 1500; // Pitch and roll pid offset
 unsigned long channel_14_fs = 1000; // Reset switch
-
-static const uint8_t num_DSM_channels = 6; // If using DSM RX, change this to match the number of
 
 // Controller parameters (take note of defaults before modifying!):
 // Integrator saturation level, mostly for safety (default 25.0)
@@ -152,15 +144,6 @@ float sweepTime = 120; // How long to run the sweep for in seconds
 
 // NOTE: Pin 13 is reserved for onboard LED, pins 18 and 19 are reserved for the
 // 			 MPU6050 IMU for default setup
-// Radio note:
-//  		If using SBUS, connect to pin 21 (RX5), if using DSM, connect to pin 15 (RX3)
-const int ch1Pin = 15; // throttle
-const int ch2Pin = 16; // ail
-const int ch3Pin = 17; // ele
-const int ch4Pin = 20; // rudd
-const int ch5Pin = 21; // gear (throttle cut)
-const int ch6Pin = 22; // aux1 (free aux channel)
-const int PPM_Pin = 23;
 
 // Motor pin outputs:
 const int m1Pin = 0;
@@ -195,15 +178,10 @@ int channel_1_pwm, channel_2_pwm, channel_3_pwm, channel_4_pwm, channel_5_pwm, c
 int channel_1_pwm_prev, channel_2_pwm_prev, channel_3_pwm_prev, channel_4_pwm_prev;
 int channel_1_pwm_pre, channel_2_pwm_pre, channel_3_pwm_pre, channel_4_pwm_pre;
 
-#if defined USE_SBUS_RX
 SBUS sbus(Serial5);
 uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
-#endif
-#if defined USE_DSM_RX
-DSM1024 DSM;
-#endif
 
 Attitude quadIMU_info;
 Attitude imu2_info;
@@ -213,11 +191,6 @@ float thro_des, roll_des, pitch_des, yaw_des;
 float roll_passthru, pitch_passthru, yaw_passthru;
 
 // Controller:
-float error_roll, error_roll_prev, roll_des_prev, integral_roll, integral_roll_il, integral_roll_ol, integral_roll_prev,
-    integral_roll_prev_il, integral_roll_prev_ol, derivative_roll, roll_PID = 0;
-float error_pitch, error_pitch_prev, pitch_des_prev, integral_pitch, integral_pitch_il, integral_pitch_ol,
-    integral_pitch_prev, integral_pitch_prev_il, integral_pitch_prev_ol, derivative_pitch, pitch_PID = 0;
-float error_yaw, error_yaw_prev, integral_yaw, integral_yaw_prev, derivative_yaw, yaw_PID = 0;
 
 // Mixer
 float m1_command_scaled, m2_command_scaled, m3_command_scaled, m4_command_scaled;
@@ -499,15 +472,6 @@ void getCommands() {
    * any really high frequency noise.
    */
 
-#if defined USE_PPM_RX || defined USE_PWM_RX
-  channel_1_pwm = getRadioPWM(1);
-  channel_2_pwm = getRadioPWM(2);
-  channel_3_pwm = getRadioPWM(3);
-  channel_4_pwm = getRadioPWM(4);
-  channel_5_pwm = getRadioPWM(5);
-  channel_6_pwm = getRadioPWM(6);
-
-#elif defined USE_SBUS_RX
   if (sbus.read(&sbusChannels[0], &sbusFailSafe, &sbusLostFrame)) {
     // sBus scaling below is for Taranis-Plus and X4R-SB
     float scale = 0.615;
@@ -527,22 +491,6 @@ void getCommands() {
     channel_13_pwm = sbusChannels[12] * scale + bias;
     channel_14_pwm = sbusChannels[13] * scale + bias;
   }
-
-#elif defined USE_DSM_RX
-  if (DSM.timedOut(micros())) {
-    // Serial.println("*** DSM RX TIMED OUT ***");
-  } else if (DSM.gotNewFrame()) {
-    uint16_t values[num_DSM_channels];
-    DSM.getChannelValues(values, num_DSM_channels);
-
-    channel_1_pwm = values[0];
-    channel_2_pwm = values[1];
-    channel_3_pwm = values[2];
-    channel_4_pwm = values[3];
-    channel_5_pwm = values[4];
-    channel_6_pwm = values[5];
-  }
-#endif
 
   // Low-pass the critical commands and update previous values
   float b = 0.7; // Lower=slower, higher=noiser
@@ -954,11 +902,11 @@ int logData_writeBuffer() {
 	buffer.write(",");
 	buffer.print(thro_des, 4);
 	buffer.write(",");
-	buffer.print(roll_PID, 4);
+	buffer.print(controller.GetRollPID(), 4);
 	buffer.write(",");
-	buffer.print(pitch_PID, 4);
+	buffer.print(controller.GetPitchPID(), 4);
 	buffer.write(",");
-	buffer.print(yaw_PID, 4);
+	buffer.print(controller.GetYawPID(), 4);
 	buffer.write(",");
 	buffer.print(channel_1_pwm);
 	buffer.write(",");
@@ -1174,11 +1122,11 @@ void printPIDoutput() {
   if (current_time - print_counter > 10000) {
     print_counter = micros();
     Serial.print(F("roll_PID: "));
-    Serial.print(roll_PID);
+    Serial.print(controller.GetRollPID());
     Serial.print(F(" pitch_PID: "));
-    Serial.print(pitch_PID);
+    Serial.print(controller.GetPitchPID());
     Serial.print(F(" yaw_PID: "));
-    Serial.println(yaw_PID);
+    Serial.println(controller.GetYawPID());
   }
 }
 
@@ -1237,207 +1185,10 @@ void printPIDGains() {
   }
 }
 
-
-//Arduino/Teensy Flight Controller - dRehmFlight
-//Author: Nicholas Rehm
-//Project Start: 1/6/2020
-//Last Updated: 7/29/2022
-//Version: Beta 1.3
-
-//========================================================================================================================//
-
-//This file contains all necessary functions and code used for radio communication to avoid cluttering the main code
-
-unsigned long rising_edge_start_1, rising_edge_start_2, rising_edge_start_3, rising_edge_start_4, 
-						  rising_edge_start_5, rising_edge_start_6, rising_edge_start_7; 
-unsigned long channel_1_raw, channel_2_raw, channel_3_raw, channel_4_raw, channel_5_raw, 
-							channel_6_raw, channel_7_raw, channel_8_raw, channel_9_raw;
-int ppm_counter = 0;
-unsigned long time_ms = 0;
-
 void radioSetup() {
-  //PPM Receiver 
-  #if defined USE_PPM_RX
-    //Declare interrupt pin
-    pinMode(PPM_Pin, INPUT_PULLUP);
-    delay(20);
-    //Attach interrupt and point to corresponding ISR function
-    attachInterrupt(digitalPinToInterrupt(PPM_Pin), getPPM, CHANGE);
-
-  //PWM Receiver
-  #elif defined USE_PWM_RX
-    //Declare interrupt pins 
-    pinMode(ch1Pin, INPUT_PULLUP);
-    pinMode(ch2Pin, INPUT_PULLUP);
-    pinMode(ch3Pin, INPUT_PULLUP);
-    pinMode(ch4Pin, INPUT_PULLUP);
-    pinMode(ch5Pin, INPUT_PULLUP);
-    pinMode(ch6Pin, INPUT_PULLUP);
-    delay(20);
-    //Attach interrupt and point to corresponding ISR functions
-    attachInterrupt(digitalPinToInterrupt(ch1Pin), getCh1, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(ch2Pin), getCh2, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(ch3Pin), getCh3, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(ch4Pin), getCh4, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(ch5Pin), getCh5, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(ch6Pin), getCh6, CHANGE);
-    delay(20);
-
-  //SBUS Recevier 
-  #elif defined USE_SBUS_RX
     sbus.begin();
-
-  //DSM receiver
-  #elif defined USE_DSM_RX
-    Serial3.begin(115000);
-  #else
-    #error No RX type defined...
-  #endif
 }
 
-unsigned long getRadioPWM(int ch_num) {
-  //DESCRIPTION: Get current radio commands from interrupt routines 
-  unsigned long returnPWM = 0;
-  
-  if (ch_num == 1) {
-    returnPWM = channel_1_raw;
-  }
-  else if (ch_num == 2) {
-    returnPWM = channel_2_raw;
-  }
-  else if (ch_num == 3) {
-    returnPWM = channel_3_raw;
-  }
-  else if (ch_num == 4) {
-    returnPWM = channel_4_raw;
-  }
-  else if (ch_num == 5) {
-    returnPWM = channel_5_raw;
-  }
-  else if (ch_num == 6) {
-    returnPWM = channel_6_raw;
-  }
-  
-  return returnPWM;
-}
-
-//For DSM type receivers
-void serialEvent3(void)
-{
-  #if defined USE_DSM_RX
-    while (Serial3.available()) {
-        DSM.handleSerialEvent(Serial3.read(), micros());
-    }
-  #endif
-}
-
-
-
-//========================================================================================================================//
-
-
-
-//INTERRUPT SERVICE ROUTINES (for reading PWM and PPM)
-
-void getPPM() {
-  unsigned long dt_ppm;
-  int trig = digitalRead(PPM_Pin);
-  if (trig==1) { //Only care about rising edge
-    dt_ppm = micros() - time_ms;
-    time_ms = micros();
-
-    
-    if (dt_ppm > 5000) { //Waiting for long pulse to indicate a new pulse train has arrived
-      ppm_counter = 0;
-    }
-  
-    if (ppm_counter == 1) { //First pulse
-      channel_1_raw = dt_ppm;
-    }
-  
-    if (ppm_counter == 2) { //Second pulse
-      channel_2_raw = dt_ppm;
-    }
-  
-    if (ppm_counter == 3) { //Third pulse
-      channel_3_raw = dt_ppm;
-    }
-  
-    if (ppm_counter == 4) { //Fourth pulse
-      channel_4_raw = dt_ppm;
-    }
- 
-    if (ppm_counter == 5) { //Fifth pulse
-      channel_5_raw = dt_ppm;
-    }
-  
-    if (ppm_counter == 6) { //Sixth pulse
-      channel_6_raw = dt_ppm;
-    }
-    
-    ppm_counter = ppm_counter + 1;
-  }
-}
-
-void getCh1() {
-  int trigger = digitalRead(ch1Pin);
-  if(trigger == 1) {
-    rising_edge_start_1 = micros();
-  }
-  else if(trigger == 0) {
-    channel_1_raw = micros() - rising_edge_start_1;
-  }
-}
-
-void getCh2() {
-  int trigger = digitalRead(ch2Pin);
-  if(trigger == 1) {
-    rising_edge_start_2 = micros();
-  }
-  else if(trigger == 0) {
-    channel_2_raw = micros() - rising_edge_start_2;
-  }
-}
-
-void getCh3() {
-  int trigger = digitalRead(ch3Pin);
-  if(trigger == 1) {
-    rising_edge_start_3 = micros();
-  }
-  else if(trigger == 0) {
-    channel_3_raw = micros() - rising_edge_start_3;
-  }
-}
-
-void getCh4() {
-  int trigger = digitalRead(ch4Pin);
-  if(trigger == 1) {
-    rising_edge_start_4 = micros();
-  }
-  else if(trigger == 0) {
-    channel_4_raw = micros() - rising_edge_start_4;
-  }
-}
-
-void getCh5() {
-  int trigger = digitalRead(ch5Pin);
-  if(trigger == 1) {
-    rising_edge_start_5 = micros();
-  }
-  else if(trigger == 0) {
-    channel_5_raw = micros() - rising_edge_start_5;
-  }
-}
-
-void getCh6() {
-  int trigger = digitalRead(ch6Pin);
-  if(trigger == 1) {
-    rising_edge_start_6 = micros();
-  }
-  else if(trigger == 0) {
-    channel_6_raw = micros() - rising_edge_start_6;
-  }
-}
 
 //void calibrateAttitude() {
 //  // DESCRIPTION: Used to warm up the main loop to allow the madwick filter to
