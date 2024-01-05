@@ -34,16 +34,22 @@ int ScaleCommand(float motorCommandNormalized) {
 	return motorCommandScaled;
 }
 
-void CommandMotor(const TeensyTimerTool::OneShotTimer &timer, int commandValue, uint8_t motorPin) {
+void CommandMotor(TeensyTimerTool::OneShotTimer *timer, int commandValue, uint8_t motorPin) {
 	digitalWriteFast(motorPin, HIGH);
-	timer.trigger(commandValue);
+	Serial.print("Motor pin ");
+	Serial.print(motorPin);
+	Serial.print(" written ");
+	Serial.println(HIGH);
+	timer->trigger(commandValue);
+	Serial.print("Timer triggered with value: ");
+	Serial.println(commandValue);
 }
 
-void ArmMotors(const TeensyTimerTool::OneShotTimer *timers, uint8_t *motorPins, uint8_t numberOfMotors) {
+void ArmMotors(TeensyTimerTool::OneShotTimer *timers, uint8_t *motorPins, uint8_t numberOfMotors) {
 	int command = ScaleCommand(0.0f);
 	for (int i = 0; i < 10000; i++) {
 		for (uint8_t motor = 0; motor < numberOfMotors; motor++) {
-			CommandMotor(timers[motor], command, motorPins[motor]);
+			CommandMotor(&timers[motor], command, motorPins[motor]);
 		}
 		delayMicroseconds(500);
 	}
