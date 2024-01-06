@@ -3,13 +3,14 @@
 #include "UserDefines.h"
 
 #include <stdint.h>
-#include <RingBuf.h>  // Ring buffer used to store values for SD card
-#include <SdFat.h>    // Library used for SD card
-#include <TeensyTimerTool.h>  // Oneshot timer
-#include <PWMServo.h> // Commanding any extra actuators, installed with teensyduino installer
-#include <SPI.h>      // SPI communication
-#include <Wire.h>     // I2c communication
-#include <eigen.h>  	// Linear algebra
+
+#include "RingBuf.h"  // Ring buffer used to store values for SD card
+#include "SdFat.h"    // Library used for SD card
+#include "TeensyTimerTool.h"  // Oneshot timer
+#include "PWMServo.h" // Commanding any extra actuators, installed with teensyduino installer
+#include "SPI.h"      // SPI communication
+#include "Wire.h"     // I2c communication
+#include "eigen.h"  	// Linear algebra
 
 #include "commonDefinitions.h"
 #include "telemetry.h"
@@ -853,9 +854,6 @@ int logData_setup() {
 
 int logData_writeBuffer() {
 	size_t amtDataInBuf = buffer.bytesUsed();
-  // DEBUG
-	//Serial.print("Data in buffer: ");
-	//Serial.println(amtDataInBuf);
 	
 	if ((amtDataInBuf + file.curPosition()) > (LOG_FILE_SIZE - 20)) {
 		Serial.println("Log file full -- No longer writing");
@@ -981,7 +979,6 @@ void logData_endProcess() {
 	file.rewind();
 	file.close();
 	
-	// DEBUG
 	Serial.println("logging ended peacefully");
 }
 
@@ -1407,16 +1404,12 @@ void loop() {
     sineTime = 0;
   }
 
-	Serial.println("Pre log");
-
   // Write to SD card buffer
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
     print_counterSD = micros();
     logData_writeBuffer();
     Serial.println("logged");
   }
-
-	Serial.println("Post log");
 
   if (loopCount > 2000) {
     telem.SendHeartbeat();
@@ -1429,8 +1422,6 @@ void loop() {
   }
   loopCount++;
 
-	Serial.println("Telem done");
-
 	// Check for a new position value
 	if (telem.CheckForNewPosition(mocapPosition)) {
 		newPositionReceived = true;
@@ -1438,13 +1429,9 @@ void loop() {
 		newPositionReceived = false;
 	}
 
-	Serial.println("New Telem done");
-
   // Get vehicle state
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
-	Serial.println("Update done");
   Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
-	Serial.println("Madgwick done");
 
   // Compute desired state based on radio inputs
   getDesState(); // Convert raw commands to normalized values based on saturated control limits
@@ -1472,8 +1459,6 @@ void loop() {
   getDScale();
   scaleBoth();
 
-  // PID Controller - SELECT ONE:
-  //controlANGLE();
 	// TODO: be better
 	bool noIntegral = false;
 	if (channel_1_pwm < 1060) {
@@ -1482,10 +1467,8 @@ void loop() {
 	float setpoints[3] = {roll_des, pitch_des, yaw_des};
 	float gyroRates[3] = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
 	controller.Update(setpoints, quadIMU_info, gyroRates, dt, noIntegral);
-	Serial.println("Controller updated");
 	float motorCommandsNormalized[4];
 	controller.GetMotorCommands(motorCommandsNormalized, thro_des);
-	Serial.println("Motor commands got");
 
 	// TODO: Fix these god awful names and maybe put things in arrays
 	m1_command_scaled = motorCommandsNormalized[0];
@@ -1493,41 +1476,18 @@ void loop() {
 	m3_command_scaled = motorCommandsNormalized[2];
 	m4_command_scaled = motorCommandsNormalized[3];
 
-	Serial.print("  m1_command_scaled: ");
-	Serial.println(m1_command_scaled);
-	Serial.print("  m2_command_scaled: ");
-	Serial.println(m2_command_scaled);
-	Serial.print("  m3_command_scaled: ");
-	Serial.println(m3_command_scaled);
-	Serial.print("  m4_command_scaled: ");
-	Serial.println(m4_command_scaled);
-
 	m1_command_PWM = ScaleCommand(m1_command_scaled);
 	m2_command_PWM = ScaleCommand(m2_command_scaled);
 	m3_command_PWM = ScaleCommand(m3_command_scaled);
 	m4_command_PWM = ScaleCommand(m4_command_scaled);
 
-	Serial.print("  m1_command_PWM: ");
-	Serial.println(m1_command_PWM);
-	Serial.print("  m2_command_PWM: ");
-	Serial.println(m2_command_PWM);
-	Serial.print("  m3_command_PWM: ");
-	Serial.println(m3_command_PWM);
-	Serial.print("  m4_command_PWM: ");
-	Serial.println(m4_command_PWM);
-
-	Serial.println("Commands scaled");
-
   // Throttle cut check
   bool killThrottle = throttleCut(); // Directly sets motor commands to low based on state of ch5
 	
-	Serial.println("Throttle cut checked");
-
 	CommandMotor(&m1_timer, m1_command_PWM, m1Pin);
-	//CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
-	//CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
-	//CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
-	Serial.println("Motors commanded");
+	CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
+	CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
+	CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
 
   // Get vehicle commands for next loop iteration
   getCommands(); // Pulls current available radio commands
@@ -1557,8 +1517,6 @@ void loop() {
 
   // Regulate loop rate
   loopRate(2000); // Do not exceed 2000Hz, all filter parameters tuned to 2000Hz by default
-	
-	Serial.println("loop done");
 }
 
 int main() {
