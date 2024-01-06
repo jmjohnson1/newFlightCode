@@ -821,25 +821,6 @@ void logData_printCSVHeader() {
 	buffer.write(",");
 	buffer.print("PositionZ");
 
-	buffer.write(",");
-	buffer.print("roll_imu2");
-	buffer.write(",");
-	buffer.print("pitch_imu2");
-	buffer.write(",");
-	buffer.print("yaw_imu2");
-	buffer.write(",");
-	buffer.print("GyroX_imu2");
-	buffer.write(",");
-	buffer.print("GyroY_imu2");
-	buffer.write(",");
-	buffer.print("GyroZ_imu2");
-	buffer.write(",");
-	buffer.print("AccX_imu2");
-	buffer.write(",");
-	buffer.print("AccY_imu2");
-	buffer.write(",");
-	buffer.print("AccZ_imu2");
-
 	buffer.println();
 }
 
@@ -857,7 +838,7 @@ int logData_setup() {
 		fileIncrement++;
 		fileName = filePrefix + String(fileIncrement) + fileExtension;
 	}
-	// Open or create file - truncate existing
+	//Open or create file - truncate existing
 	if (!file.open(fileName.c_str(), O_RDWR | O_CREAT | O_TRUNC)) {
 		Serial.println("open failed\n");
 		return 1;
@@ -875,7 +856,7 @@ int logData_writeBuffer() {
   // DEBUG
 	//Serial.print("Data in buffer: ");
 	//Serial.println(amtDataInBuf);
-	// end DEBUG
+	
 	if ((amtDataInBuf + file.curPosition()) > (LOG_FILE_SIZE - 20)) {
 		Serial.println("Log file full -- No longer writing");
 		return 1;
@@ -902,12 +883,12 @@ int logData_writeBuffer() {
 	buffer.print(yaw_des, 4);
 	buffer.write(",");
 	buffer.print(thro_des, 4);
-	//buffer.write(",");
-	//buffer.print(controller.GetRollPID(), 4);
-	//buffer.write(",");
-	//buffer.print(controller.GetPitchPID(), 4);
-	//buffer.write(",");
-	//buffer.print(controller.GetYawPID(), 4);
+	buffer.write(",");
+	buffer.print(controller.GetRollPID(), 4);
+	buffer.write(",");
+	buffer.print(controller.GetPitchPID(), 4);
+	buffer.write(",");
+	buffer.print(controller.GetYawPID(), 4);
 	buffer.write(",");
 	buffer.print(channel_1_pwm);
 	buffer.write(",");
@@ -934,18 +915,18 @@ int logData_writeBuffer() {
 	buffer.print(channel_12_pwm);
 	buffer.write(",");
 	buffer.print(channel_13_pwm);
-	//buffer.write(",");
-	//buffer.print(quadIMU.GetGyroX(), 4);
-	//buffer.write(",");
-	//buffer.print(quadIMU.GetGyroY(), 4);
-	//buffer.write(",");
-	//buffer.print(quadIMU.GetGyroZ(), 4);
-	//buffer.write(",");
-	//buffer.print(quadIMU.GetAccX(), 4);
-	//buffer.write(",");
-	//buffer.print(quadIMU.GetAccY(), 4);
-	//buffer.write(",");
-	//buffer.print(quadIMU.GetAccZ(), 4);
+	buffer.write(",");
+	buffer.print(quadIMU.GetGyroX(), 4);
+	buffer.write(",");
+	buffer.print(quadIMU.GetGyroY(), 4);
+	buffer.write(",");
+	buffer.print(quadIMU.GetGyroZ(), 4);
+	buffer.write(",");
+	buffer.print(quadIMU.GetAccX(), 4);
+	buffer.write(",");
+	buffer.print(quadIMU.GetAccY(), 4);
+	buffer.write(",");
+	buffer.print(quadIMU.GetAccZ(), 4);
 	buffer.write(",");
 	buffer.print(m1_command_scaled, 4);
 	buffer.write(",");
@@ -1325,8 +1306,8 @@ void setup() {
 
   // Initialize the SD card, returns 1 if no sd card is detected or it can't be
   // initialized
-  //SD_is_present = !logData_setup();
-	SD_is_present = true;
+  SD_is_present = !logData_setup();
+	//SD_is_present = true;
 
 
   // Get IMU error to zero accelerometer and gyro readings, assuming vehicle is
@@ -1359,7 +1340,7 @@ void setup() {
   m2_command_PWM = 125;
   m3_command_PWM = 125;
   m4_command_PWM = 125;
-	TeensyTimerTool::OneShotTimer motorTimers[4] =  {m1_timer, m2_timer, m3_timer, m4_timer};
+	TeensyTimerTool::OneShotTimer *motorTimers[4] =  {&m1_timer, &m2_timer, &m3_timer, &m4_timer};
 	uint8_t motorPins[4] = {m1Pin, m2Pin, m3Pin, m4Pin};
   ArmMotors(motorTimers, motorPins, 4); // Loop over commandMotors() until ESCs happily arm
 #endif
@@ -1431,7 +1412,7 @@ void loop() {
   // Write to SD card buffer
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
     print_counterSD = micros();
-    //logData_writeBuffer();
+    logData_writeBuffer();
     Serial.println("logged");
   }
 
@@ -1543,9 +1524,9 @@ void loop() {
 	Serial.println("Throttle cut checked");
 
 	CommandMotor(&m1_timer, m1_command_PWM, m1Pin);
-	CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
-	CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
-	CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
+	//CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
+	//CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
+	//CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
 	Serial.println("Motors commanded");
 
   // Get vehicle commands for next loop iteration
