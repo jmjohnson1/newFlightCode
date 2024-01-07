@@ -9,4 +9,4 @@ compile_commands.json
 .DS_Store
 
 # ignore lsp stuff
-.cache/
+.cache/*
