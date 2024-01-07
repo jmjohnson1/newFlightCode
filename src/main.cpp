@@ -13,6 +13,7 @@
 #include "eigen.h"  	// Linear algebra
 
 #include "commonDefinitions.h"
+#include "serialDebug.h"
 #include "telemetry.h"
 #include "IMU.h"
 #include "madgwick.h"
@@ -723,189 +724,6 @@ void scaleBoth() {
 
 //=========================================================================================//
 
-
-void printRadioData() {
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print(F(" CH1: "));
-    Serial.print(channel_1_pwm);
-    Serial.print(F(" CH2: "));
-    Serial.print(channel_2_pwm);
-    Serial.print(F(" CH3: "));
-    Serial.print(channel_3_pwm);
-    Serial.print(F(" CH4: "));
-    Serial.print(channel_4_pwm);
-    Serial.print(F(" CH5: "));
-    Serial.print(channel_5_pwm);
-    Serial.print(F(" CH6: "));
-    Serial.print(channel_6_pwm);
-    Serial.print(F(" CH7: "));
-    Serial.print(channel_7_pwm);
-    Serial.print(F(" CH8: "));
-    Serial.print(channel_8_pwm);
-    Serial.print(F(" CH9: "));
-    Serial.print(channel_9_pwm);
-    Serial.print(F(" CH10: "));
-    Serial.print(channel_10_pwm);
-    Serial.print(F(" CH11: "));
-    Serial.print(channel_11_pwm);
-    Serial.print(F(" CH12: "));
-    Serial.print(channel_12_pwm);
-    Serial.print(F(" CH13: "));
-    Serial.println(channel_13_pwm);
-  }
-}
-
-void printDesiredState() {
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print(F("thro_des: "));
-    Serial.print(thro_des);
-    Serial.print(F(" roll_des: "));
-    Serial.print(roll_des);
-    Serial.print(F(" pitch_des: "));
-    Serial.print(pitch_des);
-    Serial.print(F(" yaw_des: "));
-    Serial.println(yaw_des);
-  }
-}
-
-void printGyroData() {
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print(F("GyroX: "));
-    Serial.print(quadIMU.GetGyroX());
-    Serial.print(F(" GyroY: "));
-    Serial.print(quadIMU.GetGyroY());
-    Serial.print(F(" GyroZ: "));
-    Serial.println(quadIMU.GetGyroZ());
-  }
-}
-
-void printAccelData() {
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print(F("AccX: "));
-    Serial.print(quadIMU.GetAccX());
-    Serial.print(F(" AccY: "));
-    Serial.print(quadIMU.GetAccY());
-    Serial.print(F(" AccZ: "));
-    Serial.println(quadIMU.GetAccZ());
-  }
-}
-
-//void printMagData() {
-//  if (current_time - print_counter > 10000) {
-//    print_counter = micros();
-//    Serial.print(F("MagX: "));
-//    Serial.print(quadIMU_info.MagX);
-//    Serial.print(F(" MagY: "));
-//    Serial.print(quadIMU_info.MagY);
-//    Serial.print(F(" MagZ: "));
-//    Serial.println(quadIMU_info.MagZ);
-//  }
-//}
-
-void printRollPitchYaw() {
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print(F("roll: "));
-    Serial.print(quadIMU_info.roll);
-    Serial.print(F(" pitch: "));
-    Serial.print(quadIMU_info.pitch);
-    Serial.print(F(" yaw: "));
-    Serial.println(quadIMU_info.yaw);
-  }
-}
-
-void printRollPitchYawAndDesired() {
-  // Will print in this order:
-  // 	(roll) (pitch) (yaw) (thro_des) (roll_des) (pitch_des) (yaw_des)
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print(quadIMU_info.roll);
-    Serial.print("\t");
-    Serial.print(quadIMU_info.pitch);
-    Serial.print("\t");
-    Serial.print(quadIMU_info.yaw);
-    Serial.print("\t");
-    Serial.print(thro_des);
-    Serial.print("\t");
-    Serial.print(roll_des);
-    Serial.print("\t");
-    Serial.print(pitch_des);
-    Serial.print("\t");
-    Serial.println(yaw_des);
-  }
-}
-
-void printPIDoutput() {
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print(F("roll_PID: "));
-    Serial.print(controller.GetRollPID());
-    Serial.print(F(" pitch_PID: "));
-    Serial.print(controller.GetPitchPID());
-    Serial.print(F(" yaw_PID: "));
-    Serial.println(controller.GetYawPID());
-  }
-}
-
-void printMotorCommands() {
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print(F("m1_command: "));
-    Serial.print(m1_command_PWM);
-    Serial.print(F(" m2_command: "));
-    Serial.print(m2_command_PWM);
-    Serial.print(F(" m3_command: "));
-    Serial.print(m3_command_PWM);
-    Serial.print(F(" m4_command: "));
-    Serial.print(m4_command_PWM);
-		Serial.println();
-  }
-}
-
-void printLoopRate() {
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print(F("dt = "));
-    Serial.println(dt * 1000000.0);
-  }
-}
-
-void displayRoll() {
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print(roll_des);
-    Serial.print(" ");
-    Serial.println(quadIMU_info.roll);
-  }
-}
-
-void displayPitch() {
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print(pitch_des);
-    Serial.print(" ");
-    Serial.print(quadIMU_info.pitch);
-    Serial.println();
-  }
-}
-
-void printPIDGains() {
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print("Kp_pitch: ");
-    Serial.print(Kp_roll_angle);
-    Serial.print(" Ki_pitch: ");
-    Serial.print(Ki_pitch_angle);
-    Serial.print(" Kd_pitch: ");
-    Serial.print(Kd_pitch_angle);
-    Serial.println();
-  }
-}
-
 void radioSetup() {
     sbus.begin();
 }
@@ -1361,35 +1179,18 @@ void loop() {
 
   loopBlink(); // Indicate we are in main loop with short blink every 1.5 seconds
 
-  //  Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
-  //  Prints radio pwm values (expected: 1000 to 2000)
-  // printRadioData();
-  //  Prints desired vehicle state commanded in either degrees or deg/sec (expected: +/- maxAXIS for roll, pitch, yaw; 0
-  //  to 1 for throttle)
-  // printDesiredState();
-  //  Prints filtered gyro data direct from IMU (expected: ~ -250 to 250, 0 at rest)
-  // printGyroData();
-  //  Prints filtered accelerometer data direct from IMU (expected: ~ -2 to 2; x,y 0 when level, z 1 when level)
-  // printAccelData();
-  //  Prints filtered magnetometer data direct from IMU (expected: ~ -300 to 300)
-  // printMagData();
-  //  Prints roll, pitch, and yaw angles in degrees from Madgwick filter (expected: degrees, 0 when level)
-  // printRollPitchYaw();
-  //  Prints computed stabilized PID variables from controller and desired setpoint (expected: ~ -1 to 1)
-  // printPIDoutput();
-  //  Prints the values being written to the motors (expected: 120 to 250)
-  // printMotorCommands();
-  //  Prints the values being written to the servos (expected: 0 to 180)
-  // printServoCommands();
-  //  Prints the time between loops in microseconds (expected: microseconds between loop iterations)
-  // printLoopRate();
-  //  Prints the angles alpha, beta, pitch, roll, alpha + roll, beta + pitch
-  // printRIPAngles();
-
-  //  Prints desired and imu roll state for serial plotter
-  // displayRoll();
-  //  Prints desired and imu pitch state for serial plotter
-  // displayPitch();
+  //  Print data at 100hz (uncomment one at a time for troubleshooting)
+	if (current_time - print_counter > 100000) {
+		print_counter = current_time;
+		//serialDebug::PrintRadioData(); // Currently does nothing
+		//serialDebug::PrintDesiredState(thro_des, roll_des, pitch_des, yaw_des);
+		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
+		//serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());
+		//serialDebug::PrintRollPitchYaw(quadIMU_info.roll, quadIMU_info.pitch, quadIMU_info.yaw);
+		//serialDebug::PrintPIDOutput(controller.GetRollPID(), controller.GetPitchPID(), controller.GetYawPID());
+		//serialDebug::PrintMotorCommands(m1_command_PWM, m2_command_PWM, m3_command_PWM, m4_command_PWM);
+		//serialDebug::PrintLoopTime(dt);
+	}
 
   // Check if rotors should be armed
   if (!flightLoopStarted && channel_5_pwm < 1500) {
