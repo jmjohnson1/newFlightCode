@@ -54,29 +54,13 @@ RingBuf<FsFile, RING_BUF_CAPACITY> buffer;
 //                                     USER-SPECIFIED VARIABLES 																	//
 //================================================================================================//
 
-// Radio failsafe values for every channel in the event that bad reciever data
-// is detected. Recommended defaults:
-unsigned long channel_1_fs = 1000;  // thro cut
-unsigned long channel_2_fs = 1500;  // ail neutral
-unsigned long channel_3_fs = 1500;  // elev neutral
-unsigned long channel_4_fs = 1500;  // rudd neutral
-unsigned long channel_5_fs = 2000;  // gear, greater than 1500 = throttle cut
-unsigned long channel_6_fs = 1000;  // Iris toggle (closed)
-unsigned long channel_7_fs = 1000;  // Conduct sine sweep (Don't do a sine sweep)
-unsigned long channel_8_fs = 1000;  // Perform step in pitch or roll (No step commands)
-unsigned long channel_9_fs = 1500;  // Step angle (+15, 0, -15) (0 degrees)
-unsigned long channel_10_fs = 1500; // P gain scale (no scaling)
-unsigned long channel_11_fs = 1500; // I gain scale
-unsigned long channel_12_fs = 1500; // D gain scale
-unsigned long channel_13_fs = 1500; // Scale all gains evenly
-unsigned long channel_14_fs = 1000; // Reset switch
-
 // Radio channel definitions
-// Syntax: ("name", channel, slider neutral point (meaningless for switches), failsafe value)
-RadioChannel throttleChannel("throttle", 1, 1000, 1000);
-RadioChannel rollChannel("roll", 2, 1500, 1500);
-RadioChannel pitchChannel("pitch", 3, 1500, 1500);
-RadioChannel yawChannel("yaw", 4, 1500, 1500);
+// Syntax: ("name", channel, slider neutral point (meaningless for switches), failsafe value, true
+// (if channel is critical))
+RadioChannel throttleChannel("throttle", 1, 1000, 1000, true);
+RadioChannel rollChannel("roll", 2, 1500, 1500, true);
+RadioChannel pitchChannel("pitch", 3, 1500, 1500, true);
+RadioChannel yawChannel("yaw", 4, 1500, 1500, true);
 RadioChannel throCutChannel("throttle_cut", 5, 1000, 2000);
 RadioChannel sineSweepChannel("sine_sweep", 7, 1000, 1000);
 RadioChannel stepAxisSelector("step_axis_sel", 8, 1000, 1000);
@@ -242,7 +226,7 @@ bool SD_is_present = 0;
 
 bool doneWithSetup = 0;
 
-bool failureFlag = 0;
+uint16_t failureFlag = 0;
 
 int throttleCutCount = 0;
 
@@ -332,39 +316,6 @@ bool newPositionReceived;
 //}
 
 
-void setDesStateSerial(int controlledAxis) {
-  // DESCRIPTION: Sets the desired pitch and roll angles based on user input
-  // over USB
-  if (Serial.available()) {
-    serialInputValue = Serial.parseFloat();
-    while (Serial.available() != 0) {
-      Serial.read();
-    }
-  }
-
-  float desiredAngle = 0;
-
-  if (useSineWave) {
-    sineFrequency = static_cast<float>(serialInputValue);
-    desiredAngle = 10 * sin(2 * PI * sineFrequency * sineTime); // Set the output to be a sin wave
-                                                                // between -5 and 5 degrees
-    sineTime = sineTime + 1 / 2000.0f;
-  } else {
-    desiredAngle = static_cast<float>(serialInputValue);
-  }
-
-  switch (controlledAxis) {
-  case 1:
-    roll_des = desiredAngle;
-    break;
-  case 2:
-    pitch_des = desiredAngle;
-    break;
-  default:
-    break;
-  }
-}
-
 void performSineSweep(int controlledAxis) {
   // DESCRIPTION: Performs a sine sweep from minFreq (Hz) to maxFreq (Hz) over sweepTime (seconds)
   float desiredAngle = 0;
@@ -400,9 +351,9 @@ void performSineSweep(int controlledAxis) {
 
 void rollStep() {
   float desiredAngle;
-  if (channel_9_pwm < 1250) {
+  if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_LOW) {
     desiredAngle = 10.0f;
-  } else if (channel_9_pwm > 1750) {
+  } else if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_HIGH) {
     desiredAngle = -10.0f;
   } else {
     desiredAngle = 0.0f;
@@ -411,9 +362,9 @@ void rollStep() {
 }
 void pitchStep() {
   float desiredAngle;
-  if (channel_9_pwm < 1250) {
+  if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_LOW) {
     desiredAngle = 3.0f;
-  } else if (channel_9_pwm > 1750) {
+  } else if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_HIGH) {
     desiredAngle = -3.0f;
   } else {
     desiredAngle = 0.0f;
@@ -433,10 +384,10 @@ void getDesState() {
    * pitch_passthru, and yaw_passthru variables, to be used in commanding
    * motors/servos with direct unstabilized commands in controlMixer().
    */
-  thro_des = (channel_1_pwm - 1000.0) / 1000.0; // Between 0 and 1
-  roll_des = (channel_2_pwm - 1500.0) / 500.0;  // Between -1 and 1
-  pitch_des = (channel_3_pwm - 1500.0) / 500.0; // Between -1 and 1
-  yaw_des = (channel_4_pwm - 1500.0) / 500.0;   // Between -1 and 1
+  thro_des = throttleChannel.NormalizedValue(); // Between 0 and 1
+  roll_des = rollChannel.NormalizedValue();  // Between -1 and 1
+  pitch_des = pitchChannel.NormalizedValue(); // Between -1 and 1
+  yaw_des = yawChannel.NormalizedValue();   // Between -1 and 1
   roll_passthru = roll_des / 2.0;               // Between -0.5 and 0.5
   pitch_passthru = pitch_des / 2.0;             // Between -0.5 and 0.5
   yaw_passthru = yaw_des / 2.0;                 // Between -0.5 and 0.5
@@ -469,34 +420,11 @@ void getCommands() {
     // sBus scaling below is for Taranis-Plus and X4R-SB
     float scale = 0.615;
     float bias = 895.0;
-    channel_1_pwm = sbusChannels[0] * scale + bias;
-    channel_2_pwm = sbusChannels[1] * scale + bias;
-    channel_3_pwm = sbusChannels[2] * scale + bias;
-    channel_4_pwm = sbusChannels[3] * scale + bias;
-    channel_5_pwm = sbusChannels[4] * scale + bias;
-    channel_6_pwm = sbusChannels[5] * scale + bias;
-    channel_7_pwm = sbusChannels[6] * scale + bias;
-    channel_8_pwm = sbusChannels[7] * scale + bias;
-    channel_9_pwm = sbusChannels[8] * scale + bias;
-    channel_10_pwm = sbusChannels[9] * scale + bias;
-    channel_11_pwm = sbusChannels[10] * scale + bias;
-    channel_12_pwm = sbusChannels[11] * scale + bias;
-    channel_13_pwm = sbusChannels[12] * scale + bias;
-    channel_14_pwm = sbusChannels[13] * scale + bias;
+		for (int i = 0; i < numChannels; i++) {
+			uint8_t channel = radioChannels[i]->GetChannel();
+			radioChannels[i]->Update(sbusChannels[channel - 1]*scale + bias);
+		}
   }
-
-  // Low-pass the critical commands and update previous values
-  float b = 0.7; // Lower=slower, higher=noiser
-  channel_1_pwm = (1.0 - b) * channel_1_pwm_prev + b * channel_1_pwm;
-  channel_2_pwm = (1.0 - b) * channel_2_pwm_prev + b * channel_2_pwm;
-  channel_3_pwm = (1.0 - b) * channel_3_pwm_prev + b * channel_3_pwm;
-  channel_4_pwm = (1.0 - b) * channel_4_pwm_prev + b * channel_4_pwm;
-
-  // Update prev values
-  channel_1_pwm_prev = channel_1_pwm;
-  channel_2_pwm_prev = channel_2_pwm;
-  channel_3_pwm_prev = channel_3_pwm;
-  channel_4_pwm_prev = channel_4_pwm;
 }
 
 void failSafe() {
@@ -512,48 +440,18 @@ void failSafe() {
    * when troubleshooting your radio connection in case any extreme values are
    * triggering this function to overwrite the printed variables.
    */
-  int minVal = 800;
-  int maxVal = 2200;
-  int check1 = 0;
-  int check2 = 0;
-  int check3 = 0;
-  int check4 = 0;
-  int check5 = 0;
-  int check6 = 0;
   failureFlag = 0;
 
   // Triggers for failure criteria
-  if (channel_1_pwm > maxVal || channel_1_pwm < minVal)
-    check1 = 1;
-  if (channel_2_pwm > maxVal || channel_2_pwm < minVal)
-    check2 = 1;
-  if (channel_3_pwm > maxVal || channel_3_pwm < minVal)
-    check3 = 1;
-  if (channel_4_pwm > maxVal || channel_4_pwm < minVal)
-    check4 = 1;
-  if (channel_5_pwm > maxVal || channel_5_pwm < minVal)
-    check5 = 1;
-  if (channel_6_pwm > maxVal || channel_6_pwm < minVal)
-    check6 = 1;
+	for (int i = 0; i < numChannels; i++) {
+		radioChannels[i]->FailureCheck(&failureFlag);
+	}
 
   // If any failures, set to default failsafe values
-  if ((check1 + check2 + check3 + check4 + check5 + check6) > 0) {
-    channel_1_pwm = channel_1_fs;
-    channel_2_pwm = channel_2_fs;
-    channel_3_pwm = channel_3_fs;
-    channel_4_pwm = channel_4_fs;
-    channel_5_pwm = channel_5_fs;
-    channel_6_pwm = channel_6_fs;
-    channel_7_pwm = channel_7_fs;
-    channel_8_pwm = channel_8_fs;
-    channel_9_pwm = channel_9_fs;
-    channel_10_pwm = channel_10_fs;
-    channel_11_pwm = channel_11_fs;
-    channel_12_pwm = channel_12_fs;
-    channel_13_pwm = channel_13_fs;
-    channel_14_pwm = channel_14_fs;
-
-    failureFlag = 1;
+  if (failureFlag) {
+		for (int i = 0; i < numChannels; i++) {
+			radioChannels[i]->TriggerFailsafe();
+		}
   }
 }
 
@@ -605,7 +503,7 @@ int throttleCut() {
    * last thing checked is if the user is giving permission to command the
    * motors to anything other than minimum value. Safety first.
    */
-  if (channel_5_pwm > 1500) {
+  if (throCutChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
 		#ifdef USE_ONESHOT
     m1_command_PWM = 125;
     m2_command_PWM = 125;
@@ -672,46 +570,46 @@ void setupBlink(int numBlinks, int upTime, int downTime) {
   }
 }
 
-void getPScale() {
-  float scaleVal;
-  scaleVal = 1.0f + (channel_10_pwm - 1000.0f) / 1000.0f * 1.0f;
-  if (scaleVal < 0.0f) {
-    scaleVal = 0.0f;
-  }
-  pScaleRoll = scaleVal;
-  pScalePitch = scaleVal;
-}
-
-void getDScale() {
-  float scaleVal;
-  scaleVal = 1.0f + (channel_12_pwm - 1000.0f) / 1000.0f * 2.0f;
-  if (scaleVal < 0.0f) {
-    scaleVal = 0.0f;
-  }
-  dScaleRoll = scaleVal;
-  dScalePitch = scaleVal;
-}
-
-void getIScale() {
-  float scaleVal;
-  scaleVal = 1.0f + (channel_11_pwm - 1000.0f) / 1000.0f * 2.0f;
-  if (scaleVal < 0.0f) {
-    scaleVal = 0.0f;
-  }
-  iScaleRoll = scaleVal;
-  iScalePitch = scaleVal;
-}
-
-void scaleBoth() {
-  float scaleMultiplier;
-  scaleMultiplier = 1.0f + (channel_13_pwm - 1015.0f) / 1000.0f * 0.25f;
-  pScaleRoll *= scaleMultiplier;
-  iScaleRoll *= scaleMultiplier;
-  dScaleRoll *= scaleMultiplier;
-  pScalePitch *= scaleMultiplier;
-  iScalePitch *= scaleMultiplier;
-  dScalePitch *= scaleMultiplier;
-}
+//void getPScale() {
+//  float scaleVal;
+//  scaleVal = 1.0f + (channel_10_pwm - 1000.0f) / 1000.0f * 1.0f;
+//  if (scaleVal < 0.0f) {
+//    scaleVal = 0.0f;
+//  }
+//  pScaleRoll = scaleVal;
+//  pScalePitch = scaleVal;
+//}
+//
+//void getDScale() {
+//  float scaleVal;
+//  scaleVal = 1.0f + (channel_12_pwm - 1000.0f) / 1000.0f * 2.0f;
+//  if (scaleVal < 0.0f) {
+//    scaleVal = 0.0f;
+//  }
+//  dScaleRoll = scaleVal;
+//  dScalePitch = scaleVal;
+//}
+//
+//void getIScale() {
+//  float scaleVal;
+//  scaleVal = 1.0f + (channel_11_pwm - 1000.0f) / 1000.0f * 2.0f;
+//  if (scaleVal < 0.0f) {
+//    scaleVal = 0.0f;
+//  }
+//  iScaleRoll = scaleVal;
+//  iScalePitch = scaleVal;
+//}
+//
+//void scaleBoth() {
+//  float scaleMultiplier;
+//  scaleMultiplier = 1.0f + (channel_13_pwm - 1015.0f) / 1000.0f * 0.25f;
+//  pScaleRoll *= scaleMultiplier;
+//  iScaleRoll *= scaleMultiplier;
+//  dScaleRoll *= scaleMultiplier;
+//  pScalePitch *= scaleMultiplier;
+//  iScalePitch *= scaleMultiplier;
+//  dScalePitch *= scaleMultiplier;
+//}
 
 //=========================================================================================//
 
@@ -797,32 +695,13 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print("yaw_PID");
 		buffer.write(",");
-		buffer.print("radio_ch1");
-		buffer.write(",");
-		buffer.print("radio_ch2");
-		buffer.write(",");
-		buffer.print("radio_ch3");
-		buffer.write(",");
-		buffer.print("radio_ch4");
-		buffer.write(",");
-		buffer.print("radio_ch5");
-		buffer.write(",");
-		buffer.print("radio_ch6");
-		buffer.write(",");
-		buffer.print("radio_ch7");
-		buffer.write(",");
-		buffer.print("radio_ch8");
-		buffer.write(",");
-		buffer.print("radio_ch9");
-		buffer.write(",");
-		buffer.print("radio_ch10");
-		buffer.write(",");
-		buffer.print("radio_ch11");
-		buffer.write(",");
-		buffer.print("radio_ch12");
-		buffer.write(",");
-		buffer.print("radio_ch13");
-		buffer.write(",");
+
+		// radio channels
+		for (int i = 0; i < numChannels; i++) {
+			buffer.print(radioChannels[i]->GetName());
+			buffer.write(",");
+		}
+
 		buffer.print("GyroX");
 		buffer.write(",");
 		buffer.print("GyroY");
@@ -939,32 +818,14 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print(controller.GetYawPID(), 4);
 		buffer.write(",");
-		buffer.print(channel_1_pwm);
-		buffer.write(",");
-		buffer.print(channel_2_pwm);
-		buffer.write(",");
-		buffer.print(channel_3_pwm);
-		buffer.write(",");
-		buffer.print(channel_4_pwm);
-		buffer.write(",");
-		buffer.print(channel_5_pwm);
-		buffer.write(",");
-		buffer.print(channel_6_pwm);
-		buffer.write(",");
-		buffer.print(channel_7_pwm);
-		buffer.write(",");
-		buffer.print(channel_8_pwm);
-		buffer.write(",");
-		buffer.print(channel_9_pwm);
-		buffer.write(",");
-		buffer.print(channel_10_pwm);
-		buffer.write(",");
-		buffer.print(channel_11_pwm);
-		buffer.write(",");
-		buffer.print(channel_12_pwm);
-		buffer.write(",");
-		buffer.print(channel_13_pwm);
-		buffer.write(",");
+
+		// radio channels
+		for (int i = 0; i < numChannels; i++) {
+			buffer.print(radioChannels[i]->GetRawValue());
+			buffer.write(",");
+		}
+
+
 		buffer.print(quadIMU.GetGyroX(), 4);
 		buffer.write(",");
 		buffer.print(quadIMU.GetGyroY(), 4);
@@ -1073,22 +934,6 @@ void setup() {
   // Begin mavlink telemetry module
   telem.InitTelemetry();
 
-  // Set radio channels to default (safe) values before entering main loop
-  channel_1_pwm = channel_1_fs;
-  channel_2_pwm = channel_2_fs;
-  channel_3_pwm = channel_3_fs;
-  channel_4_pwm = channel_4_fs;
-  channel_5_pwm = channel_5_fs;
-  channel_6_pwm = channel_6_fs;
-  channel_7_pwm = channel_7_fs;
-  channel_8_pwm = channel_8_fs;
-  channel_9_pwm = channel_9_fs;
-  channel_10_pwm = channel_10_fs;
-  channel_11_pwm = channel_11_fs;
-  channel_12_pwm = channel_12_fs;
-  channel_13_pwm = channel_13_fs;
-  channel_14_pwm = channel_14_fs;
-
 	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
 	Serial.print("IMU initialization successful: ");
 	Serial.println(IMU_initSuccessful);
@@ -1163,14 +1008,14 @@ void loop() {
 	}
 
   // Check if rotors should be armed
-  if (!flightLoopStarted && channel_5_pwm < 1500) {
+  if (!flightLoopStarted && (throCutChannel.SwitchPosition() == SwPos::SWITCH_LOW)) {
     flightLoopStarted = 1;
     telem.SetSystemState(MAV_STATE_ACTIVE);
     telem.SetSystemMode(MAV_MODE_MANUAL_ARMED);
   }
 
   // Sine sweep check
-  if (channel_7_pwm > 1750) {
+  if (sineSweepChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
     conductSineSweep = 1;
   } else {
     conductSineSweep = 0;
@@ -1184,6 +1029,7 @@ void loop() {
     Serial.println("logged");
   }
 
+	// TODO: Be better
   if (loopCount > 2000) {
     telem.SendHeartbeat();
     loopCount = 0;
@@ -1196,6 +1042,7 @@ void loop() {
   loopCount++;
 
 	// Check for a new position value
+	//  This is hideous
 	if (telem.CheckForNewPosition(mocapPosition)) {
 		newPositionReceived = true;
 	} else {
@@ -1209,32 +1056,27 @@ void loop() {
   // Compute desired state based on radio inputs
   getDesState(); // Convert raw commands to normalized values based on saturated control limits
 
-  if (useSerialAngleCommands) {
-    // Overwrites axisToRotate in getDesState()
-    setDesStateSerial(axisToRotate);
-  }
-
   if (conductSineSweep) {
     // Overwrites axisToRotate in getDesState()
     performSineSweep(axisToRotate);
   }
 
-  if (channel_8_pwm > 1250 && channel_8_pwm < 1750) {
+  if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_MID) {
     rollStep();
   }
 
-  if (channel_8_pwm > 1750) {
+  if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_HIGH) {
     pitchStep();
   }
 
-  getPScale();
-  getIScale();
-  getDScale();
-  scaleBoth();
+  //getPScale();
+  //getIScale();
+  //getDScale();
+  //scaleBoth();
 
 	// TODO: be better
 	bool noIntegral = false;
-	if (channel_1_pwm < 1060) {
+	if (throttleChannel.GetRawValue() < 1060) {
 		noIntegral = true;
 	}
 	float setpoints[3] = {roll_des, pitch_des, yaw_des};
@@ -1276,7 +1118,7 @@ void loop() {
 			CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
 			CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
 
-      if (channel_14_pwm > 1500) {
+      if (resetChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
         CPU_RESTART;
       }
     }

@@ -4,12 +4,25 @@
 #include <stdint.h>
 #include "Arduino.h"
 
+enum class SwPos {
+	SWITCH_LOW = 0,
+	SWITCH_MID = 1,
+	SWITCH_HIGH = 2,
+};
+
 class RadioChannel {
 public:
-	RadioChannel(String name, uint8_t channel, uint16_t zeroPoint, uint16_t failsafe);
-	bool FailureCheck();
-	uint8_t SwitchPosition();
+	RadioChannel(String name, uint8_t channel, uint16_t zeroPoint, uint16_t failsafe, bool critical = false);
+	void FailureCheck(uint16_t *failureFlag);
+	SwPos SwitchPosition();
 	float NormalizedValue();
+	void Update(uint16_t newValue);
+	void LowpassCritical();
+	void TriggerFailsafe() {rawValue_ = failsafeValue_;}
+
+	uint8_t GetChannel() {return channel_;}
+	uint16_t GetRawValue() {return rawValue_;}
+	String GetName() {return name_;}
 private:
 	String name_;
 	uint16_t rawValue_;
@@ -17,6 +30,7 @@ private:
 	uint16_t failsafeValue_;
 	uint8_t channel_;
 	uint16_t zeroPointRawValue_;
+	bool isCritical_;
 
 	const float FILTER_PARAM = 0.7f;
 };
