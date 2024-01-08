@@ -1,6 +1,7 @@
 #include "radio.h"
 
-RadioChannel::RadioChannel(uint8_t channel, uint16_t zeroPoint, uint16_t failsafe) {
+RadioChannel::RadioChannel(String name, uint8_t channel, uint16_t zeroPoint, uint16_t failsafe) {
+	name_ = name;
 	rawValue_ = failsafe;
 	rawValue_previous_ = failsafe;
 	failsafeValue_ = failsafe;

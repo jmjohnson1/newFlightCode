@@ -11,6 +11,7 @@
 #include "SPI.h"      // SPI communication
 #include "Wire.h"     // I2c communication
 #include "eigen.h"  	// Linear algebra
+#include "SBUS.h" //sBus interface
 
 #include "commonDefinitions.h"
 #include "serialDebug.h"
@@ -19,8 +20,8 @@
 #include "madgwick.h"
 #include "controller.h"
 #include "motors.h"
+#include "radio.h"
 
-#include "SBUS.h" //sBus interface
 
 IMU quadIMU = IMU(-0.0121f, 0.0126f, 0.0770f, -4.7787f, -2.1795f, -0.6910f);
 
@@ -67,14 +68,43 @@ unsigned long channel_9_fs = 1500;  // Step angle (+15, 0, -15) (0 degrees)
 unsigned long channel_10_fs = 1500; // P gain scale (no scaling)
 unsigned long channel_11_fs = 1500; // I gain scale
 unsigned long channel_12_fs = 1500; // D gain scale
-unsigned long channel_13_fs = 1500; // Pitch and roll pid offset
+unsigned long channel_13_fs = 1500; // Scale all gains evenly
 unsigned long channel_14_fs = 1000; // Reset switch
 
-// Controller parameters (take note of defaults before modifying!):
-// Integrator saturation level, mostly for safety (default 25.0)
-float i_limit = 25.0;
-// Max roll/pitch angles in degrees for angle mode (maximum ~70 degrees),
-// deg/sec for rate mode
+// Radio channel definitions
+// Syntax: ("name", channel, slider neutral point (meaningless for switches), failsafe value)
+RadioChannel throttleChannel("throttle", 1, 1000, 1000);
+RadioChannel rollChannel("roll", 2, 1500, 1500);
+RadioChannel pitchChannel("pitch", 3, 1500, 1500);
+RadioChannel yawChannel("yaw", 4, 1500, 1500);
+RadioChannel throCutChannel("throttle_cut", 5, 1000, 2000);
+RadioChannel sineSweepChannel("sine_sweep", 7, 1000, 1000);
+RadioChannel stepAxisSelector("step_axis_sel", 8, 1000, 1000);
+RadioChannel stepAngleSelector("step_angle_sel", 9, 1000, 1500);
+RadioChannel KpScaleChannel("Kp_scale", 10, 1500, 1500);
+RadioChannel KiScaleChannel("Ki_scale", 11, 1500, 1500);
+RadioChannel KdScaleChannel("Kd_scale", 12, 1500, 1500);
+RadioChannel scaleAllChannel("scale_all", 13, 1500, 1500);
+RadioChannel resetChannel("reset", 14, 1000, 1000);
+
+// Array of pointers the the radio channels. This is useful for datalogging and updating the raw
+// values.
+const uint8_t numChannels = 13;
+RadioChannel *radioChannels[numChannels] = {&throttleChannel, 
+																						&rollChannel, 
+																						&pitchChannel, 
+																						&yawChannel, 
+																						&throCutChannel, 
+																						&sineSweepChannel,
+																						&stepAxisSelector,
+																						&stepAngleSelector,
+																						&KpScaleChannel,
+																						&KiScaleChannel,
+																						&KdScaleChannel,
+																					  &scaleAllChannel,
+																						&resetChannel};
+
+// Max roll/pitch angles in degrees for angle mode
 float maxRoll = 30.0;
 float maxPitch = 30.0;
 // Max yaw rate in deg/sec
@@ -98,19 +128,6 @@ float Kd_roll_angle = -0.063;
 float Kp_pitch_angle = 0.56;
 float Ki_pitch_angle = 0.176;
 float Kd_pitch_angle = -0.063;
-
-// Roll damping term for controlANGLE2(), lower is more damping (must be between 0 to 1)
-float B_loop_roll = 0.9;
-// Pitch damping term for controlANGLE2(), lower is more damping (must be between 0 to 1)
-float B_loop_pitch = 0.9;
-
-// RATE MODE PID GAINS //
-float Kp_roll_rate = 0.15;
-float Ki_roll_rate = 0.2;
-float Kd_roll_rate = 0.0002;
-float Kp_pitch_rate = 0.15;
-float Ki_pitch_rate = 0.2;
-float Kd_pitch_rate = 0.0002;
 
 // YAW PID GAINS //
 float Kp_yaw = 0.3;
@@ -174,25 +191,22 @@ unsigned long blink_counter, blink_delay;
 bool blinkAlternate;
 unsigned long print_counterSD = 200000;
 
-// Radio communication:
-int channel_1_pwm, channel_2_pwm, channel_3_pwm, channel_4_pwm, channel_5_pwm, channel_6_pwm, channel_7_pwm,
-    channel_8_pwm, channel_9_pwm, channel_10_pwm, channel_11_pwm, channel_12_pwm, channel_13_pwm, channel_14_pwm;
-int channel_1_pwm_prev, channel_2_pwm_prev, channel_3_pwm_prev, channel_4_pwm_prev;
-int channel_1_pwm_pre, channel_2_pwm_pre, channel_3_pwm_pre, channel_4_pwm_pre;
-
 SBUS sbus(Serial5);
 uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
 Attitude quadIMU_info;
-Attitude imu2_info;
 
 // Normalized desired state:
 float thro_des, roll_des, pitch_des, yaw_des;
 float roll_passthru, pitch_passthru, yaw_passthru;
 
 // Controller:
+float Kp_array[3] = {Kp_roll_angle, Kp_pitch_angle, Kp_yaw};
+float Ki_array[3] = {Ki_roll_angle, Ki_pitch_angle, Ki_yaw};
+float Kd_array[3] = {Kd_roll_angle, Kd_pitch_angle, Kd_yaw};
+AngleAttitudeController controller = AngleAttitudeController(Kp_array, Ki_array, Kd_array);
 
 // Mixer
 float m1_command_scaled, m2_command_scaled, m3_command_scaled, m4_command_scaled;
@@ -226,22 +240,8 @@ String fileName;
 
 bool SD_is_present = 0;
 
-int cutoff_val = 150;
-int d_ch1;
-int d_ch2;
-int d_ch3;
-int d_ch4;
-
-int ch1_CutCounter = 0;
-int ch2_CutCounter = 0;
-int ch3_CutCounter = 0;
-int ch4_CutCounter = 0;
-
 bool doneWithSetup = 0;
-int servoLoopCounter = 0;
 
-// Number of loops before a sustained large change in values are accepted
-int radioChCutoffTimeout = 10;
 bool failureFlag = 0;
 
 int throttleCutCount = 0;
@@ -261,15 +261,6 @@ Telemetry telem;
 Eigen::Vector3f mocapPosition(0, 0, 0);
 bool newPositionReceived;
 
-AnglePID rollPID = AnglePID(Kp_roll_angle, Ki_roll_angle, Kd_roll_angle);
-AnglePID pitchPID = AnglePID(Kp_pitch_angle, Ki_pitch_angle, Kd_pitch_angle);
-RatePID yawPID = RatePID(Kp_yaw, Ki_yaw, Kd_yaw);
-
-float Kp_array[3] = {Kp_roll_angle, Kp_pitch_angle, Kp_yaw};
-float Ki_array[3] = {Ki_roll_angle, Ki_pitch_angle, Ki_yaw};
-float Kd_array[3] = {Kd_roll_angle, Kd_pitch_angle, Kd_yaw};
-
-AngleAttitudeController controller = AngleAttitudeController(Kp_array, Ki_array, Kd_array);
 
 
 //========================================================================================================================//
@@ -729,77 +720,56 @@ void radioSetup() {
 }
 
 
-//void calibrateAttitude() {
-//  // DESCRIPTION: Used to warm up the main loop to allow the madwick filter to
-//  // converge before commands can be sent to the actuators Assuming vehicle is
-//  // powered up on level surface!
-//  /*
-//   * This function is used on startup to warm up the attitude estimation and is
-//   * what causes startup to take a few seconds to boot.
-//   */
-//  // Warm up IMU and madgwick filter in simulated main loop
-//  for (int i = 0; i <= 10000; i++) {
-//    prev_time = current_time;
-//    current_time = micros();
-//    dt = (current_time - prev_time) / 1000000.0;
-//    getIMUData(&quadIMU_info, &quadIMU);
-//    Madgwick6DOF(&quadIMU_info, dt);
-//    loopRate(2000); // do not exceed 2000Hz
-//  }
-//}
+void MadgwickWarmup() {
+  // DESCRIPTION: Used to warm up the main loop to allow the madwick filter to
+  // converge before commands can be sent to the actuators Assuming vehicle is
+  // powered up on level surface!
+  /*
+   * This function is used on startup to warm up the attitude estimation and is
+   * what causes startup to take a few seconds to boot.
+   */
+  // Warm up IMU and madgwick filter in simulated main loop
+  for (int i = 0; i <= 10000; i++) {
+    prev_time = current_time;
+    current_time = micros();
+    dt = (current_time - prev_time) / 1000000.0;
+		quadIMU.Update();
+    Madgwick6DOF(quadIMU, &quadIMU_info, dt);
+    loopRate(2000); // do not exceed 2000Hz
+  }
+}
 
-//void calibrateESCs() {
-//  // DESCRIPTION: Used in void setup() to allow standard ESC calibration
-//  // procedure with the radio to take place.
-//  /*
-//   *  Simulates the void loop(), but only for the purpose of providing throttle
-//   * pass through to the motors, so that you can power up with throttle at full,
-//   * let ESCs begin arming sequence, and lower throttle to zero. This function
-//   * should only be uncommented when performing an ESC calibration.
-//   */
-//  while (true) {
-//    prev_time = current_time;
-//    current_time = micros();
-//    dt = (current_time - prev_time) / 1000000.0;
-//
-//    digitalWrite(13, HIGH); // LED on to indicate we are not in main loop
-//
-//    getCommands();                       // Pulls current available radio commands
-//    failSafe();                          // Prevent failures in event of bad receiver connection,
-//                                         // defaults to failsafe values assigned in setup
-//    getDesState();                       // Convert raw commands to normalized values based on
-//                                         // saturated control limits
-//    getIMUData(&quadIMU_info, &quadIMU); // Pulls raw gyro, accelerometer, and magnetometer data from
-//                                         // IMU and LP filters to remove noise
-//    Madgwick6DOF(&quadIMU_info, dt);
-//    getDesState(); // Convert raw commands to normalized values based on
-//                   // saturated control limits
-//
-//    m1_command_scaled = thro_des;
-//    m2_command_scaled = thro_des;
-//    m3_command_scaled = thro_des;
-//    m4_command_scaled = thro_des;
-//    scaleCommands(); // Scales motor commands to 125 to 250 range (oneshot125
-//                     // protocol) and servo PWM commands to 0 to 180 (for servo
-//                     // library)
-//
-//    // throttleCut(); //Directly sets motor commands to low based on state of ch5
-//
-//		#ifdef USE_ONESHOT
-//    commandMotors();
-//		#else
-//    servo1.write(m1_command_PWM);
-//    servo2.write(m2_command_PWM);
-//    servo3.write(m3_command_PWM);
-//    servo4.write(m4_command_PWM);
-//		#endif
-//
-//    // printRadioData(); //Radio pwm values (expected: 1000 to 2000)
-//
-//    loopRate(2000); // Do not exceed 2000Hz, all filter parameters tuned to
-//                    // 2000Hz by default
-//  }
-//}
+void calibrateESCs() {
+  // DESCRIPTION: Used in void setup() to allow standard ESC calibration
+  // procedure with the radio to take place.
+  /*
+   *  Simulates the void loop(), but only for the purpose of providing throttle
+   * pass through to the motors, so that you can power up with throttle at full,
+   * let ESCs begin arming sequence, and lower throttle to zero. This function
+   * should only be uncommented when performing an ESC calibration.
+   */
+  while (true) {
+    prev_time = current_time;
+    current_time = micros();
+    dt = (current_time - prev_time) / 1000000.0;
+    digitalWrite(13, HIGH); // LED on to indicate we are not in main loop
+    getCommands();
+    failSafe();  
+    getDesState();
+		quadIMU.Update();
+    Madgwick6DOF(quadIMU, &quadIMU_info, dt);
+    getDesState();
+    m1_command_scaled = thro_des;
+    m2_command_scaled = thro_des;
+    m3_command_scaled = thro_des;
+    m4_command_scaled = thro_des;
+		m1_command_PWM = ScaleCommand(m1_command_scaled);
+		m2_command_PWM = ScaleCommand(m2_command_scaled);
+		m3_command_PWM = ScaleCommand(m3_command_scaled);
+		m4_command_PWM = ScaleCommand(m4_command_scaled);
+    loopRate(2000);
+  }
+}
 
 
 //=====================================//
