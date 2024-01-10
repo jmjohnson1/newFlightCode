@@ -21,34 +21,10 @@
 #include "controller.h"
 #include "motors.h"
 #include "radio.h"
+#include "testing.h"
 
 
-IMU quadIMU = IMU(-0.0121f, 0.0126f, 0.0770f, -4.7787f, -2.1795f, -0.6910f);
 
-// SD card setup
-// Logic needed to restart teensy
-#define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
-#define CPU_RESTART_VAL 0x5FA0004
-#define CPU_RESTART (*CPU_RESTART_ADDR = CPU_RESTART_VAL);
-
-// Use Teensy SDIO
-#define SD_CONFIG SdioConfig(FIFO_SDIO)
-
-// Interval between points (usec) for 100 samples/sec
-#define LOG_INTERVAL_USEC 10000
-
-// Size to log 256 byte lines at 100 Hz for a while
-#define LOG_FILE_SIZE 256 * 100 * 600 * 10 // ~1,500,000,000 bytes.
-
-// Space to hold more than 1 second of 256-byte lines at 100 Hz in the buffer
-#define RING_BUF_CAPACITY 50 * 512
-#define LOG_FILENAME "SdioLogger.csv"
-
-SdFs sd;
-FsFile file;
-
-// Ring buffer for filetype FsFile (The filemanager that will handle the data stream)
-RingBuf<FsFile, RING_BUF_CAPACITY> buffer;
 
 //================================================================================================//
 //                                     USER-SPECIFIED VARIABLES 																	//
@@ -96,15 +72,10 @@ float maxYaw = 160.0;
 
 // ANGLE MODE PID GAINS //
 // SCALE FACTORS FOR PID //
-float pScaleRoll = 1.0f;
-float pScalePitch = 1.0f;
-float pScaleYaw = 1.0f;
-float iScaleRoll = 1.0f;
-float iScalePitch = 1.0f;
-float iScaleYaw = 1.0f;
-float dScaleRoll = 1.0f;
-float dScalePitch = 1.0f;
-float dScaleYaw = 1.0f;
+float pScale = 1.0f;
+float iScale = 1.0f;
+float dScale = 1.0f;
+float allScale = 1.0f;
 
 float Kp_roll_angle = 0.56;
 float Ki_roll_angle = 0.176;
@@ -117,29 +88,6 @@ float Kd_pitch_angle = -0.063;
 float Kp_yaw = 0.3;
 float Ki_yaw = 0.06;
 float Kd_yaw = 0.00015;
-
-// Options for controlling the quad using user input values written over the
-// serial line Sets whether or not to allow direct input of pitch or roll angles
-// during a test flight. Setting this to true
-bool useSerialAngleCommands = 0;
-// The axis to rotate about in the setDesStateSerial() function: 1 = roll, 2 =
-// pitch
-int axisToRotate = 1;
-// Determines whether or not to use a sine wave in the setDesStateSerial()
-// function. If so, then the input from the serial line is taken to be the
-// frequency of this sine wave in Hz.
-bool useSineWave = 1;
-
-// Options for sine sweep
-// Option for whether or not to do a sine sweep as part of a test flight.
-// Setting this to true will result in pilot control of the axis connected to
-// axisToRotate being removed, and a sine sweep conducted between the maximum
-// and minimum frequencies specified.
-bool conductSineSweep = 0;
-float maxFreq = 3.0f;  // Maximum frequency of the sine sweep in Hz 		FIXME: Goes slightly beyond
-											 // 																											maxFreq
-float minFreq = 0.5f;  // Minimum frequency of the sine sweep in Hz
-float sweepTime = 120; // How long to run the sweep for in seconds
 
 //================================================================================================//
 //                                      DECLARE PINS 																							//
@@ -164,13 +112,37 @@ PWMServo servo4;
 
 //================================================================================================//
 
+// SD card setup
+// Logic needed to restart teensy
+#define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
+#define CPU_RESTART_VAL 0x5FA0004
+#define CPU_RESTART (*CPU_RESTART_ADDR = CPU_RESTART_VAL);
+
+// Use Teensy SDIO
+#define SD_CONFIG SdioConfig(FIFO_SDIO)
+
+// Interval between points (usec) for 100 samples/sec
+#define LOG_INTERVAL_USEC 10000
+
+// Size to log 256 byte lines at 100 Hz for a while
+#define LOG_FILE_SIZE 256 * 100 * 600 * 10 /*~1,500,000,000 bytes.*/
+
+// Space to hold more than 1 second of 256-byte lines at 100 Hz in the buffer
+#define RING_BUF_CAPACITY 50 * 512
+#define LOG_FILENAME "SdioLogger.csv"
+
+SdFs sd;
+FsFile file;
+
+// Ring buffer for filetype FsFile (The filemanager that will handle the data stream)
+RingBuf<FsFile, RING_BUF_CAPACITY> buffer;
 // DECLARE GLOBAL VARIABLES
 
 // General stuff
 float dt;
 
 unsigned long current_time, prev_time;
-unsigned long print_counter, serial_counter;
+unsigned long print_counter;
 unsigned long blink_counter, blink_delay;
 bool blinkAlternate;
 unsigned long print_counterSD = 200000;
@@ -180,6 +152,7 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
+IMU quadIMU = IMU(-0.0121f, 0.0126f, 0.0770f, -4.7787f, -2.1795f, -0.6910f);
 Attitude quadIMU_info;
 
 // Normalized desired state:
@@ -208,15 +181,6 @@ bool m2_writing = false;
 bool m3_writing = false;
 bool m4_writing = false;
 
-// Values for the setDesStateSerial() function
-float serialInputValue = 0.0f; // User input over the serial line
-float sineFrequency = 0.0f;    // If using sine wave, its frequency in Hz
-float sineTime = 0.0f;         // Counter used to determine time in the sine functions (seconds)
-
-// A flag for whether or not the sine sweep should be conducted. User input
-// while the program is running sets this. DON'T SET THIS YOURSELF!
-bool sweepFlag = 0;
-
 // SD Card settings
 String filePrefix = "flight_data";
 String fileExtension = ".csv";
@@ -230,9 +194,6 @@ uint16_t failureFlag = 0;
 
 int throttleCutCount = 0;
 
-// For keeping track of loop times
-float max_loopTime = 0;
-
 // Flag to check if the flight loop has started yet, prevents lock in main loop when throttle killed
 bool flightLoopStarted = 0;
 
@@ -245,132 +206,12 @@ Telemetry telem;
 Eigen::Vector3f mocapPosition(0, 0, 0);
 bool newPositionReceived;
 
-
-
 //========================================================================================================================//
 //                                                      FUNCTIONS //
 //========================================================================================================================//
 
 
-//void calculate_IMU_error(attInfo *imu, MPU6050 *mpu6050) {
-//  int16_t AcX, AcY, AcZ, GyX, GyY, GyZ;
-//  imu->AccErrorX = 0.0;
-//  imu->AccErrorY = 0.0;
-//  imu->AccErrorZ = 0.0;
-//  imu->GyroErrorX = 0.0;
-//  imu->GyroErrorY = 0.0;
-//  imu->GyroErrorZ = 0.0;
-//
-//  // Read IMU values 12000 times
-//  int c = 0;
-//  while (c < 12000) {
-//    mpu6050->getMotion6(&AcX, &AcY, &AcZ, &GyX, &GyY, &GyZ);
-//
-//    imu->AccX = AcX / ACCEL_SCALE_FACTOR;
-//    imu->AccY = AcY / ACCEL_SCALE_FACTOR;
-//    imu->AccZ = AcZ / ACCEL_SCALE_FACTOR;
-//    imu->GyroX = GyX / GYRO_SCALE_FACTOR;
-//    imu->GyroY = GyY / GYRO_SCALE_FACTOR;
-//    imu->GyroZ = GyZ / GYRO_SCALE_FACTOR;
-//
-//    // Sum all readings
-//    imu->AccErrorX = imu->AccErrorX + imu->AccX;
-//    imu->AccErrorY = imu->AccErrorY + imu->AccY;
-//    imu->AccErrorZ = imu->AccErrorZ + imu->AccZ;
-//    imu->GyroErrorX = imu->GyroErrorX + imu->GyroX;
-//    imu->GyroErrorY = imu->GyroErrorY + imu->GyroY;
-//    imu->GyroErrorZ = imu->GyroErrorZ + imu->GyroZ;
-//    c++;
-//  }
-//  // Divide the sum by 12000 to get the error value
-//  imu->AccErrorX = imu->AccErrorX / c;
-//  imu->AccErrorY = imu->AccErrorY / c;
-//  imu->AccErrorZ = imu->AccErrorZ / c - 1.0;
-//  imu->GyroErrorX = imu->GyroErrorX / c;
-//  imu->GyroErrorY = imu->GyroErrorY / c;
-//  imu->GyroErrorZ = imu->GyroErrorZ / c;
-//
-//  Serial.print("float AccErrorX = ");
-//  Serial.print(imu->AccErrorX);
-//  Serial.println(";");
-//  Serial.print("float AccErrorY = ");
-//  Serial.print(imu->AccErrorY);
-//  Serial.println(";");
-//  Serial.print("float AccErrorZ = ");
-//  Serial.print(imu->AccErrorZ);
-//  Serial.println(";");
-//
-//  Serial.print("float GyroErrorX = ");
-//  Serial.print(imu->GyroErrorX);
-//  Serial.println(";");
-//  Serial.print("float GyroErrorY = ");
-//  Serial.print(imu->GyroErrorY);
-//  Serial.println(";");
-//  Serial.print("float GyroErrorZ = ");
-//  Serial.print(imu->GyroErrorZ);
-//  Serial.println(";");
-//
-//  Serial.println("Paste these values in user specified variables section and "
-//                 "comment out calculate_IMU_error() in void setup.");
-//  for (;;);
-//}
 
-
-void performSineSweep(int controlledAxis) {
-  // DESCRIPTION: Performs a sine sweep from minFreq (Hz) to maxFreq (Hz) over sweepTime (seconds)
-  float desiredAngle = 0;
-  float amp = 10; // Sine wave amplitude in degrees
-
-  // if (Serial.available()) {
-  //   sweepFlag = 1;
-  //   while (Serial.available() !=0) {
-  //       Serial.read();
-  //     }
-  // }
-
-  // if (sweepFlag){
-  desiredAngle =
-      amp * sin(PI * (maxFreq - minFreq) / pow(sweepTime, 2) * pow(sineTime, 3) + 2 * PI * minFreq * sineTime);
-  if (sineTime > sweepTime) {
-    desiredAngle = 0;
-  }
-  sineTime = sineTime + 1 / 2000.0f;
-  //}
-
-  switch (controlledAxis) {
-  case 1:
-    roll_des = desiredAngle;
-    break;
-  case 2:
-    pitch_des = desiredAngle;
-    break;
-  default:
-    break;
-  }
-}
-
-void rollStep() {
-  float desiredAngle;
-  if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_LOW) {
-    desiredAngle = 10.0f;
-  } else if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_HIGH) {
-    desiredAngle = -10.0f;
-  } else {
-    desiredAngle = 0.0f;
-  }
-  roll_des = desiredAngle;
-}
-void pitchStep() {
-  float desiredAngle;
-  if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_LOW) {
-    desiredAngle = 3.0f;
-  } else if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_HIGH) {
-    desiredAngle = -3.0f;
-  } else {
-    desiredAngle = 0.0f;
-  }
-  pitch_des = desiredAngle;
-}
 
 void getDesState() {
   // DESCRIPTION: Normalizes desired control values to appropriate values
@@ -428,18 +269,6 @@ void getCommands() {
 }
 
 void failSafe() {
-  // DESCRIPTION: If radio gives garbage values, set all commands to default
-  // values
-  /*
-   * Radio connection failsafe used to check if the getCommands() function is
-   * returning acceptable pwm values. If any of the commands are lower than 800
-   * or higher than 2200, then we can be certain that there is an issue with the
-   * radio connection (most likely hardware related). If any of the channels
-   * show this failure, then all of the radio commands channel_x_pwm are set to
-   * default failsafe values specified in the setup. Comment out this function
-   * when troubleshooting your radio connection in case any extreme values are
-   * triggering this function to overwrite the printed variables.
-   */
   failureFlag = 0;
 
   // Triggers for failure criteria
@@ -475,22 +304,6 @@ void m4_EndPulse() {
   digitalWrite(m4Pin, LOW);
   m4_writing = false;
 }
-
-
-//void armMotors() {
-//  // DESCRIPTION: Sends many command pulses to the motors, to be used to arm
-//  // motors in the void setup()
-//  /*
-//   *  Loops over the commandMotors() function 1500 times with a delay in between,
-//   * simulating how the commandMotors() function is used in the main loop.
-//   * Ensures motors arm within the void setup() where there are some delays for
-//   * other processes that sometimes prevent motors from arming.
-//   */
-//  for (int i = 0; i <= 10000; i++) {
-//    commandMotors();
-//    delayMicroseconds(500);
-//  }
-//}
 
 
 int throttleCut() {
@@ -570,47 +383,6 @@ void setupBlink(int numBlinks, int upTime, int downTime) {
   }
 }
 
-//void getPScale() {
-//  float scaleVal;
-//  scaleVal = 1.0f + (channel_10_pwm - 1000.0f) / 1000.0f * 1.0f;
-//  if (scaleVal < 0.0f) {
-//    scaleVal = 0.0f;
-//  }
-//  pScaleRoll = scaleVal;
-//  pScalePitch = scaleVal;
-//}
-//
-//void getDScale() {
-//  float scaleVal;
-//  scaleVal = 1.0f + (channel_12_pwm - 1000.0f) / 1000.0f * 2.0f;
-//  if (scaleVal < 0.0f) {
-//    scaleVal = 0.0f;
-//  }
-//  dScaleRoll = scaleVal;
-//  dScalePitch = scaleVal;
-//}
-//
-//void getIScale() {
-//  float scaleVal;
-//  scaleVal = 1.0f + (channel_11_pwm - 1000.0f) / 1000.0f * 2.0f;
-//  if (scaleVal < 0.0f) {
-//    scaleVal = 0.0f;
-//  }
-//  iScaleRoll = scaleVal;
-//  iScalePitch = scaleVal;
-//}
-//
-//void scaleBoth() {
-//  float scaleMultiplier;
-//  scaleMultiplier = 1.0f + (channel_13_pwm - 1015.0f) / 1000.0f * 0.25f;
-//  pScaleRoll *= scaleMultiplier;
-//  iScaleRoll *= scaleMultiplier;
-//  dScaleRoll *= scaleMultiplier;
-//  pScalePitch *= scaleMultiplier;
-//  iScalePitch *= scaleMultiplier;
-//  dScalePitch *= scaleMultiplier;
-//}
-
 //=========================================================================================//
 
 void radioSetup() {
@@ -669,6 +441,63 @@ void calibrateESCs() {
   }
 }
 
+void calculate_IMU_error(IMU *imu, Attitude *att) {
+  int16_t AcX, AcY, AcZ, GyX, GyY, GyZ;
+	
+	float errorAcc[3] = {0, 0, 0};
+	float errorGyro[3] = {0, 0, 0};
+
+	// First set the null shift to zero
+	float nullShiftArray[3] = {0, 0, 0};
+	imu->SetAccNullShift(nullShiftArray);
+	imu->SetGyroNullShift(nullShiftArray);
+
+  // Read IMU values 12000 times
+  int c = 0;
+  while (c < 12000) {
+		imu->Update();
+
+		errorAcc[0] += imu->GetAccX();
+		errorAcc[1] += imu->GetAccY();
+		errorAcc[2] += imu->GetAccZ() - 1.0f; // Need to subtract gravity
+
+		errorGyro[0] += imu->GetGyroX();
+		errorGyro[1] += imu->GetGyroY();
+		errorGyro[2] += imu->GetGyroZ();
+
+    c++;
+  }
+  // Divide the sum by 12000 to get the error value
+	for (int i = 0; i < 3; i++) {
+		errorAcc[i] = errorAcc[i]/c;
+		errorGyro[i] = errorGyro[i]/c;
+	}
+
+
+  Serial.print("float AccErrorX = ");
+  Serial.print(errorAcc[0]);
+  Serial.println(";");
+  Serial.print("float AccErrorY = ");
+  Serial.print(errorAcc[1]);
+  Serial.println(";");
+  Serial.print("float AccErrorZ = ");
+  Serial.print(errorAcc[2]);
+  Serial.println(";");
+
+  Serial.print("float GyroErrorX = ");
+  Serial.print(errorGyro[0]);
+  Serial.println(";");
+  Serial.print("float GyroErrorY = ");
+  Serial.print(errorGyro[1]);
+  Serial.println(";");
+  Serial.print("float GyroErrorZ = ");
+  Serial.print(errorGyro[2]);
+  Serial.println(";");
+
+  Serial.println("Paste these values in user specified variables section and "
+                 "comment out calculate_IMU_error() in void setup.");
+  for (;;);
+}
 
 //=====================================//
 //========== SD Card Logging ==========//
@@ -846,23 +675,23 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print(m4_command_scaled, 4);
 		buffer.write(",");
-		buffer.print(Kp_roll_angle*pScaleRoll, 4);
+		buffer.print(Kp_roll_angle*pScale, 4);
 		buffer.write(",");
-		buffer.print(Ki_roll_angle*iScaleRoll, 4);
+		buffer.print(Ki_roll_angle*iScale, 4);
 		buffer.write(",");
-		buffer.print(Kd_roll_angle*dScaleRoll, 4);
+		buffer.print(Kd_roll_angle*dScale, 4);
 		buffer.write(",");
-		buffer.print(Kp_pitch_angle*pScalePitch, 4);
+		buffer.print(Kp_pitch_angle*pScale, 4);
 		buffer.write(",");
-		buffer.print(Ki_pitch_angle*iScalePitch, 4);
+		buffer.print(Ki_pitch_angle*iScale, 4);
 		buffer.write(",");
-		buffer.print(Kd_pitch_angle*dScalePitch, 4);
+		buffer.print(Kd_pitch_angle*dScale, 4);
 		buffer.write(",");
-		buffer.print(Kp_yaw*pScaleYaw, 4);
+		buffer.print(Kp_yaw, 4);
 		buffer.write(",");
-		buffer.print(Ki_yaw*iScaleYaw, 4);
+		buffer.print(Ki_yaw, 4);
 		buffer.write(",");
-		buffer.print(Kd_yaw*dScaleYaw, 4);
+		buffer.print(Kd_yaw, 4);
 		buffer.write(",");
 		buffer.print(failureFlag);
 		buffer.write(",");
@@ -1014,14 +843,6 @@ void loop() {
     telem.SetSystemMode(MAV_MODE_MANUAL_ARMED);
   }
 
-  // Sine sweep check
-  if (sineSweepChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
-    conductSineSweep = 1;
-  } else {
-    conductSineSweep = 0;
-    sineTime = 0;
-  }
-
   // Write to SD card buffer
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
     print_counterSD = micros();
@@ -1037,7 +858,7 @@ void loop() {
   if ((loopCount % 250) == 0) {
 		telem.UpdateReceived();
     telem.SendAttitude(quadIMU_info.roll, quadIMU_info.pitch, 0.0f, quadIMU.GetGyroX(), quadIMU.GetGyroY(), 0.0f);
-    telem.SendPIDGains_core(Kp_roll_angle * pScaleRoll, Ki_roll_angle * iScaleRoll, Kd_roll_angle * dScaleRoll);
+    telem.SendPIDGains_core(Kp_roll_angle * pScale, Ki_roll_angle * iScale, Kd_roll_angle * dScale);
   }
   loopCount++;
 
@@ -1055,25 +876,41 @@ void loop() {
 
   // Compute desired state based on radio inputs
   getDesState(); // Convert raw commands to normalized values based on saturated control limits
-
-  if (conductSineSweep) {
-    // Overwrites axisToRotate in getDesState()
-    performSineSweep(axisToRotate);
+	//
+	
+#ifdef TEST_STAND
+	// Sine sweep
+  if (sineSweepChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
+		testStand::SineSweep(dt);
   }
-
+	// Step inputs
   if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_MID) {
-    rollStep();
-  }
+		roll_des = testStand::Step(stepAngleSelector);
+  } else if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_HIGH) {
+		pitch_des = testStand::Step(stepAngleSelector);
+	}
+#endif
 
-  if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_HIGH) {
-    pitchStep();
-  }
 
-  //getPScale();
-  //getIScale();
-  //getDScale();
-  //scaleBoth();
+	// PID Gain scaling
+#ifdef PID_TUNING
+	pScale = gainTuning::ScaleFactor(KpScaleChannel);
+	iScale = gainTuning::ScaleFactor(KiScaleChannel);
+	dScale = gainTuning::ScaleFactor(KdScaleChannel);
+	allScale = gainTuning::ScaleFactor(scaleAllChannel);
 
+	pScale *= allScale;
+	iScale *= allScale;
+	dScale *= allScale;
+
+	float KpScaled[3] = {Kp_roll_angle*pScale, Kp_pitch_angle*pScale, Kp_yaw};
+	float KiScaled[3] = {Ki_roll_angle*iScale, Ki_pitch_angle*iScale, Ki_yaw};
+	float KdScaled[3] = {Kd_roll_angle*dScale, Kd_pitch_angle*dScale, Kd_yaw};
+	controller.SetKp(KpScaled);
+	controller.SetKi(KiScaled);
+	controller.SetKd(KdScaled);
+#endif
+	
 	// TODO: be better
 	bool noIntegral = false;
 	if (throttleChannel.GetRawValue() < 1060) {

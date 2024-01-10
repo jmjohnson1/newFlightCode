@@ -59,6 +59,17 @@ public:
 	float GetGyroY() const {return gyroY_;}
 	float GetGyroZ() const {return gyroZ_;}
 
+	void SetAccNullShift(float NullShift[3]) {
+		accNullShiftX_ = NullShift[0];
+		accNullShiftY_ = NullShift[1];
+		accNullShiftZ_ = NullShift[2];
+	}
+	void SetGyroNullShift(float NullShift[3]) {
+		gyroNullShiftX_ = NullShift[0];
+		gyroNullShiftY_ = NullShift[1];
+		gyroNullShiftZ_ = NullShift[2];
+	}
+
 private:
 	MPU6050 *mpu6050_ = NULL;
 	TwoWire *bus_ = NULL;
