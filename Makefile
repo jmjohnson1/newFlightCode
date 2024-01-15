@@ -42,6 +42,8 @@ BUILDDIR = build
 # The name of your project (used to name the compiled .hex file)
 TARGET = bin/main
 
+OS_NAME := $(shell uname -s | tr A-Z a-z)
+
 # configurable options
 OPTIONS = -DF_CPU=600000000 -DUSB_SERIAL -DLAYOUT_US_ENGLISH -DUSING_MAKEFILE
 #
@@ -98,12 +100,18 @@ TOOLSPATH = tools
 # path for teensy core files
 COREPATH = teensy4
 
-# path location for Arduino libraries (currently not used)
-LIBRARYPATH = libraries
+ARDUINOLIBPATH = src/ArduinoLibs
 INCLUDEPATH = include
 
 # path location for the arm-none-eabi compiler
-COMPILERPATH = /Applications/ARM/bin
+
+
+ifeq ($(OS_NAME), linux)
+	COMPILERPATH = /opt/gcc-arm-none-eabi-10-2020-q4-major/bin
+endif
+ifeq ($(OS_NAME), darwin)
+	COMPILERPATH = /Applications/ARM/bin
+endif
 
 
 #************************************************************************
@@ -142,16 +150,16 @@ SIZE = $(COMPILERPATH)/arm-none-eabi-size
 #CPP_FILES := $(wildcard *.cpp)
 #OBJS := $(C_FILES:.c=.o) $(CPP_FILES:.cpp=.o)
 
-LC_FILES := $(wildcard $(LIBRARYPATH)/*/*.c)
-LCPP_FILES := $(wildcard $(LIBRARYPATH)/*/*.cpp)
+LC_FILES := $(shell find $(ARDUINOLIBPATH) -type f -name *.c)
+LCPP_FILES := $(shell find $(ARDUINOLIBPATH) -type f -name *.cpp)
 TC_FILES := $(wildcard $(COREPATH)/*.c)
 TCPP_FILES := $(wildcard $(COREPATH)/*.cpp)
 C_FILES := $(wildcard src/*.c)
 CPP_FILES := $(wildcard src/*.cpp)
 INO_FILES := $(wildcard src/*.ino)
 
-INC := $(foreach inc,$(filter %/, $(wildcard $(INCLUDEPATH)/*/)), -I$(inc))
-L_INC := $(foreach lib,$(filter %/, $(wildcard $(LIBRARYPATH)/*/src/)), -I$(lib))
+INC := $(foreach inc,$(wildcard $(INCLUDEPATH)/*/), -I$(inc))
+L_INC := $(foreach lib,$(wildcard $(ARDUINOLIBPATH)/*/), -I$(lib))
 
 SOURCES := $(C_FILES:.c=.o) $(CPP_FILES:.cpp=.o) $(INO_FILES:.ino=.o) $(TC_FILES:.c=.o) $(TCPP_FILES:.cpp=.o) $(LC_FILES:.c=.o) $(LCPP_FILES:.cpp=.o)
 OBJS := $(foreach src,$(SOURCES), $(BUILDDIR)/$(src))
@@ -166,12 +174,15 @@ build: $(TARGET).elf
 hex: $(TARGET).hex
 
 post_compile: $(TARGET).hex
-	@$(abspath $(TOOLSPATH))/teensy_post_compile -file="$(basename $<)" -path=$(CURDIR) -tools="$(abspath $(TOOLSPATH))"
+	$(abspath $(TOOLSPATH))/teensy_post_compile -file="$(basename $(notdir $<))" -path=$(CURDIR)/bin -tools="$(abspath $(TOOLSPATH))"
 
 reboot:
-	@-$(abspath $(TOOLSPATH))/teensy_reboot
+	-$(abspath $(TOOLSPATH))/teensy_reboot
 
 upload: post_compile reboot
+
+os: 
+	@echo $(OS_NAME)
 
 $(BUILDDIR)/%.o: %.c
 	@echo -e "[CC]\t$<"
@@ -179,7 +190,6 @@ $(BUILDDIR)/%.o: %.c
 	@$(CC) $(CPPFLAGS) $(CFLAGS) $(INC) $(L_INC) -o "$@" -c "$<"
 
 $(BUILDDIR)/%.o: %.cpp
-	@echo "$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INC) $(L_INC)"
 	@echo -e "[CXX]\t$<"
 	@mkdir -p "$(dir $@)"
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INC) $(L_INC) -o "$@" -c "$<"

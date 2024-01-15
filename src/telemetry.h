@@ -7,8 +7,9 @@
 #include "common/mavlink.h"
 #include "ardupilotmega/mavlink_msg_pid_tuning.h"
 #include <eigen.h>
-#include <cstdint>
+#include <stdint.h>
 #include "commonDefinitions.h"
+#include "IMU.h"
 
 class Telemetry {
 public:
@@ -19,7 +20,7 @@ public:
 	void SendPIDGains_core(float P, float I, float D);
 	void SendPIDGains_rip(float P, float I, float D);
 	void SendAttitude(float roll, float pitch, float yaw, float rollspeed, float pitchspeed, float yawspeed);
-	void SendScaledIMU(uint64_t timeSinceBoot, attInfo *imuInfo);
+	void SendScaledIMU(uint64_t timeSinceBoot, const IMU &imu);
 	void SendMessage(mavlink_message_t *msg);
 	void UpdateReceived();
 
