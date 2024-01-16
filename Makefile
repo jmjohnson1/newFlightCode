@@ -41,6 +41,7 @@ BUILDDIR = build
 
 # The name of your project (used to name the compiled .hex file)
 TARGET = bin/main
+DIR_GUARD = @mkdir -p $(@D)
 
 OS_NAME := $(shell uname -s | tr A-Z a-z)
 
@@ -200,6 +201,7 @@ $(BUILDDIR)/%.o: %.ino
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INC) $(L_INC) -o "$@" -x c++ -include Arduino.h -c "$<"
 
 $(TARGET).elf: $(OBJS) $(LD_PATH)
+	$(DIR_GUARD)
 	@echo -e "[LD]\t$@"
 	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
