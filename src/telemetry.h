@@ -31,7 +31,7 @@ public:
 	uint8_t GetSystemMode() {return systemMode;}
 	uint8_t GetSystemState() {return systemState;}
 
-	bool CheckForNewPosition(Eigen::Vector3f& pos);
+	uint32_t CheckForNewPosition(Eigen::Vector3d& pos, uint32_t tow);
 	
 private:
 	void HandleMessage(mavlink_message_t *msg);

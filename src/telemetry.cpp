@@ -133,13 +133,13 @@ void Telemetry::HandleLocalPosNED(mavlink_message_t *msg) {
 *
 * @returns: true if pos has been modified, false otherwise.
 */
-bool Telemetry::CheckForNewPosition(Eigen::Vector3f& pos) {
+uint32_t Telemetry::CheckForNewPosition(Eigen::Vector3d& pos, uint32_t tow) {
 	if (!mostRecentPosRead) {
 		pos[0] = localPos.x;
 		pos[1] = localPos.y;
 		pos[2] = localPos.z;
 		mostRecentPosRead = true;
-		return true;
+		tow++;
 	}
-	return false;
+	return tow;
 }

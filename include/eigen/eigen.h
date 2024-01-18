@@ -33,4 +33,4 @@
 #define EIGEN_NO_DEBUG 1
 
 /* Include core header */
-#include "Eigen/Core"
+#include "Eigen/Dense"

@@ -17,6 +17,10 @@
 // #define TUNE_RIP
 #define TUNE_CORE
 
+/**Don't change this for now**/
+#define USE_MADGWICK
+#define USE_EKF
+
 /**Use OneShot125 comment out to use PWM**/ //TODO: Make PWM work again
 #define USE_ONESHOT
 

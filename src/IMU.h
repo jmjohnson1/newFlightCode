@@ -4,7 +4,9 @@
 #include <stdint.h>
 #include "Wire.h"
 #include "MPU6050.h"
+#include "eigen.h"
 #include "UserDefines.h"
+
 
 // Setup gyro and accel full scale value selection and scale factor
 
@@ -58,6 +60,9 @@ public:
 	float GetGyroX() const {return gyroX_;}
 	float GetGyroY() const {return gyroY_;}
 	float GetGyroZ() const {return gyroZ_;}
+	Eigen::Vector3f GetAcc() const {return Eigen::Vector3f(accX_, accY_, accZ_);}
+	Eigen::Vector3f GetGyro() const {return Eigen::Vector3f(gyroX_, gyroY_, gyroZ_);}
+
 
 	void SetAccNullShift(float NullShift[3]) {
 		accNullShiftX_ = NullShift[0];

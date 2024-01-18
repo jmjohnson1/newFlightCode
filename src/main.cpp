@@ -22,6 +22,7 @@
 #include "motors.h"
 #include "radio.h"
 #include "testing.h"
+#include "uNavINS.h"
 
 
 
@@ -152,7 +153,7 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-IMU quadIMU = IMU(-0.0121f, 0.0126f, 0.0770f, -4.7787f, -2.1795f, -0.6910f);
+IMU quadIMU = IMU(-0.0121f, -0.0126f, -0.0770f, -4.7787f, 2.1795f, 0.6910f);
 Attitude quadIMU_info;
 
 // Normalized desired state:
@@ -203,8 +204,12 @@ int loopCount = 0;
 Telemetry telem;
 
 // Position vector taken from mocap
-Eigen::Vector3f mocapPosition(0, 0, 0);
-bool newPositionReceived;
+Eigen::Vector3d mocapPosition(0, 0, 0);
+uint32_t EKF_tow = 0; // Time of week used with the EKF. It increments whenever a new position is received from the transmitter
+
+
+// EKF
+uNavINS ins;
 
 //========================================================================================================================//
 //                                                      FUNCTIONS //
@@ -573,13 +578,28 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print("timeSinceBoot");
 		buffer.write(",");
-		buffer.print("newPositionReceived");
+		buffer.print("EKF_tow");
 		buffer.write(",");
-		buffer.print("PositionX");
+		buffer.print("MocapPositionX");
 		buffer.write(",");
-		buffer.print("PositionY");
+		buffer.print("MocapPositionY");
 		buffer.write(",");
-		buffer.print("PositionZ");
+		buffer.print("MocapPositionZ");
+
+  #ifdef USE_EKF
+		buffer.write(",");
+    buffer.print("rollEstEKF");
+		buffer.write(",");
+    buffer.print("pitchEstEKF");
+		buffer.write(",");
+    buffer.print("yawEstEKF");
+		buffer.write(",");
+    buffer.print("xEstEKF");
+		buffer.write(",");
+    buffer.print("yEstEKF");
+		buffer.write(",");
+    buffer.print("zEstEKF");
+  #endif
 
 		buffer.println();
 	}
@@ -697,13 +717,27 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print(micros());
 		buffer.write(",");
-		buffer.print(newPositionReceived);
+		buffer.print(EKF_tow);
 		buffer.write(",");
 		buffer.print(mocapPosition[0], 6);
 		buffer.write(",");
 		buffer.print(mocapPosition[1], 6);
 		buffer.write(",");
 		buffer.print(mocapPosition[2], 6);
+  #ifdef USE_EKF
+		buffer.write(",");
+    buffer.print(ins.Get_OrientEst()[0]);
+		buffer.write(",");
+    buffer.print(ins.Get_OrientEst()[1]);
+		buffer.write(",");
+    buffer.print(ins.Get_OrientEst()[2]);
+		buffer.write(",");
+    buffer.print(ins.Get_PosEst()[0]);
+		buffer.write(",");
+    buffer.print(ins.Get_PosEst()[1]);
+		buffer.write(",");
+    buffer.print(ins.Get_PosEst()[2]);
+  #endif
 		buffer.println();
 
 		if (buffer.getWriteError()) {
@@ -763,9 +797,15 @@ void setup() {
   // Begin mavlink telemetry module
   telem.InitTelemetry();
 
+
 	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
 	Serial.print("IMU initialization successful: ");
 	Serial.println(IMU_initSuccessful);
+
+#ifdef USE_EKF
+  ins.Configure();
+	ins.Initialize(quadIMU.GetGyro()*PI/180.0f, quadIMU.GetAcc()*9.81f, mocapPosition);
+#endif
 
   // Initialize the SD card, returns 1 if no sd card is detected or it can't be
   // initialized
@@ -780,13 +820,13 @@ void setup() {
 
 
   // Arm servo channels
-	#ifndef USE_ONESHOT
+#ifndef USE_ONESHOT
   servo1.write(0); // Command servo angle from 0-180 degrees (1000 to 2000 PWM)
   servo2.write(0); // Set these to 90 for servos if you do not want them to
                    // briefly max out on startup
   servo3.write(0); // Keep these at 0 if you are using servo outputs for motors
   servo4.write(0);
-	#endif
+#endif
 
   delay(5);
 
@@ -830,7 +870,7 @@ void loop() {
 		//serialDebug::PrintDesiredState(thro_des, roll_des, pitch_des, yaw_des);
 		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
 		//serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());
-		//serialDebug::PrintRollPitchYaw(quadIMU_info.roll, quadIMU_info.pitch, quadIMU_info.yaw);
+		serialDebug::PrintRollPitchYaw(quadIMU_info.roll, quadIMU_info.pitch, quadIMU_info.yaw);
 		//serialDebug::PrintPIDOutput(controller.GetRollPID(), controller.GetPitchPID(), controller.GetYawPID());
 		//serialDebug::PrintMotorCommands(m1_command_PWM, m2_command_PWM, m3_command_PWM, m4_command_PWM);
 		//serialDebug::PrintLoopTime(dt);
@@ -846,7 +886,7 @@ void loop() {
   // Write to SD card buffer
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
     print_counterSD = micros();
-		datalogger::WriteBuffer();
+	datalogger::WriteBuffer();
     Serial.println("logged");
   }
 
@@ -856,23 +896,21 @@ void loop() {
     loopCount = 0;
   }
   if ((loopCount % 250) == 0) {
-		telem.UpdateReceived();
+	telem.UpdateReceived();
     telem.SendAttitude(quadIMU_info.roll, quadIMU_info.pitch, 0.0f, quadIMU.GetGyroX(), quadIMU.GetGyroY(), 0.0f);
     telem.SendPIDGains_core(Kp_roll_angle * pScale, Ki_roll_angle * iScale, Kd_roll_angle * dScale);
   }
   loopCount++;
 
-	// Check for a new position value
-	//  This is hideous
-	if (telem.CheckForNewPosition(mocapPosition)) {
-		newPositionReceived = true;
-	} else {
-		newPositionReceived = false;
-	}
+	EKF_tow = telem.CheckForNewPosition(mocapPosition, EKF_tow);
 
   // Get vehicle state
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
   Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
+
+#ifdef USE_EKF
+  ins.Update(micros(), EKF_tow, quadIMU.GetGyro(), quadIMU.GetAcc(), mocapPosition);
+#endif
 
   // Compute desired state based on radio inputs
   getDesState(); // Convert raw commands to normalized values based on saturated control limits

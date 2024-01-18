@@ -9,10 +9,16 @@ void Madgwick6DOF(const IMU &imu, Attitude *att, float dt) {
   float _2q0, _2q1, _2q2, _2q3, _4q0, _4q1, _4q2, _8q1, _8q2, q0q0, q1q1, q2q2, q3q3;
 
 	// I don't know why some of these are negative
+  //float gx = imu.GetGyroX();
+  //float gy = -imu.GetGyroY();
+  //float gz = -imu.GetGyroZ();
+  //float ax = -imu.GetAccX();
+  //float ay = imu.GetAccY();
+  //float az = imu.GetAccZ();
   float gx = imu.GetGyroX();
-  float gy = -imu.GetGyroY();
-  float gz = -imu.GetGyroZ();
-  float ax = -imu.GetAccX();
+  float gy = imu.GetGyroY();
+  float gz = imu.GetGyroZ();
+  float ax = imu.GetAccX();
   float ay = imu.GetAccY();
   float az = imu.GetAccZ();
 
@@ -57,10 +63,16 @@ void Madgwick6DOF(const IMU &imu, Attitude *att, float dt) {
     q3q3 = q3 * q3;
 
     // Gradient decent algorithm corrective step
-    s0 = _4q0 * q2q2 + _2q2 * ax + _4q0 * q1q1 - _2q1 * ay;
-    s1 = _4q1 * q3q3 - _2q3 * ax + 4.0f * q0q0 * q1 - _2q0 * ay - _4q1 + _8q1 * q1q1 + _8q1 * q2q2 + _4q1 * az;
-    s2 = 4.0f * q0q0 * q2 + _2q0 * ax + _4q2 * q3q3 - _2q3 * ay - _4q2 + _8q2 * q1q1 + _8q2 * q2q2 + _4q2 * az;
-    s3 = 4.0f * q1q1 * q3 - _2q1 * ax + 4.0f * q2q2 * q3 - _2q2 * ay;
+    // This has been changed from the original paper to work with the front, starboard, down coordinate frame.
+    // The original is here for reference.
+    //s0 = _4q0 * q2q2 + _2q2 * ax + _4q0 * q1q1 - _2q1 * ay;
+    //s1 = _4q1 * q3q3 - _2q3 * ax + 4.0f * q0q0 * q1 - _2q0 * ay - _4q1 + _8q1 * q1q1 + _8q1 * q2q2 + _4q1 * az;
+    //s2 = 4.0f * q0q0 * q2 + _2q0 * ax + _4q2 * q3q3 - _2q3 * ay - _4q2 + _8q2 * q1q1 + _8q2 * q2q2 + _4q2 * az;
+    //s3 = 4.0f * q1q1 * q3 - _2q1 * ax + 4.0f * q2q2 * q3 - _2q2 * ay;
+    s0 = _4q0 * q2q2 - _2q2 * ax + _4q0 * q1q1 + _2q1 * ay;
+    s1 = _4q1 * q3q3 + _2q3 * ax + 4.0f * q0q0 * q1 + _2q0 * ay - _4q1 + _8q1 * q1q1 + _8q1 * q2q2 - _4q1 * az;
+    s2 = 4.0f * q0q0 * q2 - _2q0 * ax + _4q2 * q3q3 + _2q3 * ay - _4q2 + _8q2 * q1q1 + _8q2 * q2q2 - _4q2 * az;
+    s3 = 4.0f * q1q1 * q3 + _2q1 * ax + 4.0f * q2q2 * q3 + _2q2 * ay;
     recipNorm = 1/sqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3); // normalise step magnitude
     s0 *= recipNorm;
     s1 *= recipNorm;
@@ -95,6 +107,6 @@ void Madgwick6DOF(const IMU &imu, Attitude *att, float dt) {
 
   // Compute euler angles (degrees)
   att->roll  = atan2(q0*q1 + q2*q3, 0.5f - q1*q1 - q2*q2)*57.29577951;
-  att->pitch = -asin(-2.0f*(q1*q3 - q0*q2))*57.29577951;
-  att->yaw   = -atan2(q1*q2 + q0*q3, 0.5f - q2*q2 - q3*q3)*57.29577951;
+  att->pitch = asin(-2.0f*(q1*q3 - q0*q2))*57.29577951;
+  att->yaw   = atan2(q1*q2 + q0*q3, 0.5f - q2*q2 - q3*q3)*57.29577951;
 }
