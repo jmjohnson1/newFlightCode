@@ -80,10 +80,10 @@ float allScale = 1.0f;
 
 float Kp_roll_angle = 0.56;
 float Ki_roll_angle = 0.176;
-float Kd_roll_angle = -0.063;
+float Kd_roll_angle = 0.063;
 float Kp_pitch_angle = 0.56;
 float Ki_pitch_angle = 0.176;
-float Kd_pitch_angle = -0.063;
+float Kd_pitch_angle = 0.063;
 
 // YAW PID GAINS //
 float Kp_yaw = 0.3;

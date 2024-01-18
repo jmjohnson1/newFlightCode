@@ -49,7 +49,7 @@ float AngleAttitudeController::AnglePID(float setpoint, float measuredAngle, flo
     integral = 0.0f;
   }
   integral = constrain(integral, -iLimit_, iLimit_); // Saturate integrator to prevent unsafe buildup
-  float derivative = gyroRate;
+  float derivative = -gyroRate; // This is an approximation of the error derivative
   float PIDOutput = 0.01 * (Kp*error + Ki*integral + Kd*derivative);
 	*integral_prev = integral;
 
