@@ -207,9 +207,15 @@ Telemetry telem;
 Eigen::Vector3d mocapPosition(0, 0, 0);
 uint32_t EKF_tow = 0; // Time of week used with the EKF. It increments whenever a new position is received from the transmitter
 
-
 // EKF
 uNavINS ins;
+
+// Constants for unit conversion
+const float DEG_2_RAD = PI/180.0f;
+const float RAD_2_DEG = 1.0f/DEG_2_RAD;
+const float G = 9.807f;  // m/s/s
+
+
 
 //========================================================================================================================//
 //                                                      FUNCTIONS //
@@ -804,7 +810,7 @@ void setup() {
 
 #ifdef USE_EKF
   ins.Configure();
-	ins.Initialize(quadIMU.GetGyro()*PI/180.0f, quadIMU.GetAcc()*9.81f, mocapPosition);
+	ins.Initialize(quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, mocapPosition);
 #endif
 
   // Initialize the SD card, returns 1 if no sd card is detected or it can't be
@@ -909,7 +915,7 @@ void loop() {
   Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 
 #ifdef USE_EKF
-  ins.Update(micros(), EKF_tow, quadIMU.GetGyro(), quadIMU.GetAcc(), mocapPosition);
+  ins.Update(micros(), EKF_tow, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*RAD_2_DEG, mocapPosition);
 #endif
 
   // Compute desired state based on radio inputs

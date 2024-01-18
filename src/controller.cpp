@@ -18,10 +18,14 @@ void AngleAttitudeController::Update(const float (&setpoints)[3], const Attitude
 }
 
 void AngleAttitudeController::GetMotorCommands(float motorCommandsNormalized[4], float throttleSetting) {
-	motorCommandsNormalized[0] = throttleSetting - pitchPID_ + rollPID_ + yawPID_;
-	motorCommandsNormalized[1] = throttleSetting - pitchPID_ - rollPID_ - yawPID_;
-	motorCommandsNormalized[2] = throttleSetting + pitchPID_ - rollPID_ + yawPID_;
-	motorCommandsNormalized[3] = throttleSetting + pitchPID_ + rollPID_ - yawPID_;
+	//motorCommandsNormalized[0] = throttleSetting - pitchPID_ + rollPID_ + yawPID_;
+	//motorCommandsNormalized[1] = throttleSetting - pitchPID_ - rollPID_ - yawPID_;
+	//motorCommandsNormalized[2] = throttleSetting + pitchPID_ - rollPID_ + yawPID_;
+	//motorCommandsNormalized[3] = throttleSetting + pitchPID_ + rollPID_ - yawPID_;
+	motorCommandsNormalized[0] = throttleSetting + pitchPID_ + rollPID_ - yawPID_;
+	motorCommandsNormalized[1] = throttleSetting + pitchPID_ - rollPID_ + yawPID_;
+	motorCommandsNormalized[2] = throttleSetting - pitchPID_ - rollPID_ - yawPID_;
+	motorCommandsNormalized[3] = throttleSetting - pitchPID_ + rollPID_ + yawPID_;
 }
 
 float AngleAttitudeController::AnglePID(float setpoint, float measuredAngle, float gyroRate, float dt, bool noIntegral, AxisToControl axis) {
