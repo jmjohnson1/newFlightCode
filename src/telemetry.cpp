@@ -4,13 +4,20 @@
 #include "telemetry.h"
 #include "Arduino.h"
 
+
 Telemetry::Telemetry() {
 }
 
 void Telemetry::InitTelemetry() {
   // Mavlink serial ports. See Teensy 4.1 pinouts for a list of available
   // hardware serial ports. Defined in the header file.
+
+  // This additional buffer helps the program move on
+  static unsigned char biggerWriteBuffer[5000];
+  size_t biggerWriteBuffer_size = sizeof(biggerWriteBuffer);
+
   HWSERIAL.begin(baudRate);
+  HWSERIAL.addMemoryForWrite(biggerWriteBuffer, biggerWriteBuffer_size);
 }
 
 void Telemetry::SendMessage(mavlink_message_t *msg) {
@@ -138,6 +145,7 @@ uint32_t Telemetry::CheckForNewPosition(Eigen::Vector3d& pos, uint32_t tow) {
 		pos[0] = localPos.x;
 		pos[1] = localPos.y;
 		pos[2] = localPos.z;
+		Serial.println(localPos.x);
 		mostRecentPosRead = true;
 		tow++;
 	}
