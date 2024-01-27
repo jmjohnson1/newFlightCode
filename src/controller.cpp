@@ -141,6 +141,9 @@ void PositionController::Update(const Eigen::Vector3f &posSetpoints,
   // Calculate desired acceleration in the NED frame using PID
   desAcc_ned = Kp_ * posError_ned + Ki_ * integral + Kd_ * derivative;
 
+	prevError_ = posError_ned;
+	prevIntegral_ = integral;
+
   // Extract the third term and use it to get the desired thrust in the body
   // frame. Need to add the amount of thrust required to hover with the
   // current attitude.
@@ -170,4 +173,9 @@ void PositionController::Update(const Eigen::Vector3f &posSetpoints,
     desiredRoll_ = 0.0f;
     desiredPitch_ = 0.0f;
   }
+}
+
+void PositionController::Reset() {
+	prevIntegral_ = Eigen::Vector3f::Zero();
+	prevError_ = Eigen::Vector3f::Zero();
 }

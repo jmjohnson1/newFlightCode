@@ -21,6 +21,14 @@
 #define USE_MADGWICK
 #define USE_EKF
 
+/**For position control**/
+#define USE_POSITION_CONTROLLER
+#ifdef USE_POSITION_CONTROLLER
+	#ifndef USE_EKF
+		#error "Position controller requires USE_EKF to be defined!"
+	#endif
+#endif
+
 /**Use OneShot125 comment out to use PWM**/ //TODO: Make PWM work again
 #define USE_ONESHOT
 

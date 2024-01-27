@@ -23,6 +23,7 @@
 #include "radio.h"
 #include "testing.h"
 #include "uNavINS.h"
+#include "trajectory.h"
 
 
 
@@ -48,9 +49,11 @@ RadioChannel KdScaleChannel("Kd_scale", 12, 1500, 1500);
 RadioChannel scaleAllChannel("scale_all", 13, 1500, 1500);
 RadioChannel resetChannel("reset", 14, 1000, 1000);
 
+RadioChannel positionToggle("position_toggle", 6, 1500, 1500);
+
 // Array of pointers the the radio channels. This is useful for datalogging and updating the raw
 // values.
-const uint8_t numChannels = 13;
+const uint8_t numChannels = 14;
 RadioChannel *radioChannels[numChannels] = {&throttleChannel, 
 											&rollChannel, 
 											&pitchChannel, 
@@ -63,20 +66,21 @@ RadioChannel *radioChannels[numChannels] = {&throttleChannel,
 											&KiScaleChannel,
 											&KdScaleChannel,
 											&scaleAllChannel,
-											&resetChannel};
+											&resetChannel,
+											&positionToggle};
 
 // Max roll/pitch angles in degrees for angle mode
-float maxRoll = 30.0;
-float maxPitch = 30.0;
+float maxRoll = globalConstants::MAX_ANGLE;
+float maxPitch = globalConstants::MAX_ANGLE;
 // Max yaw rate in deg/sec
 float maxYaw = 160.0;
 
 // ANGLE MODE PID GAINS //
 // SCALE FACTORS FOR PID //
-float pScale = 1.0f;
-float iScale = 1.0f;
-float dScale = 1.0f;
-float allScale = 1.0f;
+float pScale_att = 1.0f;
+float iScale_att = 1.0f;
+float dScale_att = 1.0f;
+float allScale_att = 1.0f;
 
 float Kp_roll_angle = 0.56;
 float Ki_roll_angle = 0.176;
@@ -89,6 +93,11 @@ float Kd_pitch_angle = 0.063;
 float Kp_yaw = 0.3;
 float Ki_yaw = 0.06;
 float Kd_yaw = 0.00015;
+
+// POSITION PID GAINS //
+float Kp_pos[3] = {4.0f, 4.0f, 10.0f};
+float Ki_pos[3] = {0.0f, 0.0f, 0.0f};
+float Kd_pos[3] = {1.8f, 1.8f, 5.0f};
 
 //================================================================================================//
 //                                      DECLARE PINS 																							//
@@ -166,6 +175,8 @@ float Ki_array[3] = {Ki_roll_angle, Ki_pitch_angle, Ki_yaw};
 float Kd_array[3] = {Kd_roll_angle, Kd_pitch_angle, Kd_yaw};
 AngleAttitudeController controller = AngleAttitudeController(Kp_array, Ki_array, Kd_array);
 
+PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos);
+
 // Mixer
 float m1_command_scaled, m2_command_scaled, m3_command_scaled, m4_command_scaled;
 int m1_command_PWM, m2_command_PWM, m3_command_PWM, m4_command_PWM;
@@ -209,6 +220,11 @@ uint32_t EKF_tow = 0; // Time of week used with the EKF. It increments whenever 
 
 // EKF
 uNavINS ins;
+
+// Trajectory thing (this is temporary)
+trajectory traj;
+
+bool wasTrueLastLoop = false; // This will be renamed at some point
 
 // Constants for unit conversion
 const float DEG_2_RAD = PI/180.0f;
@@ -608,6 +624,16 @@ namespace datalogger {
     buffer.print("zEstEKF");
   #endif
 
+	#ifdef USE_POSITION_CONTROLLER
+		buffer.write(",");
+		buffer.print("setpointX");
+		buffer.write(",");
+		buffer.print("setpointY");
+		buffer.write(",");
+		buffer.print("setpointZ");
+	#endif
+
+
 		buffer.println();
 	}
 
@@ -702,17 +728,17 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print(m4_command_scaled, 4);
 		buffer.write(",");
-		buffer.print(Kp_roll_angle*pScale, 4);
+		buffer.print(Kp_roll_angle*pScale_att, 4);
 		buffer.write(",");
-		buffer.print(Ki_roll_angle*iScale, 4);
+		buffer.print(Ki_roll_angle*iScale_att, 4);
 		buffer.write(",");
-		buffer.print(Kd_roll_angle*dScale, 4);
+		buffer.print(Kd_roll_angle*dScale_att, 4);
 		buffer.write(",");
-		buffer.print(Kp_pitch_angle*pScale, 4);
+		buffer.print(Kp_pitch_angle*pScale_att, 4);
 		buffer.write(",");
-		buffer.print(Ki_pitch_angle*iScale, 4);
+		buffer.print(Ki_pitch_angle*iScale_att, 4);
 		buffer.write(",");
-		buffer.print(Kd_pitch_angle*dScale, 4);
+		buffer.print(Kd_pitch_angle*dScale_att, 4);
 		buffer.write(",");
 		buffer.print(Kp_yaw, 4);
 		buffer.write(",");
@@ -745,6 +771,14 @@ namespace datalogger {
 		buffer.write(",");
     buffer.print(ins.Get_PosEst()[2]);
   #endif
+	#ifdef USE_POSITION_CONTROLLER
+		buffer.write(",");
+		buffer.print(traj.GetSetpoint()[0]);
+		buffer.write(",");
+		buffer.print(traj.GetSetpoint()[1]);
+		buffer.write(",");
+		buffer.print(traj.GetSetpoint()[2]);
+	#endif
 		buffer.println();
 
 		if (buffer.getWriteError()) {
@@ -906,7 +940,7 @@ void loop() {
   if ((loopCount % 250) == 0) {
 	telem.UpdateReceived();
     telem.SendAttitude(quadIMU_info.roll, quadIMU_info.pitch, 0.0f, quadIMU.GetGyroX(), quadIMU.GetGyroY(), 0.0f);
-    telem.SendPIDGains_core(Kp_roll_angle * pScale, Ki_roll_angle * iScale, Kd_roll_angle * dScale);
+    telem.SendPIDGains_core(Kp_roll_angle * pScale_att, Ki_roll_angle * iScale_att, Kd_roll_angle * dScale_att);
   }
   loopCount++;
 
@@ -922,7 +956,23 @@ void loop() {
 
   // Compute desired state based on radio inputs
   getDesState(); // Convert raw commands to normalized values based on saturated control limits
-	//
+	
+#ifdef USE_POSITION_CONTROLLER
+	if (positionToggle.SwitchPosition() == SwPos::SWITCH_HIGH) {
+		if (!wasTrueLastLoop) {
+			wasTrueLastLoop = true;
+			posControl.Reset();
+			traj.GoTo(ins.Get_PosEst().cast<float>());
+		}
+		posControl.Update(traj.GetSetpoint(), ins.Get_PosEst().cast<float>(), quadIMU_info, dt, false);
+		thro_des = posControl.GetDesiredThrottle();
+		roll_des = posControl.GetDesiredRoll();
+		pitch_des = posControl.GetDesiredPitch();
+	} else {
+		wasTrueLastLoop = false;
+	}
+	
+#endif
 	
 #ifdef TEST_STAND
 	// Sine sweep
@@ -940,28 +990,23 @@ void loop() {
 
 	// PID Gain scaling
 #ifdef PID_TUNING
-	pScale = gainTuning::ScaleFactor(KpScaleChannel);
-	iScale = gainTuning::ScaleFactor(KiScaleChannel);
-	dScale = gainTuning::ScaleFactor(KdScaleChannel);
-	allScale = gainTuning::ScaleFactor(scaleAllChannel);
+	pScale_att = gainTuning::ScaleFactor(KpScaleChannel);
+	iScale_att = gainTuning::ScaleFactor(KiScaleChannel);
+	dScale_att = gainTuning::ScaleFactor(KdScaleChannel);
+	allScale_att = gainTuning::ScaleFactor(scaleAllChannel);
 
-	pScale *= allScale;
-	iScale *= allScale;
-	dScale *= allScale;
+	pScale_att *= allScale_att;
+	iScale_att *= allScale_att;
+	dScale_att *= allScale_att;
 
-	float KpScaled[3] = {Kp_roll_angle*pScale, Kp_pitch_angle*pScale, Kp_yaw};
-	float KiScaled[3] = {Ki_roll_angle*iScale, Ki_pitch_angle*iScale, Ki_yaw};
-	float KdScaled[3] = {Kd_roll_angle*dScale, Kd_pitch_angle*dScale, Kd_yaw};
+	float KpScaled[3] = {Kp_roll_angle*pScale_att, Kp_pitch_angle*pScale_att, Kp_yaw};
+	float KiScaled[3] = {Ki_roll_angle*iScale_att, Ki_pitch_angle*iScale_att, Ki_yaw};
+	float KdScaled[3] = {Kd_roll_angle*dScale_att, Kd_pitch_angle*dScale_att, Kd_yaw};
 	controller.SetKp(KpScaled);
 	controller.SetKi(KiScaled);
 	controller.SetKd(KdScaled);
 #endif
 	
-	// TODO: be better
-	bool noIntegral = false;
-	if (throttleChannel.GetRawValue() < 1060) {
-		noIntegral = true;
-	}
 	float setpoints[3] = {roll_des, pitch_des, yaw_des};
 	float gyroRates[3] = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
 	controller.Update(setpoints, quadIMU_info, gyroRates, dt, noIntegral);

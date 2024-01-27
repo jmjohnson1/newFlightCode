@@ -90,6 +90,8 @@ public:
               const Eigen::Vector3f &currentPosition, const Attitude &att,
               float dt, bool noIntegral);
 
+	void Reset();
+
   float GetDesiredThrottle() { return abs(desiredThrust_) / globalConstants::MAX_THRUST; }
   float GetDesiredRoll() { return desiredRoll_; }
   float GetDesiredPitch() { return desiredPitch_; }
