@@ -81,10 +81,6 @@ private:
 
 class PositionController {
 public:
-  // TODO: get rid of hardcoding here
-  const float QUAD_MASS = 0.846f;       // Quadcopter mass in Kg
-  const float MAX_THRUST = 8.9f * 4.0f; // Maximum total thrust
-  const float MIN_THRUST = 0.0f;
   // Used for floating point comparison later. Generally best to avoid.
   const float EPSILON = 0.001f;
 
@@ -92,9 +88,9 @@ public:
                      const float (&Kd)[3], float iLimit = 25.0f);
   void Update(const Eigen::Vector3f &posSetpoints,
               const Eigen::Vector3f &currentPosition, const Attitude &att,
-              float dt, bool noIntegral, float maxAngle);
+              float dt, bool noIntegral);
 
-  float GetDesiredThrottle() { return abs(desiredThrust_) / MAX_THRUST; }
+  float GetDesiredThrottle() { return abs(desiredThrust_) / globalConstants::MAX_THRUST; }
   float GetDesiredRoll() { return desiredRoll_; }
   float GetDesiredPitch() { return desiredPitch_; }
 

@@ -116,15 +116,14 @@ PositionController::PositionController(const float (&Kp)[3],
 
 void PositionController::Update(const Eigen::Vector3f &posSetpoints,
                                 const Eigen::Vector3f &currentPosition,
-                                const Attitude &att, float dt, bool noIntegral,
-                                float maxAngle) {
+                                const Attitude &att, float dt, bool noIntegral) {
   // Declare some variables
   Eigen::Vector3f posError_ned, integral, derivative, desAcc_ned;
   float desAcc_b3; // Desired thrust resolved in the 3 axis of the body frame
   float Cy = cos(att.yaw * DEG_TO_RAD);
   float Sy = sin(att.yaw * DEG_TO_RAD);
   float sinRoll, sinPitch; // Sin of the roll and pitch angles
-  float maxAngle_sinArg = sin(maxAngle * DEG_TO_RAD);
+  float maxAngle_sinArg = sin(globalConstants::MAX_ANGLE * DEG_TO_RAD);
 
   posError_ned = posSetpoints - currentPosition;
   integral = prevIntegral_ + posError_ned * dt;
@@ -146,15 +145,15 @@ void PositionController::Update(const Eigen::Vector3f &posSetpoints,
   // frame. Need to add the amount of thrust required to hover with the
   // current attitude.
   desAcc_b3 = desAcc_ned[2] - 9.81 / cos(att.roll) / cos(att.pitch);
-  desiredThrust_ = QUAD_MASS * (desAcc_b3);
-  desiredThrust_ = constrain(desiredThrust_, MIN_THRUST, MAX_THRUST);
+  desiredThrust_ = globalConstants::QUAD_MASS * (desAcc_b3);
+  desiredThrust_ = constrain(desiredThrust_, globalConstants::MIN_THRUST, globalConstants::MAX_THRUST);
   desAcc_b3 =
-      desiredThrust_ / QUAD_MASS; // It's easier to constrain the thrust. maybe
+      desiredThrust_ / globalConstants::QUAD_MASS; // It's easier to constrain the thrust. maybe
 
   // Calculate a new desired attitude based on the amount of thrust available
   // and the desired accelerations in n1 and n2;
   // Let's make sure we can't break arcsin.
-  if (abs(desiredThrust_ - MIN_THRUST) > EPSILON) {
+  if (abs(desiredThrust_ - globalConstants::MIN_THRUST) > EPSILON) {
     sinRoll = (Sy * desAcc_ned[0] - Cy * desAcc_ned[1]) / desAcc_b3;
     sinRoll = constrain(sinRoll, -maxAngle_sinArg, maxAngle_sinArg);
     desiredRoll_ = asin(sinRoll);
@@ -169,6 +168,6 @@ void PositionController::Update(const Eigen::Vector3f &posSetpoints,
   } else {
     // If the thrust is small, please don't try to use it.
     desiredRoll_ = 0.0f;
-    desiredPitch = 0.0f;
+    desiredPitch_ = 0.0f;
   }
 }
