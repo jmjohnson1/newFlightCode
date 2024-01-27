@@ -1006,6 +1006,12 @@ void loop() {
 	controller.SetKi(KiScaled);
 	controller.SetKd(KdScaled);
 #endif
+
+	// TODO: be better
+	bool noIntegral = false;
+	if (throttleChannel.GetRawValue() < 1060) {
+		noIntegral = true;
+	}
 	
 	float setpoints[3] = {roll_des, pitch_des, yaw_des};
 	float gyroRates[3] = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
