@@ -1,7 +1,9 @@
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 
+#include "eigen.h"
 #include "commonDefinitions.h"
+
 
 class AngleAttitudeController {
 public:
@@ -70,6 +72,45 @@ private:
 	float Kd_[3];
 
 	float iLimit_;
+};
+
+class PositionController {
+public:
+	const float QUAD_MASS = 0.846f;  // Quadcopter mass in Kg
+	const float MAX_THRUST = 8.9f*4.0f; // Maximum total thrust
+	PositionController(const float (&Kp)[3], const float (&Ki)[3], const float (&Kd)[3], float iLimit = 25.0f);
+	void Update(const Eigen::Vector3f &posSetpoints, const Eigen::Vector3f &currentPosition, const Attitude &att, float dt, bool noIntegral, float maxAngle);
+
+	float GetDesiredThrottle() {
+		// TODO: Get rid of the hardcoding
+		return desiredThrust_/MAX_THRUST;
+	}
+	float GetDesiredRoll() { return desiredRoll_; }
+	float GetDesiredPitch() { return desiredPitch_; }
+
+	Eigen::Matrix3f GetKp() { return Kp_; }
+	Eigen::Matrix3f GetKi() { return Ki_; }
+	Eigen::Matrix3f GetKd() { return Kd_; }
+
+	void SetKp(const Eigen::Matrix3f &KpIn) { Kp_ = KpIn; }
+	void SetKp(const Eigen::Matrix3f &KpIn) { Kp_ = KpIn; }
+	void SetKp(const Eigen::Matrix3f &KpIn) { Kp_ = KpIn; }
+
+private:
+
+
+	float desiredThrust_ = 0.0f;
+	float desiredPitch_  = 0.0f;
+	float desiredRoll_   = 0.0f;
+
+	Eigen::Vector3f prevIntegral_(0.0f, 0.0f, 0.0f);
+	Eigen::Vector3f prevError_(0.0f, 0.0f, 0.0f);
+
+	Eigen::Matrix3f Kp_;
+	Eigen::Matrix3f Ki_;
+	Eigen::Matrix3f Kd_;
+
+	float iLimit_; // Maximum value for the integral portion
 };
 
 #endif

@@ -52,18 +52,18 @@ RadioChannel resetChannel("reset", 14, 1000, 1000);
 // values.
 const uint8_t numChannels = 13;
 RadioChannel *radioChannels[numChannels] = {&throttleChannel, 
-																						&rollChannel, 
-																						&pitchChannel, 
-																						&yawChannel, 
-																						&throCutChannel, 
-																						&sineSweepChannel,
-																						&stepAxisSelector,
-																						&stepAngleSelector,
-																						&KpScaleChannel,
-																						&KiScaleChannel,
-																						&KdScaleChannel,
-																					  &scaleAllChannel,
-																						&resetChannel};
+											&rollChannel, 
+											&pitchChannel, 
+											&yawChannel, 
+											&throCutChannel, 
+											&sineSweepChannel,
+											&stepAxisSelector,
+											&stepAngleSelector,
+											&KpScaleChannel,
+											&KiScaleChannel,
+											&KdScaleChannel,
+											&scaleAllChannel,
+											&resetChannel};
 
 // Max roll/pitch angles in degrees for angle mode
 float maxRoll = 30.0;
@@ -448,6 +448,7 @@ void calibrateESCs() {
 		m2_command_PWM = ScaleCommand(m2_command_scaled);
 		m3_command_PWM = ScaleCommand(m3_command_scaled);
 		m4_command_PWM = ScaleCommand(m4_command_scaled);
+	CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
     loopRate(2000);
   }
 }
@@ -805,6 +806,7 @@ void setup() {
 
 
 	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
+  quadIMU.Update(); // Get an initial reading. If not, initial attitude estimate will be NaN
 	Serial.print("IMU initialization successful: ");
 	Serial.println(IMU_initSuccessful);
 
@@ -838,7 +840,7 @@ void setup() {
 
   // PROPS OFF. Uncomment this to calibrate your ESCs by setting throttle stick
   // to max, powering on, and lowering throttle to zero after the beeps
-  //  calibrateESCs();
+  //calibrateESCs();
   // Code will not proceed past here if this function is uncommented!
 
 #ifdef USE_ONESHOT
@@ -876,7 +878,7 @@ void loop() {
 		//serialDebug::PrintDesiredState(thro_des, roll_des, pitch_des, yaw_des);
 		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
 		//serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());
-		serialDebug::PrintRollPitchYaw(quadIMU_info.roll, quadIMU_info.pitch, quadIMU_info.yaw);
+		//serialDebug::PrintRollPitchYaw(quadIMU_info.roll, quadIMU_info.pitch, quadIMU_info.yaw);
 		//serialDebug::PrintPIDOutput(controller.GetRollPID(), controller.GetPitchPID(), controller.GetYawPID());
 		//serialDebug::PrintMotorCommands(m1_command_PWM, m2_command_PWM, m3_command_PWM, m4_command_PWM);
 		//serialDebug::PrintLoopTime(dt);
@@ -915,7 +917,7 @@ void loop() {
   Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 
 #ifdef USE_EKF
-  ins.Update(micros(), EKF_tow, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*RAD_2_DEG, mocapPosition);
+  ins.Update(micros(), EKF_tow, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, mocapPosition);
 #endif
 
   // Compute desired state based on radio inputs

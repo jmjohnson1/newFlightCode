@@ -82,3 +82,57 @@ float AngleAttitudeController::RatePID(float setpoint, float measuredRate, float
 	*error_prev = error;
 	return PIDOutput;
 }
+
+PositionController::PositionController(const float (&Kp)[3], const float (&Ki)[3], const float (&Kd)[3], float iLimit = 25.0f) {
+	for (int i = 0; i < 3; i++) {
+		Kp_[i] = Kp[i];
+		Ki_[i] = Ki[i];
+		Kd_[i] = Kd[i];
+	}
+	iLimit_ = iLimit;
+}
+
+void PositionController::Update(const Eigen::Vector3f &posSetpoints, const Eigen::Vector3f &currentPosition, const Attitude &att, float dt, bool noIntegral, float maxAngle) {
+	Eigen::Vector3f posError_ned, integral, derivative, desAcc_ned;
+	posError_ned = posSetpoints - currentPosition;
+	integral = prevIntegral_ + posError_ned*dt;
+	// Prevent integral from building up if the thrust is low (noIntegral passed
+	// as true).
+	if (noIntegral) {
+		integral = integral*0;
+	}
+	// Prevent integral windup
+	for (int i = 1; i < 3; i++) {
+		integral[i] = constrain(integral[i], -iLimit_, iLimit_);
+	}
+	derivative = (posError_ned - prevError_)/dt;
+
+	// Calculate desired acceleration in the NED frame using PID
+	desAcc_ned = Kp_*posError_ned + Ki_*integral + Kd_*derivative;
+
+	// Extract the third term and use it to get the desired thrust in the body
+	// frame. Need to add the amount of thrust required to hover with the
+	// current attitude.
+	float desAcc_b3 = desAcc_ned[2] - 9.81/cos(att.roll)/cos(att.pitch);
+	desiredThrust_ = QUAD_MASS*(desAcc_b3);
+
+	float yaw_rad = att.yaw*DEG_TO_RAD;
+	float Cy = cos(yaw_rad);
+	float Sy = sin(yaw_rad);
+	
+	// Calculate a new desired attitude based on the amount of thrust available
+	// and the desired accelerations in n1 and n2;
+
+	// Let's make sure we can't break arcsin. This also guarantees that the
+	// argument of the square root is positive.
+	if () {
+
+	}
+
+
+	float sinRoll = (Sy*desAcc_ned[0] - Cy*desAcc_ned[1])/desAcc_b3;
+	float sinPitch = (Cy*desAcc_ned[0] + Sy*desAcc_ned[1])/desAcc_b3/sqrt(1 - sinRoll*sinRoll);
+
+	desiredRoll_ = asin(sinRoll);
+	desiredPitch_ = asin(sinPitch);
+}
