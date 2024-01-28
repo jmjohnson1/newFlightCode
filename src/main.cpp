@@ -95,9 +95,9 @@ float Ki_yaw = 0.06;
 float Kd_yaw = 0.00015;
 
 // POSITION PID GAINS //
-float Kp_pos[3] = {4.0f, 4.0f, 10.0f};
+float Kp_pos[3] = {1.0f, 1.0f, 1.0f};
 float Ki_pos[3] = {0.0f, 0.0f, 0.0f};
-float Kd_pos[3] = {1.8f, 1.8f, 5.0f};
+float Kd_pos[3] = {1.0f, 1.0f, 5.0f};
 
 //================================================================================================//
 //                                      DECLARE PINS 																							//
@@ -254,8 +254,8 @@ void getDesState() {
    */
   thro_des = throttleChannel.NormalizedValue(); // Between 0 and 1
   roll_des = rollChannel.NormalizedValue();  // Between -1 and 1
-  pitch_des = pitchChannel.NormalizedValue(); // Between -1 and 1
-  yaw_des = yawChannel.NormalizedValue();   // Between -1 and 1
+  pitch_des = -pitchChannel.NormalizedValue(); // Between -1 and 1
+  yaw_des = -yawChannel.NormalizedValue();   // Between -1 and 1
   roll_passthru = roll_des / 2.0;               // Between -0.5 and 0.5
   pitch_passthru = pitch_des / 2.0;             // Between -0.5 and 0.5
   yaw_passthru = yaw_des / 2.0;                 // Between -0.5 and 0.5
@@ -952,6 +952,9 @@ void loop() {
 
 #ifdef USE_EKF
   ins.Update(micros(), EKF_tow, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, mocapPosition);
+  quadIMU_info.roll = ins.Get_OrientEst()[0]*RAD_2_DEG;
+  quadIMU_info.pitch = ins.Get_OrientEst()[1]*RAD_2_DEG;
+  quadIMU_info.yaw = ins.Get_OrientEst()[2]*RAD_2_DEG;
 #endif
 
   // Compute desired state based on radio inputs
@@ -966,8 +969,8 @@ void loop() {
 		}
 		posControl.Update(traj.GetSetpoint(), ins.Get_PosEst().cast<float>(), quadIMU_info, dt, false);
 		thro_des = posControl.GetDesiredThrottle();
-		roll_des = posControl.GetDesiredRoll();
-		pitch_des = posControl.GetDesiredPitch();
+		//roll_des = posControl.GetDesiredRoll();
+		//pitch_des = posControl.GetDesiredPitch();
 	} else {
 		wasTrueLastLoop = false;
 	}
