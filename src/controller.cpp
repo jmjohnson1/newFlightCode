@@ -149,7 +149,7 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   // current attitude.
   desAcc_b3 = desAcc_ned[2] - 9.81 / cos(att.roll) / cos(att.pitch);
   desiredThrust_ = globalConstants::QUAD_MASS * (desAcc_b3);
-  desiredThrust_ = constrain(desiredThrust_, globalConstants::MIN_THRUST, globalConstants::MAX_THRUST);
+  desiredThrust_ = constrain(desiredThrust_, -globalConstants::MAX_THRUST, -globalConstants::MIN_THRUST);
   desAcc_b3 =
       desiredThrust_ / globalConstants::QUAD_MASS; // It's easier to constrain the thrust. maybe
 
