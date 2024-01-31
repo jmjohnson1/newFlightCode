@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "mavlink.h"
+#include "common/mavlink.h"
 
 // Define class for a single parameter
 class Parameter {
@@ -28,7 +28,7 @@ public:
 	}
 };
 
-// Devine a class to manage an array of parameters
+// Define a class to manage an array of parameters
 class ParameterManager {
 public:
 	static const int MAX_PARAMETERS = 20; // Maximum number of parameters
@@ -67,16 +67,6 @@ public:
 		return -1; // Parameter not found
 	}
 	
-private:
-	const Parameter defaultParams[9] = { {"kp_roll", 0.2, MAV_PARAM_TYPE_REAL32},
-                                       {"ki_roll", 0.3, MAV_PARAM_TYPE_REAL32},
-                                       {"kd_roll", 0.3, MAV_PARAM_TYPE_REAL32},
-                                       {"kp_pitch", 0.3, MAV_PARAM_TYPE_REAL32},
-                                       {"ki_pitch", 0.3, MAV_PARAM_TYPE_REAL32},
-                                       {"kd_pitch", 0.3, MAV_PARAM_TYPE_REAL32},
-                                       {"kp_yaw", 0.3, MAV_PARAM_TYPE_REAL32},
-                                       {"ki_yaw", 0.3, MAV_PARAM_TYPE_REAL32},
-                                       {"kd_yaw", 0.3, MAV_PARAM_TYPE_REAL32} };
 };
 
 #endif //PARAM_H

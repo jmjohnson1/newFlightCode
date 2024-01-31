@@ -4,17 +4,19 @@
 
 #define HWSERIAL Serial2
 
+
 #include "common/mavlink.h"
 #include "ardupilotmega/mavlink_msg_pid_tuning.h"
 #include <eigen.h>
 #include <stdint.h>
 #include "commonDefinitions.h"
 #include "IMU.h"
+#include "parameters.h"
 
 class Telemetry {
 public:
 	Telemetry();
-	void InitTelemetry();
+	void InitTelemetry(ParameterManager *p);
 
 	void SendHeartbeat();
 	void SendPIDGains_core(float P, float I, float D);
@@ -56,6 +58,9 @@ private:
 	float deg2rad = PI/180.0f;
 	float rad2deg = 180.0f/PI;
 	uint32_t baudRate = 57600;
+
+	// pointer to parameter ParameterManager
+	ParameterManager *paramManager = nullptr;
 };
 
 

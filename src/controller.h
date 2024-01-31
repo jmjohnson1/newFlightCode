@@ -7,7 +7,7 @@
 class AngleAttitudeController {
 public:
   AngleAttitudeController(const float (&Kp)[3], const float (&Ki)[3],
-                          const float (&Kd)[3], float iLimit = 25.0f);
+                          const float (&Kd)[3], float iLimit = 2.0f);
   void Update(const float (&setpoints)[3], const Attitude &att,
               const float (&gyroRates)[3], float dt, bool noIntegral);
 
@@ -86,8 +86,8 @@ public:
 
   PositionController(const float (&Kp)[3], const float (&Ki)[3],
                      const float (&Kd)[3], float iLimit = 25.0f);
-  void Update(const Eigen::Vector3f &posSetpoints,
-              const Eigen::Vector3f &currentPosition, const Attitude &att,
+  void Update(const Eigen::Vector3d &posSetpoints,
+              const Eigen::Vector3d &currentPosition, const Attitude &att,
               float dt, bool noIntegral);
 
 	void Reset();

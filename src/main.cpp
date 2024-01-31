@@ -24,6 +24,7 @@
 #include "testing.h"
 #include "uNavINS.h"
 #include "trajectory.h"
+#include "parameters.h"
 
 
 
@@ -40,16 +41,30 @@ RadioChannel rollChannel("roll", 2, 1500, 1500, true);
 RadioChannel pitchChannel("pitch", 3, 1500, 1500, true);
 RadioChannel yawChannel("yaw", 4, 1500, 1500, true);
 RadioChannel throCutChannel("throttle_cut", 5, 1000, 2000);
-RadioChannel sineSweepChannel("sine_sweep", 7, 1000, 1000);
-RadioChannel stepAxisSelector("step_axis_sel", 8, 1000, 1000);
-RadioChannel stepAngleSelector("step_angle_sel", 9, 1000, 1500);
+
+#ifdef TEST_STAND
+RadioChannel aux0("none", 6, 1500, 1500);
+RadioChannel aux1("sine_sweep", 7, 1000, 1000);
+RadioChannel aux2("step_axis_sel", 8, 1000, 1000);
+RadioChannel aux3("step_angle_sel", 9, 1000, 1500);
+#elif defined(USE_POSITION_CONTROLLER)
+RadioChannel aux0("position_toggle", 6, 1500, 1500);
+RadioChannel aux1("xSel", 7, 1000, 1500);
+RadioChannel aux2("ySel", 8, 1000, 1500);
+RadioChannel aux3("zSel", 9, 1000, 1500);
+#else
+RadioChannel aux0("none", 6, 1500, 1500);
+RadioChannel aux1("none", 7, 1000, 1500);
+RadioChannel aux2("none", 8, 1000, 1500);
+RadioChannel aux3("none", 9, 1000, 1500);
+#endif
+
 RadioChannel KpScaleChannel("Kp_scale", 10, 1500, 1500);
 RadioChannel KiScaleChannel("Ki_scale", 11, 1500, 1500);
 RadioChannel KdScaleChannel("Kd_scale", 12, 1500, 1500);
 RadioChannel scaleAllChannel("scale_all", 13, 1500, 1500);
 RadioChannel resetChannel("reset", 14, 1000, 1000);
 
-RadioChannel positionToggle("position_toggle", 6, 1500, 1500);
 
 // Array of pointers the the radio channels. This is useful for datalogging and updating the raw
 // values.
@@ -59,15 +74,16 @@ RadioChannel *radioChannels[numChannels] = {&throttleChannel,
 											&pitchChannel, 
 											&yawChannel, 
 											&throCutChannel, 
-											&sineSweepChannel,
-											&stepAxisSelector,
-											&stepAngleSelector,
+											&aux0,
+											&aux1,
+											&aux2,
+											&aux3,
 											&KpScaleChannel,
 											&KiScaleChannel,
 											&KdScaleChannel,
 											&scaleAllChannel,
-											&resetChannel,
-											&positionToggle};
+											&resetChannel
+											};
 
 // Max roll/pitch angles in degrees for angle mode
 float maxRoll = globalConstants::MAX_ANGLE;
@@ -165,6 +181,8 @@ bool sbusLostFrame;
 IMU quadIMU = IMU(-0.0121f, -0.0126f, -0.0770f, -4.7787f, 2.1795f, 0.6910f);
 Attitude quadIMU_info;
 
+ParameterManager paramManager;
+
 // Normalized desired state:
 float thro_des, roll_des, pitch_des, yaw_des;
 float roll_passthru, pitch_passthru, yaw_passthru;
@@ -176,6 +194,7 @@ float Kd_array[3] = {Kd_roll_angle, Kd_pitch_angle, Kd_yaw};
 AngleAttitudeController controller = AngleAttitudeController(Kp_array, Ki_array, Kd_array);
 
 PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos);
+
 
 // Mixer
 float m1_command_scaled, m2_command_scaled, m3_command_scaled, m4_command_scaled;
@@ -223,6 +242,8 @@ uNavINS ins;
 
 // Trajectory thing (this is temporary)
 trajectory traj;
+Eigen::Vector3d homePosition(0, 0.5, 0.5);
+Eigen::Vector3d posSetpoint;
 
 bool wasTrueLastLoop = false; // This will be renamed at some point
 
@@ -230,6 +251,15 @@ bool wasTrueLastLoop = false; // This will be renamed at some point
 const float DEG_2_RAD = PI/180.0f;
 const float RAD_2_DEG = 1.0f/DEG_2_RAD;
 const float G = 9.807f;  // m/s/s
+
+
+// Various timers
+elapsedMillis heartbeatTimer;
+elapsedMillis fastMavlinkTimer;
+elapsedMillis positionUpdateTimer;
+
+const unsigned long EKFPeriod = 10; // milliseconds
+
 
 
 
@@ -532,11 +562,11 @@ void calculate_IMU_error(IMU *imu, Attitude *att) {
 //=====================================//
 namespace datalogger {
 	void PrintCSVHeader() {
-		buffer.print("roll_imu");
+		buffer.print("roll");
 		buffer.write(",");
-		buffer.print("pitch_imu");
+		buffer.print("pitch");
 		buffer.write(",");
-		buffer.print("yaw_imu");
+		buffer.print("yaw");
 		buffer.write(",");
 		buffer.print("roll_des");
 		buffer.write(",");
@@ -579,17 +609,11 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print("m4_command");
 		buffer.write(",");
-		buffer.print("kp_roll");
+		buffer.print("kp_rp");
 		buffer.write(",");
-		buffer.print("ki_roll");
+		buffer.print("ki_rp");
 		buffer.write(",");
-		buffer.print("kd_roll");
-		buffer.write(",");
-		buffer.print("kp_pitch");
-		buffer.write(",");
-		buffer.print("ki_pitch");
-		buffer.write(",");
-		buffer.print("kd_pitch");
+		buffer.print("kd_rp");
 		buffer.write(",");
 		buffer.print("kp_yaw");
 		buffer.write(",");
@@ -734,12 +758,6 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print(Kd_roll_angle*dScale_att, 4);
 		buffer.write(",");
-		buffer.print(Kp_pitch_angle*pScale_att, 4);
-		buffer.write(",");
-		buffer.print(Ki_pitch_angle*iScale_att, 4);
-		buffer.write(",");
-		buffer.print(Kd_pitch_angle*dScale_att, 4);
-		buffer.write(",");
 		buffer.print(Kp_yaw, 4);
 		buffer.write(",");
 		buffer.print(Ki_yaw, 4);
@@ -752,24 +770,24 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print(EKF_tow);
 		buffer.write(",");
-		buffer.print(mocapPosition[0], 6);
+		buffer.print(mocapPosition[0], 10);
 		buffer.write(",");
-		buffer.print(mocapPosition[1], 6);
+		buffer.print(mocapPosition[1], 10);
 		buffer.write(",");
-		buffer.print(mocapPosition[2], 6);
+		buffer.print(mocapPosition[2], 10);
   #ifdef USE_EKF
 		buffer.write(",");
-    buffer.print(ins.Get_OrientEst()[0]);
+    buffer.print(ins.Get_OrientEst()[0], 5);
 		buffer.write(",");
-    buffer.print(ins.Get_OrientEst()[1]);
+    buffer.print(ins.Get_OrientEst()[1], 5);
 		buffer.write(",");
-    buffer.print(ins.Get_OrientEst()[2]);
+    buffer.print(ins.Get_OrientEst()[2], 5);
 		buffer.write(",");
-    buffer.print(ins.Get_PosEst()[0]);
+    buffer.print(ins.Get_PosEst()[0], 10);
 		buffer.write(",");
-    buffer.print(ins.Get_PosEst()[1]);
+    buffer.print(ins.Get_PosEst()[1], 10);
 		buffer.write(",");
-    buffer.print(ins.Get_PosEst()[2]);
+    buffer.print(ins.Get_PosEst()[2], 10);
   #endif
 	#ifdef USE_POSITION_CONTROLLER
 		buffer.write(",");
@@ -836,7 +854,8 @@ void setup() {
   radioSetup();
 
   // Begin mavlink telemetry module
-  telem.InitTelemetry();
+	paramManager.addParameter("kp_pr", Kp_roll_angle, MAV_PARAM_TYPE_REAL32);
+  telem.InitTelemetry(&paramManager);
 
 
 	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
@@ -933,25 +952,28 @@ void loop() {
   }
 
 	// TODO: Be better
-  if (loopCount > 2000) {
+  if (heartbeatTimer > 1000) {
+		heartbeatTimer = 0;
     telem.SendHeartbeat();
-    loopCount = 0;
-  }
-  if ((loopCount % 250) == 0) {
-	telem.UpdateReceived();
-    telem.SendAttitude(quadIMU_info.roll, quadIMU_info.pitch, 0.0f, quadIMU.GetGyroX(), quadIMU.GetGyroY(), 0.0f);
     telem.SendPIDGains_core(Kp_roll_angle * pScale_att, Ki_roll_angle * iScale_att, Kd_roll_angle * dScale_att);
   }
-  loopCount++;
+  if (fastMavlinkTimer > 100) {
+		fastMavlinkTimer = 0;
+    telem.SendAttitude(quadIMU_info.roll, quadIMU_info.pitch, 0.0f, quadIMU.GetGyroX(), quadIMU.GetGyroY(), 0.0f);
+  }
 
-	EKF_tow = telem.CheckForNewPosition(mocapPosition, EKF_tow);
+  telem.UpdateReceived();
+  EKF_tow = telem.CheckForNewPosition(mocapPosition, EKF_tow);
 
   // Get vehicle state
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
   Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 
 #ifdef USE_EKF
-  ins.Update(micros(), EKF_tow, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, mocapPosition);
+	if (positionUpdateTimer > EKFPeriod) {
+		positionUpdateTimer = 0;
+  	ins.Update(micros(), EKF_tow, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, mocapPosition);
+	}
   quadIMU_info.roll = ins.Get_OrientEst()[0]*RAD_2_DEG;
   quadIMU_info.pitch = ins.Get_OrientEst()[1]*RAD_2_DEG;
   quadIMU_info.yaw = ins.Get_OrientEst()[2]*RAD_2_DEG;
@@ -961,32 +983,44 @@ void loop() {
   getDesState(); // Convert raw commands to normalized values based on saturated control limits
 	
 #ifdef USE_POSITION_CONTROLLER
-	if (positionToggle.SwitchPosition() == SwPos::SWITCH_HIGH) {
+	// Check if position Controller enabled
+	if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH || aux0.SwitchPosition() == SwPos::SWITCH_MID) {
 		if (!wasTrueLastLoop) {
 			wasTrueLastLoop = true;
 			posControl.Reset();
-			traj.GoTo(ins.Get_PosEst().cast<float>());
 		}
-		posControl.Update(traj.GetSetpoint(), ins.Get_PosEst().cast<float>(), quadIMU_info, dt, false);
+		posSetpoint = homePosition;
+		if (aux3.SwitchPosition() == SwPos::SWITCH_HIGH) {
+			posSetpoint(2) = -1.0;
+		}
+		if (aux2.SwitchPosition() == SwPos::SWITCH_HIGH) {
+			posSetpoint(1) = 1.0;
+		}
+		if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
+			posSetpoint(0) = 1.0;
+		}
+		posControl.Update(posSetpoint, ins.Get_PosEst(), quadIMU_info, dt, false);
 		thro_des = posControl.GetDesiredThrottle();
-		//roll_des = posControl.GetDesiredRoll();
-		//pitch_des = posControl.GetDesiredPitch();
+		if (aux0.SwitchPosition() == SwPos::SWITCH_MID) {
+			roll_des = posControl.GetDesiredRoll();
+			pitch_des = posControl.GetDesiredPitch();
+		}
 	} else {
-		wasTrueLastLoop = false;
+		wasTrueLastLoop = false; // Ensures the position controller is reset next time it's enabled
 	}
 	
 #endif
 	
 #ifdef TEST_STAND
 	// Sine sweep
-  if (sineSweepChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
+  if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
 		testStand::SineSweep(dt);
   }
 	// Step inputs
-  if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_MID) {
-		roll_des = testStand::Step(stepAngleSelector);
-  } else if (stepAxisSelector.SwitchPosition() == SwPos::SWITCH_HIGH) {
-		pitch_des = testStand::Step(stepAngleSelector);
+  if (aux2.SwitchPosition() == SwPos::SWITCH_MID) {
+		roll_des = testStand::Step(aux3);
+  } else if (aux2.SwitchPosition() == SwPos::SWITCH_HIGH) {
+		pitch_des = testStand::Step(aux3);
 	}
 #endif
 

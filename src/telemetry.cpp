@@ -1,6 +1,8 @@
 #ifndef PI
   #define PI               3.14159265358979f
 #endif
+#define DEBUG_TELEM
+
 #include "telemetry.h"
 #include "Arduino.h"
 
@@ -8,7 +10,7 @@
 Telemetry::Telemetry() {
 }
 
-void Telemetry::InitTelemetry() {
+void Telemetry::InitTelemetry(ParameterManager *p) {
   // Mavlink serial ports. See Teensy 4.1 pinouts for a list of available
   // hardware serial ports. Defined in the header file.
 
@@ -18,6 +20,7 @@ void Telemetry::InitTelemetry() {
 
   HWSERIAL.begin(baudRate);
   HWSERIAL.addMemoryForWrite(biggerWriteBuffer, biggerWriteBuffer_size);
+  paramManager = p;
 }
 
 void Telemetry::SendMessage(mavlink_message_t *msg) {
@@ -54,12 +57,12 @@ void Telemetry::SendAttitude(float roll, float pitch, float yaw, float rollspeed
 
 	// Convert to radians and change reference frame
 	// The flight controller has Z pointing up, MAVLINK assumes Z points down -> negate y and z
-	roll       *=  deg2rad;
-	pitch      *= -deg2rad;
-	yaw        *= -deg2rad;
-	rollspeed  *=  deg2rad;
-	pitchspeed *= -deg2rad;
-	yawspeed   *= -deg2rad;
+	roll       *= deg2rad;
+	pitch      *= deg2rad;
+	yaw        *= deg2rad;
+	rollspeed  *= deg2rad;
+	pitchspeed *= deg2rad;
+	yawspeed   *= deg2rad;
 
 	mavlink_msg_attitude_pack(systemID, componentID_core, &msg, 0, roll, pitch, yaw, rollspeed, pitchspeed, yawspeed);
 	SendMessage(&msg);
@@ -118,7 +121,27 @@ void Telemetry::HandleMessage(mavlink_message_t *msg) {
 }
 
 void Telemetry::HandleParamRequest(mavlink_message_t *msg) {
-	
+	if (paramManager->numParameters > 0) {
+		Serial.println("Params: ");
+		for (int idx = 0; idx < paramManager->numParameters; idx++) {
+			#ifdef DEBUG_TELEM
+			Serial.print("name: ");
+			Serial.print(paramManager->parameters[idx].name);
+			Serial.print(" value: ");
+			Serial.print(paramManager->parameters[idx].value);
+			Serial.print(" type: ");
+			Serial.print(paramManager->parameters[idx].mavParamType);
+			Serial.println();
+			#endif
+			mavlink_message_t msg;
+			mavlink_msg_param_value_pack(systemID, componentID_core, &msg, 
+				paramManager->parameters[idx].name, 
+				paramManager->parameters[idx].value,
+				paramManager->parameters[idx].mavParamType,
+				paramManager->numParameters,
+				idx);
+		}
+	}
 }
 
 void Telemetry::HandleCommandLong(mavlink_message_t *msg) {
@@ -145,7 +168,9 @@ uint32_t Telemetry::CheckForNewPosition(Eigen::Vector3d& pos, uint32_t tow) {
 		pos[0] = localPos.x;
 		pos[1] = localPos.y;
 		pos[2] = localPos.z;
+		#ifdef DEBUG_TELEM
 		Serial.println(localPos.x);
+		#endif
 		mostRecentPosRead = true;
 		tow++;
 	}

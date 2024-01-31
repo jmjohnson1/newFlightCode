@@ -3,6 +3,7 @@
 
 typedef struct Attitude {
   float roll, pitch, yaw;
+  // Used by Madgwick
   float q0 = 1.0f;
   float q1 = 0.0f;
   float q2 = 0.0f;
