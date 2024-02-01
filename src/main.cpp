@@ -111,9 +111,9 @@ float Ki_yaw = 0.06;
 float Kd_yaw = 0.00015;
 
 // POSITION PID GAINS //
-float Kp_pos[3] = {1.0f, 1.0f, 1.0f};
-float Ki_pos[3] = {0.0f, 0.0f, 0.0f};
-float Kd_pos[3] = {1.0f, 1.0f, 5.0f};
+float Kp_pos[3] = {1.0f, 1.0f, 10.0f};
+float Ki_pos[3] = {0.0f, 0.0f, 2.0f};
+float Kd_pos[3] = {0.0f, 0.0f, 8.0f};
 
 //================================================================================================//
 //                                      DECLARE PINS 																							//
@@ -242,7 +242,7 @@ uNavINS ins;
 
 // Trajectory thing (this is temporary)
 trajectory traj;
-Eigen::Vector3d homePosition(0, 0.5, 0.5);
+Eigen::Vector3d homePosition(0, 0.5, -0.5);
 Eigen::Vector3d posSetpoint;
 
 bool wasTrueLastLoop = false; // This will be renamed at some point
@@ -646,6 +646,27 @@ namespace datalogger {
     buffer.print("yEstEKF");
 		buffer.write(",");
     buffer.print("zEstEKF");
+
+		buffer.write(",");
+		buffer.print("vxEstEKF");
+		buffer.write(",");
+		buffer.print("vyEstEKF");
+		buffer.write(",");
+		buffer.print("vzEstEKF");
+		buffer.write(",");
+		buffer.print("AccelBias1");
+		buffer.write(",");
+		buffer.print("AccelBias2");
+		buffer.write(",");
+		buffer.print("AccelBias3");
+		buffer.write(",");
+		buffer.print("GyroBias1");
+		buffer.write(",");
+		buffer.print("GyroBias2");
+		buffer.write(",");
+		buffer.print("GyroBias3");
+		
+
   #endif
 
 	#ifdef USE_POSITION_CONTROLLER
@@ -655,6 +676,19 @@ namespace datalogger {
 		buffer.print("setpointY");
 		buffer.write(",");
 		buffer.print("setpointZ");
+
+		buffer.write(",");
+		buffer.print("kp_xy");
+		buffer.write(",");
+		buffer.print("ki_xy");
+		buffer.write(",");
+		buffer.print("kd_xy");
+		buffer.write(",");
+		buffer.print("kp_z");
+		buffer.write(",");
+		buffer.print("ki_z");
+		buffer.write(",");
+		buffer.print("kd_z");
 	#endif
 
 
@@ -788,6 +822,24 @@ namespace datalogger {
     buffer.print(ins.Get_PosEst()[1], 10);
 		buffer.write(",");
     buffer.print(ins.Get_PosEst()[2], 10);
+		buffer.write(",");
+		buffer.print(ins.Get_VelEst()[0], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_VelEst()[1], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_VelEst()[2], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_AccelBias()[0], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_AccelBias()[1], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_AccelBias()[2], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_RotRateBias()[0], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_RotRateBias()[1], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_RotRateBias()[2], 4);
   #endif
 	#ifdef USE_POSITION_CONTROLLER
 		buffer.write(",");
@@ -796,6 +848,18 @@ namespace datalogger {
 		buffer.print(traj.GetSetpoint()[1]);
 		buffer.write(",");
 		buffer.print(traj.GetSetpoint()[2]);
+		buffer.write(",");
+		buffer.print(posControl.GetKp()[0]);
+		buffer.write(",");
+		buffer.print(posControl.GetKi()[0]);
+		buffer.write(",");
+		buffer.print(posControl.GetKd()[0]);
+		buffer.write(",");
+		buffer.print(posControl.GetKp()[2]);
+		buffer.write(",");
+		buffer.print(posControl.GetKi()[2]);
+		buffer.write(",");
+		buffer.print(posControl.GetKd()[2]);
 	#endif
 		buffer.println();
 
@@ -854,7 +918,13 @@ void setup() {
   radioSetup();
 
   // Begin mavlink telemetry module
-	paramManager.addParameter("kp_pr", Kp_roll_angle, MAV_PARAM_TYPE_REAL32);
+	// TODO: Find a better way to add and manage params. No hardcode for index
+	paramManager.addParameter("kp_xy", Kp_pos[0], MAV_PARAM_TYPE_REAL32);
+	paramManager.addParameter("ki_xy", Ki_pos[0], MAV_PARAM_TYPE_REAL32);
+	paramManager.addParameter("kd_xy", Kd_pos[0], MAV_PARAM_TYPE_REAL32);
+	paramManager.addParameter("kp_z", Kp_pos[2], MAV_PARAM_TYPE_REAL32);
+	paramManager.addParameter("ki_z", Ki_pos[2], MAV_PARAM_TYPE_REAL32);
+	paramManager.addParameter("kd_z", Kd_pos[2], MAV_PARAM_TYPE_REAL32);
   telem.InitTelemetry(&paramManager);
 
 
@@ -948,7 +1018,6 @@ void loop() {
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
     print_counterSD = micros();
 	datalogger::WriteBuffer();
-    Serial.println("logged");
   }
 
 	// TODO: Be better
@@ -964,6 +1033,21 @@ void loop() {
 
   telem.UpdateReceived();
   EKF_tow = telem.CheckForNewPosition(mocapPosition, EKF_tow);
+	// TODO: Implement some way to not do this every loop and do this without
+	// hardcoded indecies
+	// Update position PID gains
+	Kp_pos[0] = paramManager.parameters[0].value;
+	Ki_pos[0] = paramManager.parameters[1].value;
+	Kd_pos[0] = paramManager.parameters[2].value;
+	Kp_pos[1] = paramManager.parameters[0].value;
+	Ki_pos[1] = paramManager.parameters[1].value;
+	Kd_pos[1] = paramManager.parameters[2].value;
+	Kp_pos[2] = paramManager.parameters[3].value;
+	Ki_pos[2] = paramManager.parameters[4].value;
+	Kd_pos[2] = paramManager.parameters[5].value;
+	posControl.SetKp(Kp_pos);
+	posControl.SetKi(Ki_pos);
+	posControl.SetKd(Kd_pos);
 
   // Get vehicle state
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise

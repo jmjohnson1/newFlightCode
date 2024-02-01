@@ -1,5 +1,6 @@
 #include "controller.h"
 #include "Arduino.h"
+#include "nav-functions.h"
 
 // Angle attitude controller from the original dRehmflight code //
 AngleAttitudeController::AngleAttitudeController(const float (&Kp)[3],
@@ -125,6 +126,10 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   float sinRoll, sinPitch; // Sin of the roll and pitch angles
   float maxAngle_sinArg = sin(globalConstants::MAX_ANGLE * DEG_TO_RAD);
 
+  Eigen::Vector3f eul = {att.roll*DEG_TO_RAD, att.pitch*DEG_TO_RAD, att.yaw*DEG_TO_RAD};
+  Eigen::Quaternionf quat = Euler2Quat(eul);
+  Eigen::Matrix3f Cbn = Quat2DCM(quat);
+
   posError_ned = (posSetpoints - currentPosition).cast<float>();
   integral = prevIntegral_ + posError_ned * dt;
   // Prevent integral from building up if the thrust is low (noIntegral passed
@@ -140,6 +145,7 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
 
   // Calculate desired acceleration in the NED frame using PID
   desAcc_ned = Kp_ * posError_ned + Ki_ * integral + Kd_ * derivative;
+  Eigen::Vector3f desAcc_b = Cbn*desAcc_ned;
 
 	prevError_ = posError_ned;
 	prevIntegral_ = integral;
@@ -147,11 +153,18 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   // Extract the third term and use it to get the desired thrust in the body
   // frame. Need to add the amount of thrust required to hover with the
   // current attitude.
-  desAcc_b3 = desAcc_ned[2] - 9.81 / cos(att.roll) / cos(att.pitch);
+  desAcc_b3 = desAcc_b[2] - 9.81 / cos(att.roll*DEG_TO_RAD) / cos(att.pitch*DEG_TO_RAD);
   desiredThrust_ = globalConstants::QUAD_MASS * (desAcc_b3);
   desiredThrust_ = constrain(desiredThrust_, -globalConstants::MAX_THRUST, -globalConstants::MIN_THRUST);
   desAcc_b3 =
       desiredThrust_ / globalConstants::QUAD_MASS; // It's easier to constrain the thrust. maybe
+  
+  Serial.print(posError_ned[0]);
+  Serial.print(",");
+  Serial.print(posError_ned[1]);
+  Serial.print(",");
+  Serial.print(posError_ned[2]);
+  Serial.println();
 
   // Calculate a new desired attitude based on the amount of thrust available
   // and the desired accelerations in n1 and n2;

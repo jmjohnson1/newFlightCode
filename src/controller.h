@@ -82,10 +82,10 @@ private:
 class PositionController {
 public:
   // Used for floating point comparison later. Generally best to avoid.
-  const float EPSILON = 0.001f;
+  const float EPSILON = 0.1f;
 
   PositionController(const float (&Kp)[3], const float (&Ki)[3],
-                     const float (&Kd)[3], float iLimit = 25.0f);
+                     const float (&Kd)[3], float iLimit = 5.0f);
   void Update(const Eigen::Vector3d &posSetpoints,
               const Eigen::Vector3d &currentPosition, const Attitude &att,
               float dt, bool noIntegral);
@@ -96,9 +96,9 @@ public:
   float GetDesiredRoll() { return desiredRoll_; }
   float GetDesiredPitch() { return desiredPitch_; }
 
-  Eigen::Matrix3f GetKp() { return Kp_; }
-  Eigen::Matrix3f GetKi() { return Ki_; }
-  Eigen::Matrix3f GetKd() { return Kd_; }
+  Eigen::Vector3f GetKp() { return Kp_.diagonal(); }
+  Eigen::Vector3f GetKi() { return Ki_.diagonal(); }
+  Eigen::Vector3f GetKd() { return Kd_.diagonal(); }
 
   void SetKp(const float (&KpIn)[3]) {
     for (int i = 0; i < 3; i++) {

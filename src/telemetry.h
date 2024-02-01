@@ -38,7 +38,9 @@ public:
 private:
 	void HandleMessage(mavlink_message_t *msg);
 	void HandleCommandLong(mavlink_message_t *msg);
-	void HandleParamRequest(mavlink_message_t *msg);
+	void HandleParamRequest(const mavlink_param_request_list_t &req);
+	void HandleParamRequestRead(const mavlink_param_request_read_t &req);
+	void HandleParamSet(const mavlink_param_set_t &req);
 	void HandleLocalPosNED(mavlink_message_t *msg);
 
 
@@ -61,6 +63,10 @@ private:
 
 	// pointer to parameter ParameterManager
 	ParameterManager *paramManager = nullptr;
+
+	mavlink_param_request_read_t request_read_;
+	mavlink_param_request_list_t request_list_;
+	mavlink_param_set_t param_set_;
 };
 
 

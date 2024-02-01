@@ -16,10 +16,13 @@ void Telemetry::InitTelemetry(ParameterManager *p) {
 
   // This additional buffer helps the program move on
   static unsigned char biggerWriteBuffer[5000];
+	static unsigned char biggerReadBuffer[256];
   size_t biggerWriteBuffer_size = sizeof(biggerWriteBuffer);
+	size_t biggerReadBuffer_size = sizeof(biggerReadBuffer);
 
   HWSERIAL.begin(baudRate);
   HWSERIAL.addMemoryForWrite(biggerWriteBuffer, biggerWriteBuffer_size);
+	HWSERIAL.addMemoryForRead(biggerReadBuffer, biggerReadBuffer_size);
   paramManager = p;
 }
 
@@ -97,17 +100,23 @@ void Telemetry::UpdateReceived() {
 
 		if (mavlink_parse_char(chan, byte, &msg, &status)) {
 			HandleMessage(&msg);
-			Serial.println("Message received");
 		}
 	}
 }
 
 void Telemetry::HandleMessage(mavlink_message_t *msg) {
-	Serial.print("Message ID: ");
-	Serial.println(msg->msgid);
 	switch (msg->msgid) {
 		case MAVLINK_MSG_ID_PARAM_REQUEST_LIST:
-			HandleParamRequest(msg);
+			mavlink_msg_param_request_list_decode(msg, &request_list_);
+			HandleParamRequest(request_list_);
+			break;
+		case MAVLINK_MSG_ID_PARAM_SET:
+			mavlink_msg_param_set_decode(msg, &param_set_);
+			HandleParamSet(param_set_);			
+			break;
+		case MAVLINK_MSG_ID_PARAM_REQUEST_READ:
+			mavlink_msg_param_request_read_decode(msg, &request_read_);
+			HandleParamRequestRead(request_read_);
 			break;
 		case MAVLINK_MSG_ID_COMMAND_LONG:
 			HandleCommandLong(msg);
@@ -120,27 +129,95 @@ void Telemetry::HandleMessage(mavlink_message_t *msg) {
 	}
 }
 
-void Telemetry::HandleParamRequest(mavlink_message_t *msg) {
-	if (paramManager->numParameters > 0) {
-		Serial.println("Params: ");
-		for (int idx = 0; idx < paramManager->numParameters; idx++) {
-			#ifdef DEBUG_TELEM
-			Serial.print("name: ");
-			Serial.print(paramManager->parameters[idx].name);
-			Serial.print(" value: ");
-			Serial.print(paramManager->parameters[idx].value);
-			Serial.print(" type: ");
-			Serial.print(paramManager->parameters[idx].mavParamType);
-			Serial.println();
-			#endif
+void Telemetry::HandleParamRequest(const mavlink_param_request_list_t &req) {
+	Serial.print("Target_system: ");
+	Serial.print(req.target_system);
+	Serial.print(" target_component: ");
+	Serial.println(req.target_component);
+
+	if ((req.target_system == systemID) && ((req.target_component == componentID_core) || (req.target_component == MAV_COMP_ID_ALL))) {
+		if (paramManager->numParameters > 0) {
+			Serial.println("Params: ");
+			for (int idx = 0; idx < paramManager->numParameters; idx++) {
+				#ifdef DEBUG_TELEM
+				Serial.print("name: ");
+				Serial.print(paramManager->parameters[idx].name);
+				Serial.print(" value: ");
+				Serial.print(paramManager->parameters[idx].value);
+				Serial.print(" type: ");
+				Serial.print(paramManager->parameters[idx].mavParamType);
+				Serial.println();
+				#endif
+				mavlink_message_t msg;
+				mavlink_msg_param_value_pack(systemID, componentID_core, &msg, 
+					paramManager->parameters[idx].name, 
+					paramManager->parameters[idx].value,
+					paramManager->parameters[idx].mavParamType,
+					paramManager->numParameters,
+					idx);
+				SendMessage(&msg);
+			}
+		}
+	}
+}
+
+void Telemetry::HandleParamSet(const mavlink_param_set_t &req) {
+	if ((req.target_system == systemID) && ((req.target_component == componentID_core) || (req.target_component == MAV_COMP_ID_ALL))) {
+		for (int i = 0; i < paramManager->numParameters; i++) {
+			if (strcmp(req.param_id, paramManager->parameters[i].name) == 0) {
+				/* Update the param value */
+				paramManager->parameters[i].value = req.param_value;
+				/* Send the new param back */
+				mavlink_message_t msg;
+				mavlink_msg_param_value_pack(systemID, componentID_core, &msg, 
+					paramManager->parameters[i].name, 
+					paramManager->parameters[i].value,
+					paramManager->parameters[i].mavParamType,
+					paramManager->numParameters,
+					i);
+				#ifdef DEBUG_TELEM
+				Serial.print("Parameter \"");
+				Serial.print(paramManager->parameters[i].name);
+				Serial.print("\" value changed");
+				Serial.println();
+				#endif
+				SendMessage(&msg);
+				return;
+			}
+		}
+		
+		// Else
+		Serial.println("invalid parameter requested");
+		return;
+	}
+}
+
+void Telemetry::HandleParamRequestRead(const mavlink_param_request_read_t &req) {
+	if ((req.target_system == systemID) && ((req.target_component == componentID_core) || (req.target_component == MAV_COMP_ID_ALL))) {
+		if (req.param_index > -1) {
 			mavlink_message_t msg;
 			mavlink_msg_param_value_pack(systemID, componentID_core, &msg, 
-				paramManager->parameters[idx].name, 
-				paramManager->parameters[idx].value,
-				paramManager->parameters[idx].mavParamType,
+				paramManager->parameters[req.param_index].name, 
+				paramManager->parameters[req.param_index].value,
+				paramManager->parameters[req.param_index].mavParamType,
 				paramManager->numParameters,
-				idx);
+				req.param_index);
+			SendMessage(&msg);
+		} else {
+			for (int i = 0; i < paramManager->numParameters; i++) {
+				if (strcmp(req.param_id, paramManager->parameters[i].name) == 0) {
+					mavlink_message_t msg;
+					mavlink_msg_param_value_pack(systemID, componentID_core, &msg, 
+						paramManager->parameters[i].name, 
+						paramManager->parameters[i].value,
+						paramManager->parameters[i].mavParamType,
+						paramManager->numParameters,
+						i);
+					SendMessage(&msg);
+				}
+			}
 		}
+
 	}
 }
 
@@ -152,7 +229,7 @@ void Telemetry::HandleCommandLong(mavlink_message_t *msg) {
 
 void Telemetry::HandleLocalPosNED(mavlink_message_t *msg) {
 	mavlink_msg_local_position_ned_decode(msg, &localPos);
-  mostRecentPosRead = false;
+  	mostRecentPosRead = false;
 }
 
 /**
