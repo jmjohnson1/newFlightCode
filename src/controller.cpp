@@ -123,6 +123,8 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   float desAcc_b3; // Desired thrust resolved in the 3 axis of the body frame
   float Cy = cos(att.yaw * DEG_TO_RAD);
   float Sy = sin(att.yaw * DEG_TO_RAD);
+  float Cr = cos(att.roll * DEG_TO_RAD);
+  float Cp = cos(att.pitch * DEG_TO_RAD);
   float sinRoll, sinPitch; // Sin of the roll and pitch angles
   float maxAngle_sinArg = sin(globalConstants::MAX_ANGLE * DEG_TO_RAD);
 
@@ -138,14 +140,13 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
     integral = integral * 0;
   }
   // Prevent integral windup
-  for (int i = 1; i < 3; i++) {
+  for (int i = 0; i < 3; i++) {
     integral[i] = constrain(integral[i], -iLimit_, iLimit_);
   }
   derivative = (posError_ned - prevError_) / dt;
 
   // Calculate desired acceleration in the NED frame using PID
   desAcc_ned = Kp_ * posError_ned + Ki_ * integral + Kd_ * derivative;
-  Eigen::Vector3f desAcc_b = Cbn*desAcc_ned;
 
 	prevError_ = posError_ned;
 	prevIntegral_ = integral;
@@ -153,19 +154,12 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   // Extract the third term and use it to get the desired thrust in the body
   // frame. Need to add the amount of thrust required to hover with the
   // current attitude.
-  desAcc_b3 = desAcc_b[2] - 9.81 / cos(att.roll*DEG_TO_RAD) / cos(att.pitch*DEG_TO_RAD);
+  desAcc_b3 = desAcc_ned[2]*Cr*Cp - 9.81/Cr/Cp;
   desiredThrust_ = globalConstants::QUAD_MASS * (desAcc_b3);
   desiredThrust_ = constrain(desiredThrust_, -globalConstants::MAX_THRUST, -globalConstants::MIN_THRUST);
   desAcc_b3 =
       desiredThrust_ / globalConstants::QUAD_MASS; // It's easier to constrain the thrust. maybe
   
-  Serial.print(posError_ned[0]);
-  Serial.print(",");
-  Serial.print(posError_ned[1]);
-  Serial.print(",");
-  Serial.print(posError_ned[2]);
-  Serial.println();
-
   // Calculate a new desired attitude based on the amount of thrust available
   // and the desired accelerations in n1 and n2;
   // Let's make sure we can't break arcsin.

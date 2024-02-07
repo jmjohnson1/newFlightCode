@@ -111,9 +111,9 @@ float Ki_yaw = 0.06;
 float Kd_yaw = 0.00015;
 
 // POSITION PID GAINS //
-float Kp_pos[3] = {1.0f, 1.0f, 10.0f};
-float Ki_pos[3] = {0.0f, 0.0f, 2.0f};
-float Kd_pos[3] = {0.0f, 0.0f, 8.0f};
+float Kp_pos[3] = {8.0f, 8.0f, 31.0f};
+float Ki_pos[3] = {5.5f, 5.5f, 13.0f};
+float Kd_pos[3] = {2.0f, 2.0f, 2.0f};
 
 //================================================================================================//
 //                                      DECLARE PINS 																							//
@@ -1085,7 +1085,7 @@ void loop() {
 		}
 		posControl.Update(posSetpoint, ins.Get_PosEst(), quadIMU_info, dt, false);
 		thro_des = posControl.GetDesiredThrottle();
-		if (aux0.SwitchPosition() == SwPos::SWITCH_MID) {
+		if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH) {
 			roll_des = posControl.GetDesiredRoll();
 			pitch_des = posControl.GetDesiredPitch();
 		}
