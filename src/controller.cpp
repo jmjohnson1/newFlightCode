@@ -279,3 +279,14 @@ void PositionController::Reset() {
 	prevIntegral_ = Eigen::Vector3f::Zero();
 	prevError_ = Eigen::Vector3f::Zero();
 }
+
+/**
+ * @brief Computes the desired throttle setting (between 0 and 1) based on the
+ * desired thrust setting.
+*/
+float PositionController::GetDesiredThrottle() {
+  float desThrottle = A1_3S*pow(desiredThrust_, 3) + 
+                      A2_3S*pow(desiredThrust_, 2) + 
+                      A3_3S*desiredThrust_ + A4_3S;
+  return desThrottle;
+}

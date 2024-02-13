@@ -94,7 +94,7 @@ public:
 
 	void Reset();
 
-  float GetDesiredThrottle() { return abs(desiredThrust_) / globalConstants::MAX_THRUST; }
+  float GetDesiredThrottle(); 
   float GetDesiredRoll() { return desiredRoll_; }
   float GetDesiredPitch() { return desiredPitch_; }
 
@@ -139,6 +139,13 @@ private:
   Eigen::Matrix3f Kd_;
 
   float iLimit_; // Maximum value for the integral portion
+
+  // Coefficients for mapping the desired thrust to a normalized throttle
+  // setting. Good for 3s batteries.
+  const float A1_3S = 4.612E-05f;
+  const float A2_3S = -0.02284f;
+  const float A3_3S = 0.05197f;
+  const float A4_3S = 0.08133f;
 
   //====================================================//
   // REMEMBER TO DELETE ME WHEN DONE //
