@@ -27,7 +27,7 @@
 #include "parameters.h"
 
 //================================================================================================//
-//                                     USER-SPECIFIED VARIABLES 																	//
+//                                     USER-SPECIFIED VARIABLES                                   //
 //================================================================================================//
 
 // Radio channel definitions
@@ -113,7 +113,7 @@ float Ki_pos[3] = {2.0f, 2.0f, 2.0f};
 float Kd_pos[3] = {7.0f, 7.0f, 14.0f};
 
 //================================================================================================//
-//                                      DECLARE PINS 																							//
+//                                      DECLARE PINS                                              //
 //================================================================================================//
 
 // NOTE: Pin 13 is reserved for onboard LED, pins 18 and 19 are reserved for the
@@ -646,6 +646,30 @@ namespace datalogger {
 		buffer.print("kd_z");
 	#endif
 
+  //====================================================//
+  // REMEMBER TO DELETE ME WHEN DONE //
+	// Temporarily outputting the raw P, I, D, components that go into the position 
+	// controller's desired acceleration.
+		buffer.write(",");
+		buffer.print("tmp_Px_pos");
+		buffer.write(",");
+		buffer.print("tmp_ix_pos");
+		buffer.write(",");
+		buffer.print("tmp_dx_pos");
+		buffer.write(",");
+		buffer.print("tmp_Py_pos");
+		buffer.write(",");
+		buffer.print("tmp_iy_pos");
+		buffer.write(",");
+		buffer.print("tmp_dy_pos");
+		buffer.write(",");
+		buffer.print("tmp_Pz_pos");
+		buffer.write(",");
+		buffer.print("tmp_iz_pos");
+		buffer.write(",");
+		buffer.print("tmp_dz_pos");
+  //====================================================//
+
 
 		buffer.println();
 	}
@@ -827,6 +851,21 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print(posControl.GetKd()[2]);
 	#endif
+  //====================================================//
+  // REMEMBER TO DELETE ME WHEN DONE //
+	// Temporarily outputting the raw P, I, D, components that go into the position 
+	// controller's desired acceleration.
+		buffer.write(",");
+		buffer.print(posControl.GetTmpPropo()[0]);
+		buffer.print(posControl.GetTmpInteg()[0]);
+		buffer.print(posControl.GetTmpDeriv()[0]);
+		buffer.print(posControl.GetTmpPropo()[1]);
+		buffer.print(posControl.GetTmpInteg()[1]);
+		buffer.print(posControl.GetTmpDeriv()[1]);
+		buffer.print(posControl.GetTmpPropo()[2]);
+		buffer.print(posControl.GetTmpInteg()[2]);
+		buffer.print(posControl.GetTmpDeriv()[2]);
+  //====================================================//
 		buffer.println();
 
 		if (buffer.getWriteError()) {
@@ -880,7 +919,7 @@ void setup() {
 
   delay(5);
 
-  // Initialize radio communication (defined in header file)
+  // Initialize radio communication
   radioSetup();
 
   // Begin mavlink telemetry module

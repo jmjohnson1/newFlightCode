@@ -102,6 +102,14 @@ public:
   Eigen::Vector3f GetKi() { return Ki_.diagonal(); }
   Eigen::Vector3f GetKd() { return Kd_.diagonal(); }
 
+  //====================================================//
+  // REMEMBER TO DELETE ME WHEN DONE //
+  // Temporary variables for logging the raw pid values.
+  Eigen::Vector3f GetTmpPropo() { return tmp_proportional_; }
+  Eigen::Vector3f GetTmpInteg() { return tmp_integral_; }
+  Eigen::Vector3f GetTmpDeriv() { return tmp_derivative_; }
+  //====================================================//
+
   void SetKp(const float (&KpIn)[3]) {
     for (int i = 0; i < 3; i++) {
       Kp_.diagonal()[i] = KpIn[i];
@@ -131,6 +139,14 @@ private:
   Eigen::Matrix3f Kd_;
 
   float iLimit_; // Maximum value for the integral portion
+
+  //====================================================//
+  // REMEMBER TO DELETE ME WHEN DONE //
+  // Temporary variables for logging the raw pid values.
+  Eigen::Vector3f tmp_integral_;
+  Eigen::Vector3f tmp_derivative_;
+  Eigen::Vector3f tmp_proportional_;
+  //====================================================//
 };
 
 #endif

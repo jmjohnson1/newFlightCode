@@ -153,10 +153,18 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
 	prevError_ = posError_ned;
 	prevIntegral_ = integral;
 
+  //====================================================//
+  // REMEMBER TO DELETE ME WHEN DONE //
+  // Temporary variables for logging the raw pid values.
+  tmp_derivative_ = Kd_*derivative;
+  tmp_integral_ = Ki_*integral;
+  tmp_proportional_ = Kp_*posError_ned;
+  //====================================================//
+
   // Extract the third term and use it to get the desired thrust in the body
   // frame. Need to add the amount of thrust required to hover with the
   // current attitude.
-  desAcc_b3 = desAcc_ned[2]*Cr*Cp - 9.81/Cr/Cp;
+  desAcc_b3 = (desAcc_ned[2] - 9.81)/Cr/Cp;
   desiredThrust_ = globalConstants::QUAD_MASS * (desAcc_b3);
   desiredThrust_ = constrain(desiredThrust_, -globalConstants::MAX_THRUST, -globalConstants::MIN_THRUST);
   desAcc_b3 =
