@@ -2,7 +2,20 @@
 #include "Arduino.h"
 #include "nav-functions.h"
 
-// Angle attitude controller from the original dRehmflight code //
+//==================//
+// Attitude Control //
+//==================//
+/**
+ * @brief Create an AngleAttitudeController object with the given PID gains and
+ * integral anti-windup limit.
+ * @param Kp Reference to a 3-element array containing the P-gain for roll,
+ * pitch, and yaw
+ * @param Ki Reference to a 3-element array containing the I-gain for roll,
+ * pitch, and yaw
+ * @param Kd Reference to a 3-element array containing the D-gain for roll,
+ * pitch, and yaw
+ * @param iLimit The maximum value that the integral term can take. (default = 25.0f)
+*/
 AngleAttitudeController::AngleAttitudeController(const float (&Kp)[3],
                                                  const float (&Ki)[3],
                                                  const float (&Kd)[3],
@@ -15,6 +28,17 @@ AngleAttitudeController::AngleAttitudeController(const float (&Kp)[3],
   iLimit_ = iLimit;
 }
 
+/**
+ * @brief Update the reference values for the throttle setting based on current
+ * attidude and setpoints
+ * @param setpoints  Yaw, pitch, and roll setpoints [deg]
+ * @param att  Struct containing current attiude information
+ * @param gyroRates The measured angular rates about x, y, z [deg/s]
+ * @param dt  Time since last update [s]
+ * @param noIntegral  Condition on whether or not to include the integral term.
+ * Should be set false when the throttle is very low.
+*/
+
 void AngleAttitudeController::Update(const float (&setpoints)[3],
                                      const Attitude &att,
                                      const float (&gyroRates)[3], float dt,
@@ -26,18 +50,38 @@ void AngleAttitudeController::Update(const float (&setpoints)[3],
   yawPID_ = RatePID(setpoints[2], gyroRates[2], dt, noIntegral, YAW);
 }
 
+/**
+ * @brief Gets normalized motor commands by mixing the throttle setting and
+ * roll, pitch, and yaw pid outputs
+ * @param[out] motorCommandsNormalized  Motor commands between 0 and 1
+ * @param  throttleSetting  The desired throttle setting between 0 and 1
+*/
 void AngleAttitudeController::GetMotorCommands(float motorCommandsNormalized[4],
                                                float throttleSetting) {
   motorCommandsNormalized[0] = throttleSetting + pitchPID_ + rollPID_ - yawPID_;
   motorCommandsNormalized[1] = throttleSetting + pitchPID_ - rollPID_ + yawPID_;
   motorCommandsNormalized[2] = throttleSetting - pitchPID_ - rollPID_ - yawPID_;
   motorCommandsNormalized[3] = throttleSetting - pitchPID_ + rollPID_ + yawPID_;
+  for (int i = 1; i < 4; i++) {
+    motorCommandsNormalized[i] = constrain(motorCommandsNormalized[i], 0.0f, 1.0f);
+  }
 }
 
+/**
+ * @brief Performs the PID calculations for an attitude angle given the
+ * setpoint, measurement and angular rate.
+ * @param setpoint  The angle setpoint
+ * @param measuredAngle  The current angle
+ * @param gyroRate  The measured angular rate about the axis to control
+ * @param dt  The amount of time elapsed since the last update
+ * @param noIntegral  Condition on whether to use the integral term
+ * @param axis  The axis to control (enum)
+ * @returns The pid output
+*/
 float AngleAttitudeController::AnglePID(float setpoint, float measuredAngle,
                                         float gyroRate, float dt,
                                         bool noIntegral, AxisToControl axis) {
-  float *integral_prev = nullptr;
+  float *integral_prev = nullptr; // Need to declare this now and assign an address later.
   float Kp = Kp_[axis];
   float Ki = Ki_[axis];
   float Kd = Kd_[axis];
@@ -67,6 +111,16 @@ float AngleAttitudeController::AnglePID(float setpoint, float measuredAngle,
   return PIDOutput;
 }
 
+/**
+ * @brief Performs the PID calculations for an attitude angular rate given the
+ * setpoint and measured rate.
+ * @param setpoint  The angular rate setpoint
+ * @param measuredAngle  The current angular rate
+ * @param dt  The amount of time elapsed since the last update
+ * @param noIntegral  Condition on whether to use the integral term
+ * @param axis  The axis to control (enum)
+ * @returns The pid output
+*/
 float AngleAttitudeController::RatePID(float setpoint, float measuredRate,
                                        float dt, bool noIntegral,
                                        AxisToControl axis) {
@@ -96,6 +150,22 @@ float AngleAttitudeController::RatePID(float setpoint, float measuredRate,
   return PIDOutput;
 }
 
+//==================//
+// POSITION CONTROL //
+//==================//
+
+/**
+ * @brief Constructs a PID position controller object with the provided gains
+ * and integral limit
+ * @param Kp  reference to 3-element array containing proportional gains for
+ * position in x, y, z
+ * @param Ki  reference to 3-element array containing integral gains for
+ * position in x, y, z
+ * @param Kd  reference to 3-element array containing derivative gains for
+ * position in x, y, z
+ * @param iLimit  The largest absolute value that the integral term can build up
+ * to
+*/
 PositionController::PositionController(const float (&Kp)[3],
                                        const float (&Ki)[3],
                                        const float (&Kd)[3], float iLimit) {
@@ -115,6 +185,16 @@ PositionController::PositionController(const float (&Kp)[3],
   prevError_ << 0.0, 0.0, 0.0;
 }
 
+/**
+ * @brief Updates the attitude setpoints based on the current position error,
+ * velocity, and previous position error
+ * @param posSetpoints The position setpoints in the order x, y, z [m]
+ * @param currentPosition  The estimated position in x, y, z [m]
+ * @param currentVelocity  The estimated velocity in x, y, z [m/s]
+ * @param att  Struct containing information on the current attitude
+ * @param dt  The elapsed time since the last update [s]
+ * @param noIntegral  Condition on whether to use the integral term
+*/
 void PositionController::Update(const Eigen::Vector3d &posSetpoints,
                                 const Eigen::Vector3d &currentPosition,
                                 const Eigen::Vector3f &currentVelocity,
@@ -192,6 +272,9 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   }
 }
 
+/**
+ * @brief Resets the integrator and previous error terms used in calculations
+*/
 void PositionController::Reset() {
 	prevIntegral_ = Eigen::Vector3f::Zero();
 	prevError_ = Eigen::Vector3f::Zero();

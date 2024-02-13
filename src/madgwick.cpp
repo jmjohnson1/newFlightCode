@@ -8,13 +8,6 @@ void Madgwick6DOF(const IMU &imu, Attitude *att, float dt) {
   float qDot1, qDot2, qDot3, qDot4;
   float _2q0, _2q1, _2q2, _2q3, _4q0, _4q1, _4q2, _8q1, _8q2, q0q0, q1q1, q2q2, q3q3;
 
-	// I don't know why some of these are negative
-  //float gx = imu.GetGyroX();
-  //float gy = -imu.GetGyroY();
-  //float gz = -imu.GetGyroZ();
-  //float ax = -imu.GetAccX();
-  //float ay = imu.GetAccY();
-  //float az = imu.GetAccZ();
   float gx = imu.GetGyroX();
   float gy = imu.GetGyroY();
   float gz = imu.GetGyroZ();

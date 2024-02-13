@@ -433,13 +433,13 @@ void calibrateESCs() {
     m2_command_scaled = thro_des;
     m3_command_scaled = thro_des;
     m4_command_scaled = thro_des;
-		m1_command_PWM = ScaleCommand(m1_command_scaled);
-		m2_command_PWM = ScaleCommand(m2_command_scaled);
-		m3_command_PWM = ScaleCommand(m3_command_scaled);
-		m4_command_PWM = ScaleCommand(m4_command_scaled);
+		m1_command_PWM = motors::ScaleCommand(m1_command_scaled);
+		m2_command_PWM = motors::ScaleCommand(m2_command_scaled);
+		m3_command_PWM = motors::ScaleCommand(m3_command_scaled);
+		m4_command_PWM = motors::ScaleCommand(m4_command_scaled);
 		// I modified this for some thrust stand stuff
 		Serial.println(thro_des, 4);
-		CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
+		motors::CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
 		//
     loopRate(2000);
   }
@@ -875,6 +875,11 @@ namespace datalogger {
 		return 0;
 	}
 
+	/**
+	 * @brief Ends the process of writing to the SD card and closes the file. This
+	 * must be called in order for the logfile to save.
+	*/
+
 	void EndProcess() {
 		// Write any remaining buffer data to file
 		buffer.sync();
@@ -978,7 +983,7 @@ void setup() {
   m4_command_PWM = 125;
 	TeensyTimerTool::OneShotTimer *motorTimers[4] =  {&m1_timer, &m2_timer, &m3_timer, &m4_timer};
 	uint8_t motorPins[4] = {m1Pin, m2Pin, m3Pin, m4Pin};
-  ArmMotors(motorTimers, motorPins, 4); // Loop over commandMotors() until ESCs happily arm
+  motors::ArmMotors(motorTimers, motorPins, 4); // Loop over commandMotors() until ESCs happily arm
 #endif
 
   // Indicate entering main loop with 3 quick blinks
@@ -1152,18 +1157,18 @@ void loop() {
 	m3_command_scaled = motorCommandsNormalized[2];
 	m4_command_scaled = motorCommandsNormalized[3];
 
-	m1_command_PWM = ScaleCommand(m1_command_scaled);
-	m2_command_PWM = ScaleCommand(m2_command_scaled);
-	m3_command_PWM = ScaleCommand(m3_command_scaled);
-	m4_command_PWM = ScaleCommand(m4_command_scaled);
+	m1_command_PWM = motors::ScaleCommand(m1_command_scaled);
+	m2_command_PWM = motors::ScaleCommand(m2_command_scaled);
+	m3_command_PWM = motors::ScaleCommand(m3_command_scaled);
+	m4_command_PWM = motors::ScaleCommand(m4_command_scaled);
 
   // Throttle cut check
   bool killThrottle = throttleCut(); // Directly sets motor commands to low based on state of ch5
 	
-	CommandMotor(&m1_timer, m1_command_PWM, m1Pin);
-	CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
-	CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
-	CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
+	motors::CommandMotor(&m1_timer, m1_command_PWM, m1Pin);
+	motors::CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
+	motors::CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
+	motors::CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
 
   // Get vehicle commands for next loop iteration
   getCommands(); // Pulls current available radio commands
@@ -1174,10 +1179,10 @@ void loop() {
     while (1) {
       getCommands();
 
-			CommandMotor(&m1_timer, m1_command_PWM, m1Pin);
-			CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
-			CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
-			CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
+			motors::CommandMotor(&m1_timer, m1_command_PWM, m1Pin);
+			motors::CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
+			motors::CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
+			motors::CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
 
       if (resetChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
         CPU_RESTART;

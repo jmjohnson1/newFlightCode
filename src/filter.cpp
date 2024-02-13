@@ -2,6 +2,13 @@
 #include "filter.h"
 #include <cmath>
 
+/**
+ * @brief Initializes a first order lowpass filter with the filter cutoff
+ * frequecy and data sampling frequency
+ * @param filter   Pointer to the biquad filter struct that stores the variables
+ * @param filterFreq	The filter's cutoff frequency [Hz]
+ * @param smapleFreq  The sample rate of data that will be filtered [Hz]
+*/
 void biquadFilter_init(biquadFilter_s *filter, float filterFreq, float sampleFreq){
 	// setup
 	const float omega = 2.0f*M_PI*filterFreq/sampleFreq;
@@ -31,6 +38,11 @@ void biquadFilter_init(biquadFilter_s *filter, float filterFreq, float sampleFre
 	filter->y1 = filter->y2 = 0;
 }
 
+/**
+ * @brief Applies a biquad filter to a single data point and updates the filter
+ * @param input The data point to filter
+ * @returns The data point after filtering
+*/
 float biquadFilter_apply(biquadFilter_s *filter, float input) {
 	const float result = filter->b0*input + filter->x1;
 
