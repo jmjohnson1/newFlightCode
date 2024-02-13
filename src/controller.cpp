@@ -117,6 +117,7 @@ PositionController::PositionController(const float (&Kp)[3],
 
 void PositionController::Update(const Eigen::Vector3d &posSetpoints,
                                 const Eigen::Vector3d &currentPosition,
+                                const Eigen::Vector3f &currentVelocity,
                                 const Attitude &att, float dt, bool noIntegral) {
   // Declare some variables
   Eigen::Vector3f posError_ned, integral, derivative, desAcc_ned;
@@ -143,7 +144,8 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   for (int i = 0; i < 3; i++) {
     integral[i] = constrain(integral[i], -iLimit_, iLimit_);
   }
-  derivative = (posError_ned - prevError_) / dt;
+  //derivative = (posError_ned - prevError_) / dt;
+  derivative = -currentVelocity;
 
   // Calculate desired acceleration in the NED frame using PID
   desAcc_ned = Kp_ * posError_ned + Ki_ * integral + Kd_ * derivative;

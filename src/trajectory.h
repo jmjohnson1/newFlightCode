@@ -8,12 +8,12 @@
 class trajectory {
 public:
 	trajectory();
-	Eigen::Vector3f GetSetpoint() { return positionSetpoint_; }
-	inline void GoTo(const Eigen::Vector3f &position) {
+	Eigen::Vector3d GetSetpoint() { return positionSetpoint_; }
+	inline void GoTo(const Eigen::Vector3d &position) {
 		positionSetpoint_ = position;
 	}
 private:
-	Eigen::Vector3f positionSetpoint_;
+	Eigen::Vector3d positionSetpoint_;
 };
 
 #endif

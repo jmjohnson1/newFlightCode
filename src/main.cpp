@@ -26,9 +26,6 @@
 #include "trajectory.h"
 #include "parameters.h"
 
-
-
-
 //================================================================================================//
 //                                     USER-SPECIFIED VARIABLES 																	//
 //================================================================================================//
@@ -112,8 +109,8 @@ float Kd_yaw = 0.00015;
 
 // POSITION PID GAINS //
 float Kp_pos[3] = {8.0f, 8.0f, 31.0f};
-float Ki_pos[3] = {5.5f, 5.5f, 13.0f};
-float Kd_pos[3] = {2.0f, 2.0f, 2.0f};
+float Ki_pos[3] = {2.0f, 2.0f, 2.0f};
+float Kd_pos[3] = {7.0f, 7.0f, 14.0f};
 
 //================================================================================================//
 //                                      DECLARE PINS 																							//
@@ -138,25 +135,21 @@ PWMServo servo4;
 
 //================================================================================================//
 
-// SD card setup
 // Logic needed to restart teensy
 #define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
 #define CPU_RESTART_VAL 0x5FA0004
 #define CPU_RESTART (*CPU_RESTART_ADDR = CPU_RESTART_VAL);
 
+// SD card setup
 // Use Teensy SDIO
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
-
 // Interval between points (usec) for 100 samples/sec
 #define LOG_INTERVAL_USEC 10000
-
 // Size to log 256 byte lines at 100 Hz for a while
 #define LOG_FILE_SIZE 256 * 100 * 600 * 10 /*~1,500,000,000 bytes.*/
-
 // Space to hold more than 1 second of 256-byte lines at 100 Hz in the buffer
 #define RING_BUF_CAPACITY 50 * 512
 #define LOG_FILENAME "SdioLogger.csv"
-
 SdFs sd;
 FsFile file;
 
@@ -250,18 +243,16 @@ bool wasTrueLastLoop = false; // This will be renamed at some point
 // Constants for unit conversion
 const float DEG_2_RAD = PI/180.0f;
 const float RAD_2_DEG = 1.0f/DEG_2_RAD;
-const float G = 9.807f;  // m/s/s
+const float G = 9.81f;  // m/s/s
 
 
 // Various timers
 elapsedMillis heartbeatTimer;
 elapsedMillis fastMavlinkTimer;
 elapsedMillis positionUpdateTimer;
+elapsedMillis sdCardUpdateTimer;
 
 const unsigned long EKFPeriod = 10; // milliseconds
-
-
-
 
 //========================================================================================================================//
 //                                                      FUNCTIONS //
@@ -269,19 +260,13 @@ const unsigned long EKFPeriod = 10; // milliseconds
 
 
 
-
+/**
+ * @brief Updates the desired states (setpoints) based on the raw transmitter
+ * inputs obtained in getCommands(). Some of these values can be overwritten
+ * later by other functions.
+*/
 void getDesState() {
-  // DESCRIPTION: Normalizes desired control values to appropriate values
-  /*
-   * Updates the desired state variables thro_des, roll_des, pitch_des, and
-   * yaw_des. These are computed by using the raw RC pwm commands and scaling
-   * them to be within our limits defined in setup. thro_des stays within 0 to 1
-   * range. roll_des and pitch_des are scaled to be within max roll/pitch amount
-   * in either degrees (angle mode) or degrees/sec (rate mode). yaw_des is
-   * scaled to be within max yaw in degrees/sec. Also creates roll_passthru,
-   * pitch_passthru, and yaw_passthru variables, to be used in commanding
-   * motors/servos with direct unstabilized commands in controlMixer().
-   */
+
   thro_des = throttleChannel.NormalizedValue(); // Between 0 and 1
   roll_des = rollChannel.NormalizedValue();  // Between -1 and 1
   pitch_des = -pitchChannel.NormalizedValue(); // Between -1 and 1
@@ -301,18 +286,10 @@ void getDesState() {
 }
 
 
+/**
+ * @brief Gets the raw commands from the sbus radio receiver
+*/
 void getCommands() {
-  // DESCRIPTION: Get raw PWM values for every channel from the radio
-  /*
-   * Updates radio PWM commands in loop based on current available commands.
-   * channel_x_pwm is the raw command used in the rest of the loop. If using a
-   * PWM or PPM receiver, the radio commands are retrieved from a function in
-   * the readPWM file separate from this one which is running a bunch of
-   * interrupts to continuously update the radio readings. If using an SBUS
-   * receiver, the alues are pulled from the SBUS library directly. The raw
-   * radio commands are filtered with a first order low-pass filter to eliminate
-   * any really high frequency noise.
-   */
 
   if (sbus.read(&sbusChannels[0], &sbusFailSafe, &sbusLostFrame)) {
     // sBus scaling below is for Taranis-Plus and X4R-SB
@@ -325,6 +302,10 @@ void getCommands() {
   }
 }
 
+/**
+ * @brief Checks for anomolies in the raw transmitter command signals and
+ * activates failsafe mode for all channels if present.
+*/
 void failSafe() {
   failureFlag = 0;
 
@@ -344,7 +325,6 @@ void failSafe() {
 void m1_EndPulse() {
   digitalWrite(m1Pin, LOW);
   m1_writing = false;
-  //Serial.println("Timer triggered");
 }
  
 void m2_EndPulse() {
@@ -362,17 +342,11 @@ void m4_EndPulse() {
   m4_writing = false;
 }
 
-
+/**
+ * @brief Commands the motors not to rotate if the transmitter switch for
+ * throttle cut is high
+*/
 int throttleCut() {
-  // DESCRIPTION: Directly set actuator outputs to minimum value if triggered
-  /*
-   * Monitors the state of radio command channel_5_pwm and directly sets the
-   * mx_command_PWM values to minimum (120 is minimum for oneshot125 protocol, 0
-   * is minimum for standard PWM servo library used) if channel 5 is high. This
-   * is the last function called before commandMotors() is called so that the
-   * last thing checked is if the user is giving permission to command the
-   * motors to anything other than minimum value. Safety first.
-   */
   if (throCutChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
 		#ifdef USE_ONESHOT
     m1_command_PWM = 125;
@@ -390,18 +364,11 @@ int throttleCut() {
   return 0;
 }
 
+/**
+ * @brief Regulates main loop rate to keep it at 2 kHz
+ * @param freq The frequency to try to maintain [Hz]
+*/
 void loopRate(int freq) {
-  // DESCRIPTION: Regulate main loop rate to specified frequency in Hz
-  /*
-   * It's good to operate at a constant loop rate for filters to remain stable
-   * and whatnot. Interrupt routines running in the background cause the loop
-   * rate to fluctuate. This function basically just waits at the end of every
-   * loop iteration until the correct time has passed since the start of the
-   * current loop for the desired loop rate in Hz. 2kHz is a good rate to be at
-   * because the loop nominally will run between 2.8kHz - 4.2kHz. This lets us
-   * have a little room to add extra computations and remain above 2kHz, without
-   * needing to retune all of our filtering parameters.
-   */
   float invFreq = 1.0 / freq * 1000000.0;
   unsigned long checker = micros();
 
@@ -446,35 +413,11 @@ void radioSetup() {
     sbus.begin();
 }
 
-
-void MadgwickWarmup() {
-  // DESCRIPTION: Used to warm up the main loop to allow the madwick filter to
-  // converge before commands can be sent to the actuators Assuming vehicle is
-  // powered up on level surface!
-  /*
-   * This function is used on startup to warm up the attitude estimation and is
-   * what causes startup to take a few seconds to boot.
-   */
-  // Warm up IMU and madgwick filter in simulated main loop
-  for (int i = 0; i <= 10000; i++) {
-    prev_time = current_time;
-    current_time = micros();
-    dt = (current_time - prev_time) / 1000000.0;
-		quadIMU.Update();
-    Madgwick6DOF(quadIMU, &quadIMU_info, dt);
-    loopRate(2000); // do not exceed 2000Hz
-  }
-}
-
+/**
+ * @brief Provides throttle pass through to the motors for the purpose of
+ * calibrating the ESC.
+*/
 void calibrateESCs() {
-  // DESCRIPTION: Used in void setup() to allow standard ESC calibration
-  // procedure with the radio to take place.
-  /*
-   *  Simulates the void loop(), but only for the purpose of providing throttle
-   * pass through to the motors, so that you can power up with throttle at full,
-   * let ESCs begin arming sequence, and lower throttle to zero. This function
-   * should only be uncommented when performing an ESC calibration.
-   */
   while (true) {
     prev_time = current_time;
     current_time = micros();
@@ -494,11 +437,20 @@ void calibrateESCs() {
 		m2_command_PWM = ScaleCommand(m2_command_scaled);
 		m3_command_PWM = ScaleCommand(m3_command_scaled);
 		m4_command_PWM = ScaleCommand(m4_command_scaled);
-	CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
+		// I modified this for some thrust stand stuff
+		Serial.println(thro_des, 4);
+		CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
+		//
     loopRate(2000);
   }
 }
 
+/**
+ * @brief Calculates the constant null shift in the accelerometers and gyros.
+ * Prints the values over serial so they can be given in the setup() function.
+ * @param imu Pointer to the imu object to get the error from
+ * @param att Pointer to the structure that contains attitude info for the IMU
+*/
 void calculate_IMU_error(IMU *imu, Attitude *att) {
   int16_t AcX, AcY, AcZ, GyX, GyY, GyZ;
 	
@@ -552,7 +504,7 @@ void calculate_IMU_error(IMU *imu, Attitude *att) {
   Serial.print(errorGyro[2]);
   Serial.println(";");
 
-  Serial.println("Paste these values in user specified variables section and "
+  Serial.println("Paste these values in Setup() function and "
                  "comment out calculate_IMU_error() in void setup.");
   for (;;);
 }
@@ -561,6 +513,9 @@ void calculate_IMU_error(IMU *imu, Attitude *att) {
 //========== SD Card Logging ==========//
 //=====================================//
 namespace datalogger {
+	/**
+	 * @brief Prints the header line for the datalogger csv file
+	*/
 	void PrintCSVHeader() {
 		buffer.print("roll");
 		buffer.write(",");
@@ -695,6 +650,11 @@ namespace datalogger {
 		buffer.println();
 	}
 
+	/**
+	 * @brief Initializes SD card logging
+	 * @returns 1 if there was an error communicating with the SD card or creating
+	 * the file. 0 if successful
+	*/
 	int Setup() {
 		// Initialize the SD
 		if (!sd.begin(SD_CONFIG)) {
@@ -721,7 +681,13 @@ namespace datalogger {
 		return 0;
 	}
 
-
+	/**
+	 * @brief Writes the data to the FIFO buffer used for the sd card. Once the
+	 * amount of data in the FIFO buffer has reached the SD sector size (512
+	 * bytes), the data is written to the SD card.
+	 * @returns 1 if the log file is full or the data buffer failed to write to
+	 * the SD card. 0 if successful.
+	*/
 	int WriteBuffer() {
 		size_t amtDataInBuf = buffer.bytesUsed();
 		
@@ -885,8 +851,8 @@ namespace datalogger {
 //========== SETUP ==========//
 //===========================//
 void setup() {
-  Serial.begin(500000); // USB serial
-  delay(500);
+  Serial.begin(500000); // USB serial (baud rate doesn't actually matter for Teensy)
+  delay(500); // Give Serial some time to initialize
 
   // Initialize all pins
   pinMode(13, OUTPUT); // Pin 13 LED blinker on board, do not modify
@@ -939,7 +905,7 @@ void setup() {
 #endif
 
   // Initialize the SD card, returns 1 if no sd card is detected or it can't be
-  // initialized
+  // initialized. So it's negated to make SD_is_present true when everything is OK
   SD_is_present = !(datalogger::Setup());
 
   // Get IMU error to zero accelerometer and gyro readings, assuming vehicle is
@@ -949,9 +915,8 @@ void setup() {
 
   // calculate_IMU_error(&quadIMU_info, &quadIMU);
 
-
-  // Arm servo channels
 #ifndef USE_ONESHOT
+  // Arm servo channels
   servo1.write(0); // Command servo angle from 0-180 degrees (1000 to 2000 PWM)
   servo2.write(0); // Set these to 90 for servos if you do not want them to
                    // briefly max out on startup
@@ -963,7 +928,7 @@ void setup() {
 
   // PROPS OFF. Uncomment this to calibrate your ESCs by setting throttle stick
   // to max, powering on, and lowering throttle to zero after the beeps
-  //calibrateESCs();
+  calibrateESCs();
   // Code will not proceed past here if this function is uncommented!
 
 #ifdef USE_ONESHOT
@@ -1010,14 +975,15 @@ void loop() {
   // Check if rotors should be armed
   if (!flightLoopStarted && (throCutChannel.SwitchPosition() == SwPos::SWITCH_LOW)) {
     flightLoopStarted = 1;
+		// Let the GCS know that things are running
     telem.SetSystemState(MAV_STATE_ACTIVE);
     telem.SetSystemMode(MAV_MODE_MANUAL_ARMED);
   }
 
-  // Write to SD card buffer
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
-    print_counterSD = micros();
-	datalogger::WriteBuffer();
+  	// Write to SD card buffer
+		print_counterSD = micros();
+		datalogger::WriteBuffer();
   }
 
 	// TODO: Be better
@@ -1083,7 +1049,8 @@ void loop() {
 		if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
 			posSetpoint(0) = 1.0;
 		}
-		posControl.Update(posSetpoint, ins.Get_PosEst(), quadIMU_info, dt, false);
+		traj.GoTo(posSetpoint);
+		posControl.Update(posSetpoint, ins.Get_PosEst(), ins.Get_VelEst(), quadIMU_info, dt, false);
 		thro_des = posControl.GetDesiredThrottle();
 		if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH) {
 			roll_des = posControl.GetDesiredRoll();
@@ -1179,8 +1146,6 @@ void loop() {
     }
   } else if (killThrottle && flightLoopStarted) {
     throttleCutCount++;
-    Serial.print("throttleCutCount: ");
-    Serial.println(throttleCutCount);
   } else {
     throttleCutCount = 0;
   }

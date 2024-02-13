@@ -230,6 +230,7 @@ void Telemetry::HandleCommandLong(mavlink_message_t *msg) {
 void Telemetry::HandleLocalPosNED(mavlink_message_t *msg) {
 	mavlink_msg_local_position_ned_decode(msg, &localPos);
   	mostRecentPosRead = false;
+		//Serial.println("Position received");
 }
 
 /**
