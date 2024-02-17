@@ -1,6 +1,12 @@
 {
     "files.associations": {
         "*.tcc": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "memory_resource": "cpp",
+        "memory": "cpp",
+        "istream": "cpp",
+        "ostream": "cpp",
+        "sstream": "cpp",
+        "streambuf": "cpp"
     }
 }

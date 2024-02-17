@@ -149,14 +149,13 @@ PWMServo servo4;
 #define LOG_FILE_SIZE 256 * 100 * 600 * 10 /*~1,500,000,000 bytes.*/
 // Space to hold more than 1 second of 256-byte lines at 100 Hz in the buffer
 #define RING_BUF_CAPACITY 50 * 512
-#define LOG_FILENAME "SdioLogger.csv"
 SdFs sd;
 FsFile file;
 
 // Ring buffer for filetype FsFile (The filemanager that will handle the data stream)
 RingBuf<FsFile, RING_BUF_CAPACITY> buffer;
-// DECLARE GLOBAL VARIABLES
 
+// DECLARE GLOBAL VARIABLES
 // General stuff
 float dt;
 
@@ -229,6 +228,8 @@ Telemetry telem;
 // Position vector taken from mocap
 Eigen::Vector3d mocapPosition(0, 0, 0);
 uint32_t EKF_tow = 0; // Time of week used with the EKF. It increments whenever a new position is received from the transmitter
+bool positionFix = false;  // Set true if the position covariance from the EKF is less than a certain value.
+const float positionCovarianceLimit = 1.0f;	// Maximum allowable position covariance from EKF. [m^2]
 
 // EKF
 uNavINS ins;
@@ -1071,7 +1072,6 @@ void loop() {
 
   // Get vehicle state
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
-  Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 
 #ifdef USE_EKF
 	if (positionUpdateTimer > EKFPeriod) {
@@ -1081,6 +1081,8 @@ void loop() {
   quadIMU_info.roll = ins.Get_OrientEst()[0]*RAD_2_DEG;
   quadIMU_info.pitch = ins.Get_OrientEst()[1]*RAD_2_DEG;
   quadIMU_info.yaw = ins.Get_OrientEst()[2]*RAD_2_DEG;
+#else
+  Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 #endif
 
   // Compute desired state based on radio inputs
@@ -1088,7 +1090,16 @@ void loop() {
 	
 #ifdef USE_POSITION_CONTROLLER
 	// Check if position Controller enabled
-	if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH || aux0.SwitchPosition() == SwPos::SWITCH_MID) {
+	Eigen::Vector3f currentPosCovariance = ins.Get_CovPos();
+	if (currentPosCovariance[0] < positionCovarianceLimit &&
+			currentPosCovariance[1] < positionCovarianceLimit &&
+			currentPosCovariance[2] < positionCovarianceLimit) {
+		positionFix = true;
+	} else {
+		positionFix = false;
+	}
+	if ((aux0.SwitchPosition() == SwPos::SWITCH_HIGH || aux0.SwitchPosition() == SwPos::SWITCH_MID)
+			 && positionFix==true) {
 		if (!wasTrueLastLoop) {
 			wasTrueLastLoop = true;
 			posControl.Reset();
