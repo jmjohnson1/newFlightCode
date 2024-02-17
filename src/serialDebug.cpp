@@ -64,3 +64,15 @@ void serialDebug::PrintLoopTime(unsigned long dt) {
 	Serial.print(F("dt = "));
 	Serial.println(dt * 1000000.0);
 }
+
+void serialDebug::PrintZPosPID(float p, float i, float d) {
+	Serial.print(F("p: "));
+	Serial.print(p, 4);
+	Serial.print(F(" i: "));
+	Serial.print(i, 4);
+	Serial.print(F(" d: "));
+	Serial.print(d, 4);
+	Serial.print(F("Sum: "));
+	Serial.print(p + i + d, 4);
+	Serial.println();
+}

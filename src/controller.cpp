@@ -239,6 +239,7 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   tmp_derivative_ = Kd_*derivative;
   tmp_integral_ = Ki_*integral;
   tmp_proportional_ = Kp_*posError_ned;
+
   //====================================================//
 
   // Extract the third term and use it to get the desired thrust in the body
@@ -285,8 +286,8 @@ void PositionController::Reset() {
  * desired thrust setting.
 */
 float PositionController::GetDesiredThrottle() {
-  float desThrottle = A1_3S*pow(desiredThrust_, 3) + 
+  float desThrottle = A1_3S*pow(abs(desiredThrust_), 3) + 
                       A2_3S*pow(desiredThrust_, 2) + 
-                      A3_3S*desiredThrust_ + A4_3S;
+                      A3_3S*abs(desiredThrust_) + A4_3S;
   return desThrottle;
 }

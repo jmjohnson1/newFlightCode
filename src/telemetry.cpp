@@ -247,6 +247,7 @@ uint32_t Telemetry::CheckForNewPosition(Eigen::Vector3d& pos, uint32_t tow) {
 		pos[1] = localPos.y;
 		pos[2] = localPos.z;
 		#ifdef DEBUG_TELEM
+		Serial.print("Measured x position: ");
 		Serial.println(localPos.x);
 		#endif
 		mostRecentPosRead = true;

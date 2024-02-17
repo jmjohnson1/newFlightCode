@@ -108,9 +108,9 @@ float Ki_yaw = 0.06;
 float Kd_yaw = 0.00015;
 
 // POSITION PID GAINS //
-float Kp_pos[3] = {8.0f, 8.0f, 31.0f};
-float Ki_pos[3] = {2.0f, 2.0f, 2.0f};
-float Kd_pos[3] = {7.0f, 7.0f, 14.0f};
+float Kp_pos[3] = {9.0f, 9.0f, 29.0f};
+float Ki_pos[3] = {4.0f, 4.0f, 4.0f};
+float Kd_pos[3] = {12.0f, 12.0f, 5.0f};
 
 //================================================================================================//
 //                                      DECLARE PINS                                              //
@@ -650,24 +650,24 @@ namespace datalogger {
   // REMEMBER TO DELETE ME WHEN DONE //
 	// Temporarily outputting the raw P, I, D, components that go into the position 
 	// controller's desired acceleration.
-		buffer.write(",");
-		buffer.print("tmp_Px_pos");
-		buffer.write(",");
-		buffer.print("tmp_ix_pos");
-		buffer.write(",");
-		buffer.print("tmp_dx_pos");
-		buffer.write(",");
-		buffer.print("tmp_Py_pos");
-		buffer.write(",");
-		buffer.print("tmp_iy_pos");
-		buffer.write(",");
-		buffer.print("tmp_dy_pos");
-		buffer.write(",");
-		buffer.print("tmp_Pz_pos");
-		buffer.write(",");
-		buffer.print("tmp_iz_pos");
-		buffer.write(",");
-		buffer.print("tmp_dz_pos");
+		//buffer.write(",");
+		//buffer.print("tmp_Px_pos");
+		//buffer.write(",");
+		//buffer.print("tmp_ix_pos");
+		//buffer.write(",");
+		//buffer.print("tmp_dx_pos");
+		//buffer.write(",");
+		//buffer.print("tmp_Py_pos");
+		//buffer.write(",");
+		//buffer.print("tmp_iy_pos");
+		//buffer.write(",");
+		//buffer.print("tmp_dy_pos");
+		//buffer.write(",");
+		//buffer.print("tmp_Pz_pos");
+		//buffer.write(",");
+		//buffer.print("tmp_iz_pos");
+		//buffer.write(",");
+		//buffer.print("tmp_dz_pos");
   //====================================================//
 
 
@@ -855,16 +855,24 @@ namespace datalogger {
   // REMEMBER TO DELETE ME WHEN DONE //
 	// Temporarily outputting the raw P, I, D, components that go into the position 
 	// controller's desired acceleration.
-		buffer.write(",");
-		buffer.print(posControl.GetTmpPropo()[0]);
-		buffer.print(posControl.GetTmpInteg()[0]);
-		buffer.print(posControl.GetTmpDeriv()[0]);
-		buffer.print(posControl.GetTmpPropo()[1]);
-		buffer.print(posControl.GetTmpInteg()[1]);
-		buffer.print(posControl.GetTmpDeriv()[1]);
-		buffer.print(posControl.GetTmpPropo()[2]);
-		buffer.print(posControl.GetTmpInteg()[2]);
-		buffer.print(posControl.GetTmpDeriv()[2]);
+		//buffer.write(",");
+		//buffer.print(posControl.GetTmpPropo()[0]);
+		//buffer.write(",");
+		//buffer.print(posControl.GetTmpInteg()[0]);
+		//buffer.write(",");
+		//buffer.print(posControl.GetTmpDeriv()[0]);
+		//buffer.write(",");
+		//buffer.print(posControl.GetTmpPropo()[1]);
+		//buffer.write(",");
+		//buffer.print(posControl.GetTmpInteg()[1]);
+		//buffer.write(",");
+		//buffer.print(posControl.GetTmpDeriv()[1]);
+		//buffer.write(",");
+		//buffer.print(posControl.GetTmpPropo()[2]);
+		//buffer.write(",");
+		//buffer.print(posControl.GetTmpInteg()[2]);
+		//buffer.write(",");
+		//buffer.print(posControl.GetTmpDeriv()[2]);
   //====================================================//
 		buffer.println();
 
@@ -972,7 +980,7 @@ void setup() {
 
   // PROPS OFF. Uncomment this to calibrate your ESCs by setting throttle stick
   // to max, powering on, and lowering throttle to zero after the beeps
-  calibrateESCs();
+  //calibrateESCs();
   // Code will not proceed past here if this function is uncommented!
 
 #ifdef USE_ONESHOT
@@ -1014,6 +1022,8 @@ void loop() {
 		//serialDebug::PrintPIDOutput(controller.GetRollPID(), controller.GetPitchPID(), controller.GetYawPID());
 		//serialDebug::PrintMotorCommands(m1_command_PWM, m2_command_PWM, m3_command_PWM, m4_command_PWM);
 		//serialDebug::PrintLoopTime(dt);
+		serialDebug::PrintZPosPID(posControl.GetTmpPropo()[2], posControl.GetTmpInteg()[2],posControl.GetTmpDeriv()[2]);
+
 	}
 
   // Check if rotors should be armed
@@ -1088,7 +1098,7 @@ void loop() {
 			posSetpoint(2) = -1.0;
 		}
 		if (aux2.SwitchPosition() == SwPos::SWITCH_HIGH) {
-			posSetpoint(1) = 1.0;
+			posSetpoint(1) = 1.5;
 		}
 		if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
 			posSetpoint(0) = 1.0;
@@ -1156,6 +1166,7 @@ void loop() {
 	m2_command_scaled = motorCommandsNormalized[1];
 	m3_command_scaled = motorCommandsNormalized[2];
 	m4_command_scaled = motorCommandsNormalized[3];
+
 
 	m1_command_PWM = motors::ScaleCommand(m1_command_scaled);
 	m2_command_PWM = motors::ScaleCommand(m2_command_scaled);
