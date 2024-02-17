@@ -1105,6 +1105,7 @@ void loop() {
 			posControl.Reset();
 		}
 		posSetpoint = homePosition;
+		telem.SetSystemMode(MAV_MODE_GUIDED_ARMED);
 		if (aux3.SwitchPosition() == SwPos::SWITCH_HIGH) {
 			posSetpoint(2) = -1.0;
 		}
