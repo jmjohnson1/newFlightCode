@@ -11,7 +11,7 @@
 #include "SPI.h"      // SPI communication
 #include "Wire.h"     // I2c communication
 #include "eigen.h"  	// Linear algebra
-#include "SBUS.h" //sBus interface
+#include "SBUS.h"     //sBus interface
 
 #include "commonDefinitions.h"
 #include "serialDebug.h"
@@ -95,12 +95,12 @@ float iScale_att = 1.0f;
 float dScale_att = 1.0f;
 float allScale_att = 1.0f;
 
-float Kp_roll_angle = 0.56;
-float Ki_roll_angle = 0.176;
-float Kd_roll_angle = 0.063;
-float Kp_pitch_angle = 0.56;
-float Ki_pitch_angle = 0.176;
-float Kd_pitch_angle = 0.063;
+float Kp_roll_angle = 1.0202;
+float Ki_roll_angle = 0.4441;
+float Kd_roll_angle = 0.1286;
+float Kp_pitch_angle = 1.0202;
+float Ki_pitch_angle = 0.4441;
+float Kd_pitch_angle = 0.1286;
 
 // YAW PID GAINS //
 float Kp_yaw = 0.3;
@@ -108,9 +108,9 @@ float Ki_yaw = 0.06;
 float Kd_yaw = 0.00015;
 
 // POSITION PID GAINS //
-float Kp_pos[3] = {9.0f, 9.0f, 29.0f};
-float Ki_pos[3] = {4.0f, 4.0f, 4.0f};
-float Kd_pos[3] = {12.0f, 12.0f, 5.0f};
+float Kp_pos[3] = {5.0f, 5.0f, 29.0f};
+float Ki_pos[3] = {1.0f, 1.0f, 8.0f};
+float Kd_pos[3] = {12.0f, 12.0f, 16.0f};
 
 //================================================================================================//
 //                                      DECLARE PINS                                              //
@@ -230,6 +230,8 @@ Eigen::Vector3d mocapPosition(0, 0, 0);
 uint32_t EKF_tow = 0; // Time of week used with the EKF. It increments whenever a new position is received from the transmitter
 bool positionFix = false;  // Set true if the position covariance from the EKF is less than a certain value.
 const float positionCovarianceLimit = 1.0f;	// Maximum allowable position covariance from EKF. [m^2]
+uint32_t mocapTimestamp = 0; // Records when a mocap position update was sent according to its clock [us]
+uint32_t quadTimestamp = 0; // Records when a motion position update was received accroding to our clock [us]
 
 // EKF
 uNavINS ins;
@@ -250,16 +252,19 @@ const float G = 9.81f;  // m/s/s
 // Various timers
 elapsedMillis heartbeatTimer;
 elapsedMillis fastMavlinkTimer;
-elapsedMillis positionUpdateTimer;
-elapsedMillis sdCardUpdateTimer;
+elapsedMillis EKFUpdateTimer;
+elapsedMicros sdCardUpdateTimer;
+elapsedMillis attitudeCtrlTimer;
+elapsedMillis positionCtrlTimer;
 
-const unsigned long EKFPeriod = 10; // milliseconds
+// These define some loop rates
+const unsigned long EKFPeriod = 2; // milliseconds  (500 Hz)
+const unsigned long attitudeCtrlPeriod = 5; // milliseconds (200 Hz)
+const unsigned long positionCtrlPeriod = 5; // milliseconds (200 Hz)
 
 //========================================================================================================================//
 //                                                      FUNCTIONS //
 //========================================================================================================================//
-
-
 
 /**
  * @brief Updates the desired states (setpoints) based on the raw transmitter
@@ -470,7 +475,7 @@ void calculate_IMU_error(IMU *imu, Attitude *att) {
 
 		errorAcc[0] += imu->GetAccX();
 		errorAcc[1] += imu->GetAccY();
-		errorAcc[2] += imu->GetAccZ() - 1.0f; // Need to subtract gravity
+		errorAcc[2] += imu->GetAccZ() + 1.0f; // Need to subtract gravity
 
 		errorGyro[0] += imu->GetGyroX();
 		errorGyro[1] += imu->GetGyroY();
@@ -651,25 +656,30 @@ namespace datalogger {
   // REMEMBER TO DELETE ME WHEN DONE //
 	// Temporarily outputting the raw P, I, D, components that go into the position 
 	// controller's desired acceleration.
-		//buffer.write(",");
-		//buffer.print("tmp_Px_pos");
-		//buffer.write(",");
-		//buffer.print("tmp_ix_pos");
-		//buffer.write(",");
-		//buffer.print("tmp_dx_pos");
-		//buffer.write(",");
-		//buffer.print("tmp_Py_pos");
-		//buffer.write(",");
-		//buffer.print("tmp_iy_pos");
-		//buffer.write(",");
-		//buffer.print("tmp_dy_pos");
-		//buffer.write(",");
-		//buffer.print("tmp_Pz_pos");
-		//buffer.write(",");
-		//buffer.print("tmp_iz_pos");
-		//buffer.write(",");
-		//buffer.print("tmp_dz_pos");
+		buffer.write(",");
+		buffer.print("tmp_Px_pos");
+		buffer.write(",");
+		buffer.print("tmp_ix_pos");
+		buffer.write(",");
+		buffer.print("tmp_dx_pos");
+		buffer.write(",");
+		buffer.print("tmp_Py_pos");
+		buffer.write(",");
+		buffer.print("tmp_iy_pos");
+		buffer.write(",");
+		buffer.print("tmp_dy_pos");
+		buffer.write(",");
+		buffer.print("tmp_Pz_pos");
+		buffer.write(",");
+		buffer.print("tmp_iz_pos");
+		buffer.write(",");
+		buffer.print("tmp_dz_pos");
   //====================================================//
+
+		buffer.write(",");
+		buffer.print("mocapTimestamp");
+		buffer.write(",");
+		buffer.print("quadTimestamp");
 
 
 		buffer.println();
@@ -720,10 +730,10 @@ namespace datalogger {
 			Serial.println("Log file full -- No longer writing");
 			return 1;
 		}
-		if (amtDataInBuf >= 512 && !file.isBusy()) {
+		if (amtDataInBuf >= 1024 && !file.isBusy()) {
 			// One sector (512 bytes) can be printed before busy wait
 			// Write from buffer to file
-			if (512 != buffer.writeOut(512)) {
+			if (1024 != buffer.writeOut(1024)) {
 				Serial.println("Write to file from buffer failed -- breaking");
 				return 1;
 			}
@@ -856,25 +866,31 @@ namespace datalogger {
   // REMEMBER TO DELETE ME WHEN DONE //
 	// Temporarily outputting the raw P, I, D, components that go into the position 
 	// controller's desired acceleration.
-		//buffer.write(",");
-		//buffer.print(posControl.GetTmpPropo()[0]);
-		//buffer.write(",");
-		//buffer.print(posControl.GetTmpInteg()[0]);
-		//buffer.write(",");
-		//buffer.print(posControl.GetTmpDeriv()[0]);
-		//buffer.write(",");
-		//buffer.print(posControl.GetTmpPropo()[1]);
-		//buffer.write(",");
-		//buffer.print(posControl.GetTmpInteg()[1]);
-		//buffer.write(",");
-		//buffer.print(posControl.GetTmpDeriv()[1]);
-		//buffer.write(",");
-		//buffer.print(posControl.GetTmpPropo()[2]);
-		//buffer.write(",");
-		//buffer.print(posControl.GetTmpInteg()[2]);
-		//buffer.write(",");
-		//buffer.print(posControl.GetTmpDeriv()[2]);
+		buffer.write(",");
+		buffer.print(posControl.GetTmpPropo()[0], 3);
+		buffer.write(",");
+		buffer.print(posControl.GetTmpInteg()[0], 3);
+		buffer.write(",");
+		buffer.print(posControl.GetTmpDeriv()[0], 3);
+		buffer.write(",");
+		buffer.print(posControl.GetTmpPropo()[1], 3);
+		buffer.write(",");
+		buffer.print(posControl.GetTmpInteg()[1], 3);
+		buffer.write(",");
+		buffer.print(posControl.GetTmpDeriv()[1], 3);
+		buffer.write(",");
+		buffer.print(posControl.GetTmpPropo()[2], 3);
+		buffer.write(",");
+		buffer.print(posControl.GetTmpInteg()[2], 3);
+		buffer.write(",");
+		buffer.print(posControl.GetTmpDeriv()[2], 3);
   //====================================================//
+
+		buffer.write(",");
+		buffer.print(mocapTimestamp);
+		buffer.write(",");
+		buffer.print(quadTimestamp);
+
 		buffer.println();
 
 		if (buffer.getWriteError()) {
@@ -981,7 +997,7 @@ void setup() {
 
   // PROPS OFF. Uncomment this to calibrate your ESCs by setting throttle stick
   // to max, powering on, and lowering throttle to zero after the beeps
-  //calibrateESCs();
+  calibrateESCs();
   // Code will not proceed past here if this function is uncommented!
 
 #ifdef USE_ONESHOT
@@ -1023,8 +1039,9 @@ void loop() {
 		//serialDebug::PrintPIDOutput(controller.GetRollPID(), controller.GetPitchPID(), controller.GetYawPID());
 		//serialDebug::PrintMotorCommands(m1_command_PWM, m2_command_PWM, m3_command_PWM, m4_command_PWM);
 		//serialDebug::PrintLoopTime(dt);
-		serialDebug::PrintZPosPID(posControl.GetTmpPropo()[2], posControl.GetTmpInteg()[2],posControl.GetTmpDeriv()[2]);
-
+		//serialDebug::PrintZPosPID(posControl.GetTmpPropo()[2],
+		//posControl.GetTmpInteg()[2],posControl.GetTmpDeriv()[2]);
+		//serialDebug::DisplayRoll(roll_des, quadIMU_info.roll);
 	}
 
   // Check if rotors should be armed
@@ -1053,7 +1070,7 @@ void loop() {
   }
 
   telem.UpdateReceived();
-  EKF_tow = telem.CheckForNewPosition(mocapPosition, EKF_tow);
+  EKF_tow = telem.CheckForNewPosition(mocapPosition, &mocapTimestamp, EKF_tow, &quadTimestamp);
 	// TODO: Implement some way to not do this every loop and do this without
 	// hardcoded indecies
 	// Update position PID gains
@@ -1074,19 +1091,21 @@ void loop() {
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
 
 #ifdef USE_EKF
-	if (positionUpdateTimer > EKFPeriod) {
-		positionUpdateTimer = 0;
+	if (EKFUpdateTimer > EKFPeriod) {
+		EKFUpdateTimer = 0;
   	ins.Update(micros(), EKF_tow, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, mocapPosition);
 	}
-  quadIMU_info.roll = ins.Get_OrientEst()[0]*RAD_2_DEG;
-  quadIMU_info.pitch = ins.Get_OrientEst()[1]*RAD_2_DEG;
-  quadIMU_info.yaw = ins.Get_OrientEst()[2]*RAD_2_DEG;
+	// TEMPORARY!!!
+  //quadIMU_info.roll = ins.Get_OrientEst()[0]*RAD_2_DEG;
+  //quadIMU_info.pitch = ins.Get_OrientEst()[1]*RAD_2_DEG;
+  //quadIMU_info.yaw = ins.Get_OrientEst()[2]*RAD_2_DEG;
+	Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 #else
-  Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
+	if (EKFUpdateTimer > EKFPeriod) {
+		Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
+	}
 #endif
 
-  // Compute desired state based on radio inputs
-  getDesState(); // Convert raw commands to normalized values based on saturated control limits
 	
 #ifdef USE_POSITION_CONTROLLER
 	// Check if position Controller enabled
@@ -1098,34 +1117,40 @@ void loop() {
 	} else {
 		positionFix = false;
 	}
-	if ((aux0.SwitchPosition() == SwPos::SWITCH_HIGH || aux0.SwitchPosition() == SwPos::SWITCH_MID)
-			 && positionFix==true) {
-		if (!wasTrueLastLoop) {
-			wasTrueLastLoop = true;
-			posControl.Reset();
+	if (positionCtrlTimer >= positionCtrlPeriod) {
+		getDesState(); // Convert raw commands to normalized values based on saturated control limits
+		positionCtrlTimer = 0;
+		if ((aux0.SwitchPosition() == SwPos::SWITCH_HIGH || aux0.SwitchPosition() == SwPos::SWITCH_MID)
+				&& positionFix==true) {
+			if (!wasTrueLastLoop) {
+				wasTrueLastLoop = true;
+				posControl.Reset();
+			}
+			posSetpoint = homePosition;
+			telem.SetSystemMode(MAV_MODE_GUIDED_ARMED);
+			if (aux3.SwitchPosition() == SwPos::SWITCH_HIGH) {
+				posSetpoint(2) = -1.0;
+			}
+			if (aux2.SwitchPosition() == SwPos::SWITCH_HIGH) {
+				posSetpoint(1) = 1.5;
+			}
+			if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
+				posSetpoint(0) = 1.0;
+			}
+			traj.GoTo(posSetpoint);
+			posControl.Update(posSetpoint, ins.Get_PosEst(), ins.Get_VelEst(), quadIMU_info, dt, false);
+			thro_des = posControl.GetDesiredThrottle();
+			if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH) {
+				roll_des = posControl.GetDesiredRoll();
+				pitch_des = posControl.GetDesiredPitch();
+			}
+		} else {
+			wasTrueLastLoop = false; // Ensures the position controller is reset next time it's enabled
 		}
-		posSetpoint = homePosition;
-		telem.SetSystemMode(MAV_MODE_GUIDED_ARMED);
-		if (aux3.SwitchPosition() == SwPos::SWITCH_HIGH) {
-			posSetpoint(2) = -1.0;
-		}
-		if (aux2.SwitchPosition() == SwPos::SWITCH_HIGH) {
-			posSetpoint(1) = 1.5;
-		}
-		if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
-			posSetpoint(0) = 1.0;
-		}
-		traj.GoTo(posSetpoint);
-		posControl.Update(posSetpoint, ins.Get_PosEst(), ins.Get_VelEst(), quadIMU_info, dt, false);
-		thro_des = posControl.GetDesiredThrottle();
-		if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH) {
-			roll_des = posControl.GetDesiredRoll();
-			pitch_des = posControl.GetDesiredPitch();
-		}
-	} else {
-		wasTrueLastLoop = false; // Ensures the position controller is reset next time it's enabled
 	}
-	
+	# else
+		// Compute desired state based on radio inputs
+		getDesState(); // Convert raw commands to normalized values based on saturated control limits
 #endif
 	
 #ifdef TEST_STAND
@@ -1167,9 +1192,12 @@ void loop() {
 		noIntegral = true;
 	}
 	
-	float setpoints[3] = {roll_des, pitch_des, yaw_des};
-	float gyroRates[3] = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
-	controller.Update(setpoints, quadIMU_info, gyroRates, dt, noIntegral);
+	if (attitudeCtrlTimer >= attitudeCtrlPeriod) {
+		attitudeCtrlTimer = 0;
+		float setpoints[3] = {roll_des, pitch_des, yaw_des};
+		float gyroRates[3] = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
+		controller.Update(setpoints, quadIMU_info, gyroRates, dt, noIntegral);
+	}
 	float motorCommandsNormalized[4];
 	controller.GetMotorCommands(motorCommandsNormalized, thro_des);
 

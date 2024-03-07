@@ -33,7 +33,7 @@ public:
 	uint8_t GetSystemMode() {return systemMode;}
 	uint8_t GetSystemState() {return systemState;}
 
-	uint32_t CheckForNewPosition(Eigen::Vector3d& pos, uint32_t tow);
+	uint32_t CheckForNewPosition(Eigen::Vector3d& pos, uint32_t *mocapTimestamp, uint32_t tow, uint32_t *quadTimestamp);
 	
 private:
 	void HandleMessage(mavlink_message_t *msg);
@@ -42,9 +42,11 @@ private:
 	void HandleParamRequestRead(const mavlink_param_request_read_t &req);
 	void HandleParamSet(const mavlink_param_set_t &req);
 	void HandleLocalPosNED(mavlink_message_t *msg);
+	void HandleViconPosEst(mavlink_message_t *msg);
 
 
 	mavlink_local_position_ned_t localPos;
+	mavlink_vicon_position_estimate_t mocapPos;
 	bool mostRecentPosRead = true;
 
 	uint8_t systemID = 1;

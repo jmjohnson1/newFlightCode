@@ -1,7 +1,7 @@
 #ifndef PI
   #define PI               3.14159265358979f
 #endif
-#define DEBUG_TELEM
+//#define DEBUG_TELEM
 
 #include "telemetry.h"
 #include "Arduino.h"
@@ -124,6 +124,9 @@ void Telemetry::HandleMessage(mavlink_message_t *msg) {
 		case MAVLINK_MSG_ID_LOCAL_POSITION_NED:
 			HandleLocalPosNED(msg);
 			break;
+		case MAVLINK_MSG_ID_VICON_POSITION_ESTIMATE:
+			HandleViconPosEst(msg);
+			break;
 		default:
 			break;
 	}
@@ -229,23 +232,26 @@ void Telemetry::HandleCommandLong(mavlink_message_t *msg) {
 
 void Telemetry::HandleLocalPosNED(mavlink_message_t *msg) {
 	mavlink_msg_local_position_ned_decode(msg, &localPos);
-  	mostRecentPosRead = false;
+  	//mostRecentPosRead = false;
 		//Serial.println("Position received");
 }
 
-/**
-* Checks for a whether a new position has ben received over mavlink. If so, it modifies the
-* referenced position vector and returns true. Else, it returns false.
-*
-* @param: pos The current position being used by the caller
-*
-* @returns: true if pos has been modified, false otherwise.
-*/
-uint32_t Telemetry::CheckForNewPosition(Eigen::Vector3d& pos, uint32_t tow) {
+void Telemetry::HandleViconPosEst(mavlink_message_t *msg) {
+	mavlink_msg_vicon_position_estimate_decode(msg, &mocapPos);
+	mostRecentPosRead = false;
+}
+
+uint32_t Telemetry::CheckForNewPosition(Eigen::Vector3d& pos, uint32_t *mocapTimestamp, uint32_t tow, uint32_t *quadTimestamp) {
 	if (!mostRecentPosRead) {
-		pos[0] = localPos.x;
-		pos[1] = localPos.y;
-		pos[2] = localPos.z;
+		//pos[0] = localPos.x;
+		//pos[1] = localPos.y;
+		//pos[2] = localPos.z;
+		pos[0] = mocapPos.x;
+		pos[1] = mocapPos.y;
+		pos[2] = mocapPos.z;
+		*mocapTimestamp = mocapPos.usec;
+		*quadTimestamp = micros();
+
 		#ifdef DEBUG_TELEM
 		Serial.print("Measured x position: ");
 		Serial.println(localPos.x);

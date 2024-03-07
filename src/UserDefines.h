@@ -40,10 +40,10 @@
 #define SWP_TIME 120 /*Duration of sweep (seconds)*/
 #define SWP_AMPLITUDE 10 /*degrees*/
 // Parameters for steps
-#define STP_ANGLE 10 /*degrees*/
+#define STP_ANGLE 20 /*degrees*/
 
 /**Uncomment to be able to live tune the PID gains with the transmitter**/
-#define PID_TUNING
+//#define PID_TUNING
 // The limits of the gain tuning knob are (1 +/- MAX_SCALE_FACTOR). Probably shouldn't be greater
 // than 1, but the output is not allowed to be negative in any case.
 #define MAX_SCALE_FACTOR 0.2

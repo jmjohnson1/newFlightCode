@@ -76,3 +76,9 @@ void serialDebug::PrintZPosPID(float p, float i, float d) {
 	Serial.print(p + i + d, 4);
 	Serial.println();
 }
+
+void serialDebug::DisplayRoll(float setpoint, float value) {
+	Serial.print(setpoint);
+	Serial.print("\t");
+	Serial.println(value);
+}

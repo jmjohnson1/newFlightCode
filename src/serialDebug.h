@@ -11,6 +11,7 @@ namespace serialDebug {
   void PrintMotorCommands(float m1Command, float m2Command, float m3Command, float m4Command);
   void PrintLoopTime(unsigned long dt);
   void PrintZPosPID(float p, float i, float d);
+  void DisplayRoll(float setpoint, float value);
 }
 
 #endif
