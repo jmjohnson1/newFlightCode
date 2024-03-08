@@ -96,7 +96,7 @@ CPUOPTIONS = -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 -mthumb
 
 
 # path location for Teensy Loader, teensy_post_compile and teensy_reboot (on Linux)
-TOOLSPATH = tools
+TOOLSPATH = tools/$(OS_NAME)
 
 # path for teensy core files
 COREPATH = teensy4
@@ -104,9 +104,7 @@ COREPATH = teensy4
 ARDUINOLIBPATH = src/ArduinoLibs
 INCLUDEPATH = include
 
-# path location for the arm-none-eabi compiler
-
-
+# path location for the arm-none-eabi compiler #FIXME
 ifeq ($(OS_NAME), linux)
 	COMPILERPATH = /opt/gcc-arm-none-eabi-10-2020-q4-major/bin
 endif
