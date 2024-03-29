@@ -12,12 +12,8 @@ IMU::IMU(float accNSX, float accNSY, float accNSZ, float gyroNSX, float gyroNSY,
 	gyroNullShiftY_ = gyroNSY;
 	gyroNullShiftZ_ = gyroNSZ;
 
-	previousAccX_ = 0.0f;
-	previousAccY_ = 0.0f;
-	previousAccZ_ = 0.0f;
-	previousGyroX_ = 0.0f;
-	previousGyroY_ = 0.0f;
-	previousGyroZ_ = 0.0f;
+	butterworth2_init(&accelFilter, accelFilterCutoff, sampleFreq);
+	butterworth2_init(&gyroFilter, gyroFilterCutoff, sampleFreq);
 }
 
 /**
@@ -65,14 +61,10 @@ void IMU::Update() {
 	accX_ -= accNullShiftX_;
 	accY_ -= accNullShiftY_;
 	accZ_ -= accNullShiftZ_;
-	// Lowpass filter for the accelerometer data. This was done in dRehmflight, but I don't feel great
-	// about it. Leaving it here for now.
-	accX_ = (1.0f - B_accel_)*previousAccX_ + B_accel_*accX_;
-	accY_ = (1.0f - B_accel_)*previousAccY_ + B_accel_*accY_;
-	accZ_ = (1.0f - B_accel_)*previousAccZ_ + B_accel_*accZ_;
-	previousAccX_ = accX_;
-	previousAccY_ = accY_;
-	previousAccZ_ = accZ_;
+	// Lowpass filter for the accelerometer data.
+	accX_ = butterworth2_apply(&accelFilter, accX_);
+	accY_ = butterworth2_apply(&accelFilter, accY_);
+	accZ_ = butterworth2_apply(&accelFilter, accZ_);
 
 	// Gyro
 	gyroX_ = gyroX_raw / GYRO_SCALE_FACTOR;
@@ -82,12 +74,8 @@ void IMU::Update() {
 	gyroX_ -= gyroNullShiftX_;
 	gyroY_ -= gyroNullShiftY_;
 	gyroZ_ -= gyroNullShiftZ_;
-	// Lowpass filter for the gyro data. This was done in dRehmflight, but I don't feel great
-	// about it. Leaving it here for now.
-	gyroX_ = (1.0f - B_gyro_)*previousGyroX_ + B_gyro_*gyroX_;
-	gyroY_ = (1.0f - B_gyro_)*previousGyroY_ + B_gyro_*gyroY_;
-	gyroZ_ = (1.0f - B_gyro_)*previousGyroZ_ + B_gyro_*gyroZ_;
-	previousGyroX_ = gyroX_;
-	previousGyroY_ = gyroY_;
-	previousGyroZ_ = gyroZ_;
+	// Lowpass filter for the gyro data.
+	gyroX_ = butterworth2_apply(&gyroFilter, gyroX_);
+	gyroY_ = butterworth2_apply(&gyroFilter, gyroY_);
+	gyroZ_ = butterworth2_apply(&gyroFilter, gyroZ_);
 }

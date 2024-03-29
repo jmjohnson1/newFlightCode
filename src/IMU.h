@@ -6,6 +6,7 @@
 #include "MPU6050.h"
 #include "eigen.h"
 #include "UserDefines.h"
+#include "filter.h"
 
 
 // Setup gyro and accel full scale value selection and scale factor
@@ -84,16 +85,13 @@ private:
 	float accNullShiftX_, accNullShiftY_, accNullShiftZ_;
 	float gyroNullShiftX_, gyroNullShiftY_, gyroNullShiftZ_;
 
-	// Lowpass filter parameters
-	//const float B_accel_ = 0.02f;
-	const float B_accel_ = 1.0f;
-	const float B_gyro_ = 0.1f;
-	float previousAccX_;
-	float previousAccY_;
-	float previousAccZ_;
-	float previousGyroX_;
-	float previousGyroY_;
-	float previousGyroZ_;
+	// Lowpass filters
+	butterworth2_t accelFilter;
+	butterworth2_t gyroFilter;
+	float gyroFilterCutoff = 30;  // Hz
+	float accelFilterCutoff = 30;  // Hz
+	// FIXME: don't hardcode this
+	float sampleFreq = 500;  // Hz
 };
 
 #endif
