@@ -8,8 +8,8 @@
 // #define GYRO_2000DPS
 
 /**Uncomment only one full scale accelerometer range (G's)**/
-#define ACCEL_2G // Default
-// #define ACCEL_4G
+//#define ACCEL_2G // Default
+ #define ACCEL_4G
 // #define ACCEL_8G
 // #define ACCEL_16G
 
@@ -33,7 +33,7 @@
 #define USE_ONESHOT
 
 /**Uncomment to have access to step inputs and sine sweeps**/
-//#define TEST_STAND
+#define TEST_STAND
 // Parameters for sine sweep
 #define SWP_MIN_FREQ 0.5 /*Hz*/
 #define SWP_MAX_FREQ 3.0 /*Hz*/
@@ -41,6 +41,9 @@
 #define SWP_AMPLITUDE 10 /*degrees*/
 // Parameters for steps
 #define STP_ANGLE 20 /*degrees*/
+
+// Thrust sweep
+#define THO_MAX_TIME 60
 
 /**Uncomment to be able to live tune the PID gains with the transmitter**/
 //#define PID_TUNING

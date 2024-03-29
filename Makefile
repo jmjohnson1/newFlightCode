@@ -28,14 +28,14 @@
 # SOFTWARE.
 
 # Use these lines for Teensy 4.0
-#MCU = IMXRT1062
-#MCU_LD = imxrt1062.ld
-#MCU_DEF = ARDUINO_TEENSY40
+MCU = IMXRT1062
+MCU_LD = imxrt1062.ld
+MCU_DEF = ARDUINO_TEENSY40
 
 # Use these lines for Teensy 4.1
-MCU = IMXRT1062
-MCU_LD = imxrt1062_t41.ld
-MCU_DEF = ARDUINO_TEENSY41
+#MCU = IMXRT1062
+#MCU_LD = imxrt1062_t41.ld
+#MCU_DEF = ARDUINO_TEENSY41
 
 BUILDDIR = build
 

@@ -96,10 +96,10 @@ float dScale_att = 1.0f;
 float allScale_att = 1.0f;
 
 float Kp_roll_angle = 1.0202;
-float Ki_roll_angle = 0.4441;
+float Ki_roll_angle = 0.4441*0;
 float Kd_roll_angle = 0.1286;
 float Kp_pitch_angle = 1.0202;
-float Ki_pitch_angle = 0.4441;
+float Ki_pitch_angle = 0.4441*0;
 float Kd_pitch_angle = 0.1286;
 
 // YAW PID GAINS //
@@ -144,7 +144,7 @@ PWMServo servo4;
 // Use Teensy SDIO
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
 // Interval between points (usec) for 100 samples/sec
-#define LOG_INTERVAL_USEC 10000
+#define LOG_INTERVAL_USEC 0
 // Size to log 256 byte lines at 100 Hz for a while
 #define LOG_FILE_SIZE 256 * 100 * 600 * 10 /*~1,500,000,000 bytes.*/
 // Space to hold more than 1 second of 256-byte lines at 100 Hz in the buffer
@@ -170,7 +170,7 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-IMU quadIMU = IMU(-0.0121f, -0.0126f, -0.0770f, -4.7787f, 2.1795f, 0.6910f);
+IMU quadIMU = IMU(0.1f, -0.08f, 0.01f, -2.91f, -0.55f, -0.98f);
 Attitude quadIMU_info;
 
 ParameterManager paramManager;
@@ -261,6 +261,10 @@ elapsedMillis positionCtrlTimer;
 const unsigned long EKFPeriod = 2; // milliseconds  (500 Hz)
 const unsigned long attitudeCtrlPeriod = 5; // milliseconds (200 Hz)
 const unsigned long positionCtrlPeriod = 5; // milliseconds (200 Hz)
+
+#ifdef TEST_STAND
+bool restartSineSweep = true;
+#endif
 
 //========================================================================================================================//
 //                                                      FUNCTIONS //
@@ -444,8 +448,10 @@ void calibrateESCs() {
 		m3_command_PWM = motors::ScaleCommand(m3_command_scaled);
 		m4_command_PWM = motors::ScaleCommand(m4_command_scaled);
 		// I modified this for some thrust stand stuff
-		Serial.println(thro_des, 4);
+		motors::CommandMotor(&m1_timer, m1_command_PWM, m1Pin);
 		motors::CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
+		motors::CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
+		motors::CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
 		//
     loopRate(2000);
   }
@@ -523,32 +529,32 @@ namespace datalogger {
 	 * @brief Prints the header line for the datalogger csv file
 	*/
 	void PrintCSVHeader() {
-		buffer.print("roll");
-		buffer.write(",");
-		buffer.print("pitch");
-		buffer.write(",");
-		buffer.print("yaw");
-		buffer.write(",");
-		buffer.print("roll_des");
-		buffer.write(",");
-		buffer.print("pitch_des");
-		buffer.write(",");
-		buffer.print("yaw_des");
-		buffer.write(",");
+		// buffer.print("roll");
+		// buffer.write(",");
+		// buffer.print("pitch");
+		// buffer.write(",");
+		// buffer.print("yaw");
+		// buffer.write(",");
+		// buffer.print("roll_des");
+		// buffer.write(",");
+		// buffer.print("pitch_des");
+		// buffer.write(",");
+		// buffer.print("yaw_des");
+		// buffer.write(",");
 		buffer.print("throttle_des");
 		buffer.write(",");
-		buffer.print("roll_PID");
-		buffer.write(",");
-		buffer.print("pitch_PID");
-		buffer.write(",");
-		buffer.print("yaw_PID");
-		buffer.write(",");
+		// buffer.print("roll_PID");
+		// buffer.write(",");
+		// buffer.print("pitch_PID");
+		// buffer.write(",");
+		// buffer.print("yaw_PID");
+		// buffer.write(",");
 
-		// radio channels
-		for (int i = 0; i < numChannels; i++) {
-			buffer.print(radioChannels[i]->GetName());
-			buffer.write(",");
-		}
+		// // radio channels
+		// for (int i = 0; i < numChannels; i++) {
+		// 	buffer.print(radioChannels[i]->GetName());
+		// 	buffer.write(",");
+		// }
 
 		buffer.print("GyroX");
 		buffer.write(",");
@@ -561,125 +567,125 @@ namespace datalogger {
 		buffer.print("AccY");
 		buffer.write(",");
 		buffer.print("AccZ");
-		buffer.write(",");
-		buffer.print("m1_command");
-		buffer.write(",");
-		buffer.print("m2_command");
-		buffer.write(",");
-		buffer.print("m3_command");
-		buffer.write(",");
-		buffer.print("m4_command");
-		buffer.write(",");
-		buffer.print("kp_rp");
-		buffer.write(",");
-		buffer.print("ki_rp");
-		buffer.write(",");
-		buffer.print("kd_rp");
-		buffer.write(",");
-		buffer.print("kp_yaw");
-		buffer.write(",");
-		buffer.print("ki_yaw");
-		buffer.write(",");
-		buffer.print("kd_yaw");
-		buffer.write(",");
-		buffer.print("failsafeTriggered");
-		buffer.write(",");
+		buffer.write(","); 
+		// buffer.print("m1_command");
+		// buffer.write(",");
+		// buffer.print("m2_command");
+		// buffer.write(",");
+		// buffer.print("m3_command");
+		// buffer.write(",");
+		// buffer.print("m4_command");
+		// buffer.write(",");
+		// buffer.print("kp_rp");
+		// buffer.write(",");
+		// buffer.print("ki_rp");
+		// buffer.write(",");
+		// buffer.print("kd_rp");
+		// buffer.write(",");
+		// buffer.print("kp_yaw");
+		// buffer.write(",");
+		// buffer.print("ki_yaw");
+		// buffer.write(",");
+		// buffer.print("kd_yaw");
+		// buffer.write(",");
+		// buffer.print("failsafeTriggered");
+		// buffer.write(",");
 		buffer.print("timeSinceBoot");
-		buffer.write(",");
-		buffer.print("EKF_tow");
-		buffer.write(",");
-		buffer.print("MocapPositionX");
-		buffer.write(",");
-		buffer.print("MocapPositionY");
-		buffer.write(",");
-		buffer.print("MocapPositionZ");
+	// 	buffer.write(",");
+	// 	buffer.print("EKF_tow");
+	// 	buffer.write(",");
+	// 	buffer.print("MocapPositionX");
+	// 	buffer.write(",");
+	// 	buffer.print("MocapPositionY");
+	// 	buffer.write(",");
+	// 	buffer.print("MocapPositionZ");
 
-  #ifdef USE_EKF
-		buffer.write(",");
-    buffer.print("rollEstEKF");
-		buffer.write(",");
-    buffer.print("pitchEstEKF");
-		buffer.write(",");
-    buffer.print("yawEstEKF");
-		buffer.write(",");
-    buffer.print("xEstEKF");
-		buffer.write(",");
-    buffer.print("yEstEKF");
-		buffer.write(",");
-    buffer.print("zEstEKF");
+  // #ifdef USE_EKF
+	// 	buffer.write(",");
+  //   buffer.print("rollEstEKF");
+	// 	buffer.write(",");
+  //   buffer.print("pitchEstEKF");
+	// 	buffer.write(",");
+  //   buffer.print("yawEstEKF");
+	// 	buffer.write(",");
+  //   buffer.print("xEstEKF");
+	// 	buffer.write(",");
+  //   buffer.print("yEstEKF");
+	// 	buffer.write(",");
+  //   buffer.print("zEstEKF");
 
-		buffer.write(",");
-		buffer.print("vxEstEKF");
-		buffer.write(",");
-		buffer.print("vyEstEKF");
-		buffer.write(",");
-		buffer.print("vzEstEKF");
-		buffer.write(",");
-		buffer.print("AccelBias1");
-		buffer.write(",");
-		buffer.print("AccelBias2");
-		buffer.write(",");
-		buffer.print("AccelBias3");
-		buffer.write(",");
-		buffer.print("GyroBias1");
-		buffer.write(",");
-		buffer.print("GyroBias2");
-		buffer.write(",");
-		buffer.print("GyroBias3");
+	// 	buffer.write(",");
+	// 	buffer.print("vxEstEKF");
+	// 	buffer.write(",");
+	// 	buffer.print("vyEstEKF");
+	// 	buffer.write(",");
+	// 	buffer.print("vzEstEKF");
+	// 	buffer.write(",");
+	// 	buffer.print("AccelBias1");
+	// 	buffer.write(",");
+	// 	buffer.print("AccelBias2");
+	// 	buffer.write(",");
+	// 	buffer.print("AccelBias3");
+	// 	buffer.write(",");
+	// 	buffer.print("GyroBias1");
+	// 	buffer.write(",");
+	// 	buffer.print("GyroBias2");
+	// 	buffer.write(",");
+	// 	buffer.print("GyroBias3");
 		
 
-  #endif
+  // #endif
 
-	#ifdef USE_POSITION_CONTROLLER
-		buffer.write(",");
-		buffer.print("setpointX");
-		buffer.write(",");
-		buffer.print("setpointY");
-		buffer.write(",");
-		buffer.print("setpointZ");
+	// #ifdef USE_POSITION_CONTROLLER
+	// 	buffer.write(",");
+	// 	buffer.print("setpointX");
+	// 	buffer.write(",");
+	// 	buffer.print("setpointY");
+	// 	buffer.write(",");
+	// 	buffer.print("setpointZ");
 
-		buffer.write(",");
-		buffer.print("kp_xy");
-		buffer.write(",");
-		buffer.print("ki_xy");
-		buffer.write(",");
-		buffer.print("kd_xy");
-		buffer.write(",");
-		buffer.print("kp_z");
-		buffer.write(",");
-		buffer.print("ki_z");
-		buffer.write(",");
-		buffer.print("kd_z");
-	#endif
+	// 	buffer.write(",");
+	// 	buffer.print("kp_xy");
+	// 	buffer.write(",");
+	// 	buffer.print("ki_xy");
+	// 	buffer.write(",");
+	// 	buffer.print("kd_xy");
+	// 	buffer.write(",");
+	// 	buffer.print("kp_z");
+	// 	buffer.write(",");
+	// 	buffer.print("ki_z");
+	// 	buffer.write(",");
+	// 	buffer.print("kd_z");
+	// #endif
 
-  //====================================================//
-  // REMEMBER TO DELETE ME WHEN DONE //
-	// Temporarily outputting the raw P, I, D, components that go into the position 
-	// controller's desired acceleration.
-		buffer.write(",");
-		buffer.print("tmp_Px_pos");
-		buffer.write(",");
-		buffer.print("tmp_ix_pos");
-		buffer.write(",");
-		buffer.print("tmp_dx_pos");
-		buffer.write(",");
-		buffer.print("tmp_Py_pos");
-		buffer.write(",");
-		buffer.print("tmp_iy_pos");
-		buffer.write(",");
-		buffer.print("tmp_dy_pos");
-		buffer.write(",");
-		buffer.print("tmp_Pz_pos");
-		buffer.write(",");
-		buffer.print("tmp_iz_pos");
-		buffer.write(",");
-		buffer.print("tmp_dz_pos");
-  //====================================================//
+  // //====================================================//
+  // // REMEMBER TO DELETE ME WHEN DONE //
+	// // Temporarily outputting the raw P, I, D, components that go into the position 
+	// // controller's desired acceleration.
+	// 	buffer.write(",");
+	// 	buffer.print("tmp_Px_pos");
+	// 	buffer.write(",");
+	// 	buffer.print("tmp_ix_pos");
+	// 	buffer.write(",");
+	// 	buffer.print("tmp_dx_pos");
+	// 	buffer.write(",");
+	// 	buffer.print("tmp_Py_pos");
+	// 	buffer.write(",");
+	// 	buffer.print("tmp_iy_pos");
+	// 	buffer.write(",");
+	// 	buffer.print("tmp_dy_pos");
+	// 	buffer.write(",");
+	// 	buffer.print("tmp_Pz_pos");
+	// 	buffer.write(",");
+	// 	buffer.print("tmp_iz_pos");
+	// 	buffer.write(",");
+	// 	buffer.print("tmp_dz_pos");
+  // //====================================================//
 
-		buffer.write(",");
-		buffer.print("mocapTimestamp");
-		buffer.write(",");
-		buffer.print("quadTimestamp");
+	// 	buffer.write(",");
+	// 	buffer.print("mocapTimestamp");
+	// 	buffer.write(",");
+	// 	buffer.print("quadTimestamp");
 
 
 		buffer.println();
@@ -739,32 +745,32 @@ namespace datalogger {
 			}
 		}
 
-		buffer.print(quadIMU_info.roll, 4);
-		buffer.write(",");
-		buffer.print(quadIMU_info.pitch, 4);
-		buffer.write(",");
-		buffer.print(quadIMU_info.yaw, 4);
-		buffer.write(",");
-		buffer.print(roll_des, 4);
-		buffer.write(",");
-		buffer.print(pitch_des, 4);
-		buffer.write(",");
-		buffer.print(yaw_des, 4);
-		buffer.write(",");
+		// buffer.print(quadIMU_info.roll, 4);
+		// buffer.write(",");
+		// buffer.print(quadIMU_info.pitch, 4);
+		// buffer.write(",");
+		// buffer.print(quadIMU_info.yaw, 4);
+		// buffer.write(",");
+		// buffer.print(roll_des, 4);
+		// buffer.write(",");
+		// buffer.print(pitch_des, 4);
+		// buffer.write(",");
+		// buffer.print(yaw_des, 4);
+		// buffer.write(",");
 		buffer.print(thro_des, 4);
 		buffer.write(",");
-		buffer.print(controller.GetRollPID(), 4);
-		buffer.write(",");
-		buffer.print(controller.GetPitchPID(), 4);
-		buffer.write(",");
-		buffer.print(controller.GetYawPID(), 4);
-		buffer.write(",");
+		// buffer.print(controller.GetRollPID(), 4);
+		// buffer.write(",");
+		// buffer.print(controller.GetPitchPID(), 4);
+		// buffer.write(",");
+		// buffer.print(controller.GetYawPID(), 4);
+		// buffer.write(",");
 
-		// radio channels
-		for (int i = 0; i < numChannels; i++) {
-			buffer.print(radioChannels[i]->GetRawValue());
-			buffer.write(",");
-		}
+		// // radio channels
+		// for (int i = 0; i < numChannels; i++) {
+		// 	buffer.print(radioChannels[i]->GetRawValue());
+		// 	buffer.write(",");
+		// }
 
 
 		buffer.print(quadIMU.GetGyroX(), 4);
@@ -779,117 +785,117 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print(quadIMU.GetAccZ(), 4);
 		buffer.write(",");
-		buffer.print(m1_command_scaled, 4);
-		buffer.write(",");
-		buffer.print(m2_command_scaled, 4);
-		buffer.write(",");
-		buffer.print(m3_command_scaled, 4);
-		buffer.write(",");
-		buffer.print(m4_command_scaled, 4);
-		buffer.write(",");
-		buffer.print(Kp_roll_angle*pScale_att, 4);
-		buffer.write(",");
-		buffer.print(Ki_roll_angle*iScale_att, 4);
-		buffer.write(",");
-		buffer.print(Kd_roll_angle*dScale_att, 4);
-		buffer.write(",");
-		buffer.print(Kp_yaw, 4);
-		buffer.write(",");
-		buffer.print(Ki_yaw, 4);
-		buffer.write(",");
-		buffer.print(Kd_yaw, 4);
-		buffer.write(",");
-		buffer.print(failureFlag);
-		buffer.write(",");
+		// buffer.print(m1_command_scaled, 4);
+		// buffer.write(",");
+		// buffer.print(m2_command_scaled, 4);
+		// buffer.write(",");
+		// buffer.print(m3_command_scaled, 4);
+		// buffer.write(",");
+		// buffer.print(m4_command_scaled, 4);
+		// buffer.write(",");
+		// buffer.print(Kp_roll_angle*pScale_att, 4);
+		// buffer.write(",");
+		// buffer.print(Ki_roll_angle*iScale_att, 4);
+		// buffer.write(",");
+		// buffer.print(Kd_roll_angle*dScale_att, 4);
+		// buffer.write(",");
+		// buffer.print(Kp_yaw, 4);
+		// buffer.write(",");
+		// buffer.print(Ki_yaw, 4);
+		// buffer.write(",");
+		// buffer.print(Kd_yaw, 4);
+		// buffer.write(",");
+		// buffer.print(failureFlag);
+		// buffer.write(",");
 		buffer.print(micros());
-		buffer.write(",");
-		buffer.print(EKF_tow);
-		buffer.write(",");
-		buffer.print(mocapPosition[0], 10);
-		buffer.write(",");
-		buffer.print(mocapPosition[1], 10);
-		buffer.write(",");
-		buffer.print(mocapPosition[2], 10);
-  #ifdef USE_EKF
-		buffer.write(",");
-    buffer.print(ins.Get_OrientEst()[0], 5);
-		buffer.write(",");
-    buffer.print(ins.Get_OrientEst()[1], 5);
-		buffer.write(",");
-    buffer.print(ins.Get_OrientEst()[2], 5);
-		buffer.write(",");
-    buffer.print(ins.Get_PosEst()[0], 10);
-		buffer.write(",");
-    buffer.print(ins.Get_PosEst()[1], 10);
-		buffer.write(",");
-    buffer.print(ins.Get_PosEst()[2], 10);
-		buffer.write(",");
-		buffer.print(ins.Get_VelEst()[0], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_VelEst()[1], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_VelEst()[2], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_AccelBias()[0], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_AccelBias()[1], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_AccelBias()[2], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_RotRateBias()[0], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_RotRateBias()[1], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_RotRateBias()[2], 4);
-  #endif
-	#ifdef USE_POSITION_CONTROLLER
-		buffer.write(",");
-		buffer.print(traj.GetSetpoint()[0]);
-		buffer.write(",");
-		buffer.print(traj.GetSetpoint()[1]);
-		buffer.write(",");
-		buffer.print(traj.GetSetpoint()[2]);
-		buffer.write(",");
-		buffer.print(posControl.GetKp()[0]);
-		buffer.write(",");
-		buffer.print(posControl.GetKi()[0]);
-		buffer.write(",");
-		buffer.print(posControl.GetKd()[0]);
-		buffer.write(",");
-		buffer.print(posControl.GetKp()[2]);
-		buffer.write(",");
-		buffer.print(posControl.GetKi()[2]);
-		buffer.write(",");
-		buffer.print(posControl.GetKd()[2]);
-	#endif
-  //====================================================//
-  // REMEMBER TO DELETE ME WHEN DONE //
-	// Temporarily outputting the raw P, I, D, components that go into the position 
-	// controller's desired acceleration.
-		buffer.write(",");
-		buffer.print(posControl.GetTmpPropo()[0], 3);
-		buffer.write(",");
-		buffer.print(posControl.GetTmpInteg()[0], 3);
-		buffer.write(",");
-		buffer.print(posControl.GetTmpDeriv()[0], 3);
-		buffer.write(",");
-		buffer.print(posControl.GetTmpPropo()[1], 3);
-		buffer.write(",");
-		buffer.print(posControl.GetTmpInteg()[1], 3);
-		buffer.write(",");
-		buffer.print(posControl.GetTmpDeriv()[1], 3);
-		buffer.write(",");
-		buffer.print(posControl.GetTmpPropo()[2], 3);
-		buffer.write(",");
-		buffer.print(posControl.GetTmpInteg()[2], 3);
-		buffer.write(",");
-		buffer.print(posControl.GetTmpDeriv()[2], 3);
-  //====================================================//
+	// 	buffer.write(",");
+	// 	buffer.print(EKF_tow);
+	// 	buffer.write(",");
+	// 	buffer.print(mocapPosition[0], 10);
+	// 	buffer.write(",");
+	// 	buffer.print(mocapPosition[1], 10);
+	// 	buffer.write(",");
+	// 	buffer.print(mocapPosition[2], 10);
+  // #ifdef USE_EKF
+	// 	buffer.write(",");
+  //   buffer.print(ins.Get_OrientEst()[0], 5);
+	// 	buffer.write(",");
+  //   buffer.print(ins.Get_OrientEst()[1], 5);
+	// 	buffer.write(",");
+  //   buffer.print(ins.Get_OrientEst()[2], 5);
+	// 	buffer.write(",");
+  //   buffer.print(ins.Get_PosEst()[0], 10);
+	// 	buffer.write(",");
+  //   buffer.print(ins.Get_PosEst()[1], 10);
+	// 	buffer.write(",");
+  //   buffer.print(ins.Get_PosEst()[2], 10);
+	// 	buffer.write(",");
+	// 	buffer.print(ins.Get_VelEst()[0], 4);
+	// 	buffer.write(",");
+	// 	buffer.print(ins.Get_VelEst()[1], 4);
+	// 	buffer.write(",");
+	// 	buffer.print(ins.Get_VelEst()[2], 4);
+	// 	buffer.write(",");
+	// 	buffer.print(ins.Get_AccelBias()[0], 4);
+	// 	buffer.write(",");
+	// 	buffer.print(ins.Get_AccelBias()[1], 4);
+	// 	buffer.write(",");
+	// 	buffer.print(ins.Get_AccelBias()[2], 4);
+	// 	buffer.write(",");
+	// 	buffer.print(ins.Get_RotRateBias()[0], 4);
+	// 	buffer.write(",");
+	// 	buffer.print(ins.Get_RotRateBias()[1], 4);
+	// 	buffer.write(",");
+	// 	buffer.print(ins.Get_RotRateBias()[2], 4);
+  // #endif
+	// #ifdef USE_POSITION_CONTROLLER
+	// 	buffer.write(",");
+	// 	buffer.print(traj.GetSetpoint()[0]);
+	// 	buffer.write(",");
+	// 	buffer.print(traj.GetSetpoint()[1]);
+	// 	buffer.write(",");
+	// 	buffer.print(traj.GetSetpoint()[2]);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetKp()[0]);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetKi()[0]);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetKd()[0]);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetKp()[2]);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetKi()[2]);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetKd()[2]);
+	// #endif
+  // //====================================================//
+  // // REMEMBER TO DELETE ME WHEN DONE //
+	// // Temporarily outputting the raw P, I, D, components that go into the position 
+	// // controller's desired acceleration.
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetTmpPropo()[0], 3);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetTmpInteg()[0], 3);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetTmpDeriv()[0], 3);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetTmpPropo()[1], 3);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetTmpInteg()[1], 3);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetTmpDeriv()[1], 3);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetTmpPropo()[2], 3);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetTmpInteg()[2], 3);
+	// 	buffer.write(",");
+	// 	buffer.print(posControl.GetTmpDeriv()[2], 3);
+  // //====================================================//
 
-		buffer.write(",");
-		buffer.print(mocapTimestamp);
-		buffer.write(",");
-		buffer.print(quadTimestamp);
+	// 	buffer.write(",");
+	// 	buffer.print(mocapTimestamp);
+	// 	buffer.write(",");
+	// 	buffer.print(quadTimestamp);
 
 		buffer.println();
 
@@ -981,8 +987,7 @@ void setup() {
   // level when powered up Calibration parameters printed to serial monitor.
   // Paste these in the user specified variables section, then comment this out
   // forever.
-
-  // calculate_IMU_error(&quadIMU_info, &quadIMU);
+	//calculate_IMU_error(&quadIMU, &quadIMU_info);
 
 #ifndef USE_ONESHOT
   // Arm servo channels
@@ -997,7 +1002,7 @@ void setup() {
 
   // PROPS OFF. Uncomment this to calibrate your ESCs by setting throttle stick
   // to max, powering on, and lowering throttle to zero after the beeps
-  calibrateESCs();
+  //calibrateESCs();
   // Code will not proceed past here if this function is uncommented!
 
 #ifdef USE_ONESHOT
@@ -1032,7 +1037,7 @@ void loop() {
 	if (current_time - print_counter > 100000) {
 		print_counter = current_time;
 		//serialDebug::PrintRadioData(); // Currently does nothing
-		//serialDebug::PrintDesiredState(thro_des, roll_des, pitch_des, yaw_des);
+		serialDebug::PrintDesiredState(thro_des, roll_des, pitch_des, yaw_des);
 		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
 		//serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());
 		//serialDebug::PrintRollPitchYaw(quadIMU_info.roll, quadIMU_info.pitch, quadIMU_info.yaw);
@@ -1088,8 +1093,8 @@ void loop() {
 	posControl.SetKd(Kd_pos);
 
   // Get vehicle state
-  quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
 
+  quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
 #ifdef USE_EKF
 	if (EKFUpdateTimer > EKFPeriod) {
 		EKFUpdateTimer = 0;
@@ -1102,6 +1107,7 @@ void loop() {
 	Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 #else
 	if (EKFUpdateTimer > EKFPeriod) {
+  	quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
 		Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 	}
 #endif
@@ -1155,9 +1161,20 @@ void loop() {
 	
 #ifdef TEST_STAND
 	// Sine sweep
-  if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
-		testStand::SineSweep(dt);
-  }
+  // if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
+	// 	roll_des = testStand::SineSweep(restartSineSweep);
+	// 	restartSineSweep = false;
+  // } else {
+	// 	restartSineSweep = true;
+	// }
+
+	if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
+		thro_des = testStand::ThrustSweep(restartSineSweep);
+		restartSineSweep = false;
+	} else {
+		restartSineSweep = true;
+	}
+
 	// Step inputs
   if (aux2.SwitchPosition() == SwPos::SWITCH_MID) {
 		roll_des = testStand::Step(aux3);

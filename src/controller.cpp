@@ -209,10 +209,6 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   float sinRoll, sinPitch; // Sin of the roll and pitch angles
   float maxAngle_sinArg = sin(globalConstants::MAX_ANGLE * DEG_TO_RAD);
 
-  Eigen::Vector3f eul = {att.roll*DEG_TO_RAD, att.pitch*DEG_TO_RAD, att.yaw*DEG_TO_RAD};
-  Eigen::Quaternionf quat = Euler2Quat(eul);
-  Eigen::Matrix3f Cbn = Quat2DCM(quat);
-
   posError_ned = (posSetpoints - currentPosition).cast<float>();
   integral = prevIntegral_ + posError_ned * dt;
   // Prevent integral from building up if the thrust is low (noIntegral passed

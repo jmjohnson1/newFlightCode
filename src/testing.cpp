@@ -1,19 +1,33 @@
 #include "testing.h"
 #include "UserDefines.h"
 
-static float sineTime = 0.0f;
+static elapsedMillis sineTime;
+static elapsedMillis thrustTime;
 
-float testStand::SineSweep(unsigned long dt) {
+float testStand::SineSweep(bool restart) {
 	float angle = 0;
-	if (sineTime < 120) {
-		angle = SWP_AMPLITUDE*sin(
-			PI*(SWP_MAX_FREQ - SWP_MIN_FREQ)/SWP_TIME/SWP_TIME*pow(sineTime, 3) 
-			+ 2*PI*SWP_MIN_FREQ*sineTime);
-		sineTime = sineTime + static_cast<float>(dt)/1000000.0f;
-	} else {
+	if (restart == true) {
 		sineTime = 0;
 	}
+	float t = sineTime/1000.0f;
+	if (t < SWP_TIME) {
+		angle = SWP_AMPLITUDE*sin(
+			PI*(SWP_MAX_FREQ - SWP_MIN_FREQ)/SWP_TIME*t*t 
+			+ 2*PI*SWP_MIN_FREQ*t);
+	}
 	return angle;
+}
+
+float testStand::ThrustSweep(bool restart) {
+	float thro = 0;
+	if (restart == true) {
+		thrustTime = 0;
+	}
+	float t = thrustTime/1000.0f;
+	if (t <= THO_MAX_TIME) {
+		thro = t/THO_MAX_TIME * 0.5f;
+	}
+	return thro;
 }
 
 float testStand::Step(RadioChannel &angleCh) {

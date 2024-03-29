@@ -85,7 +85,8 @@ private:
 	float gyroNullShiftX_, gyroNullShiftY_, gyroNullShiftZ_;
 
 	// Lowpass filter parameters
-	const float B_accel_ = 0.14f;
+	//const float B_accel_ = 0.02f;
+	const float B_accel_ = 1.0f;
 	const float B_gyro_ = 0.1f;
 	float previousAccX_;
 	float previousAccY_;

@@ -5,15 +5,15 @@
 
 namespace testStand {
 
-float SineSweep(unsigned long dt);
+float SineSweep(bool restart);
 float Step(RadioChannel &angleCh);
+float ThrustSweep(bool restart);
 
 }
 
 namespace gainTuning {
 
 float ScaleFactor(RadioChannel &GainCh);
-
 
 }
 
