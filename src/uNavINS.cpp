@@ -250,14 +250,14 @@ void uNavINS::MeasUpdate(Vector3d pMeas_NED_m) {
   Matrix<float,15,1> x = K * y;
 
   // Pull apart x terms to update the Position, velocity, orientation, and sensor biases
-  Vector3f pDeltaEst_D = x.segment(0,3); // Position Deltas in NED
+  Vector3f pDeltaEst_L = x.segment(0,3); // Position Deltas in NED
   Vector3f vDeltaEst_L = x.segment(3,3); // Velocity Deltas in NED
   Vector3f quatDelta = x.segment(6,3); // Quaternion Delta
   Vector3f aBiasDelta = x.segment(9,3); // Accel Bias Deltas
   Vector3f wBiasDelta = x.segment(12,3); // Rotation Rate Bias Deltas
 
   // Position update
-  pEst_NED_m_ += x.segment(0,3).cast <double> ();
+  pEst_NED_m_ += pDeltaEst_L.cast<double>();
 
   // Velocity update
   vEst_NED_mps_ += vDeltaEst_L;
