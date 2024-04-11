@@ -86,12 +86,16 @@ private:
 	float gyroNullShiftX_, gyroNullShiftY_, gyroNullShiftZ_;
 
 	// Lowpass filters
-	butterworth2_t accelFilter;
-	butterworth2_t gyroFilter;
-	float gyroFilterCutoff = 30;  // Hz
-	float accelFilterCutoff = 30;  // Hz
+	butterworth2_t accelFilter_1;
+	butterworth2_t accelFilter_2;
+	butterworth2_t accelFilter_3;
+	butterworth2_t gyroFilter_1;
+	butterworth2_t gyroFilter_2;
+	butterworth2_t gyroFilter_3;
+	float gyroFilterCutoff = 50;  // Hz
+	float accelFilterCutoff = 50;  // Hz
 	// FIXME: don't hardcode this
-	float sampleFreq = 500;  // Hz
+	float sampleFreq = 1000;  // Hz
 };
 
 #endif

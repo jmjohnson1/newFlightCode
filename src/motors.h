@@ -3,11 +3,12 @@
 
 #include <stdint.h>
 #include "TeensyTimerTool.h"
+#include "eigen.h"
 
 namespace motors{
-  int ScaleCommand(float motorCommandNormalized);
+  Eigen::Vector4i ScaleCommand(Eigen::Vector4f &angularRates);
   void CommandMotor(TeensyTimerTool::OneShotTimer *timer, int commandValue, uint8_t motorPin);
-  void ArmMotors(TeensyTimerTool::OneShotTimer **timers, uint8_t *motorPins, uint8_t numberOfMotors);
+  void ArmMotors(TeensyTimerTool::OneShotTimer **timers, uint8_t *motorPins);
 }
 
 

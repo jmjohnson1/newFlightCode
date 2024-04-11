@@ -9,7 +9,7 @@
 #include "ardupilotmega/mavlink_msg_pid_tuning.h"
 #include <eigen.h>
 #include <stdint.h>
-#include "commonDefinitions.h"
+#include "common.h"
 #include "IMU.h"
 #include "parameters.h"
 

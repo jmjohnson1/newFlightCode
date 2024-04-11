@@ -1,5 +1,6 @@
 #include "motors.h"
 #include "UserDefines.h"
+#include "common.h"
 #include "Arduino.h"
 
 /**
@@ -7,17 +8,27 @@
  * the OneShot125 protocol or the servo library. OneShot125 takes values between
  * 125 us and 250 us. Servo takes values between 0 and 180. Returns the scaled
  * command
- * @param motorCommandNormalized  The desired motor command between 0 and 1
+ * @param angularRates  The desired motor rotation rates in rad/sec
  * @returns  The desired motor command scaled for writing to servo or oneshot
  * protocol
  */
-int motors::ScaleCommand(float motorCommandNormalized) {
+Eigen::Vector4i motors::ScaleCommand(Eigen::Vector4f &angularRates) {
+	const Eigen::Vector4f ones = Eigen::Vector4f::Ones();
+	Eigen::Vector4f motorCommandNormalized;
+	Eigen::Vector4i motorCommandScaled;
+	motorCommandNormalized = angularRates/quadProps::K_W1;  
+	motorCommandNormalized += 0.25f*quadProps::K_W2*quadProps::K_W2/quadProps::K_W1/quadProps::K_W1*ones;
+	motorCommandNormalized = -motorCommandNormalized.cwiseSqrt() - quadProps::K_W2/quadProps::K_W1/2.0f*ones; 
+	for (int i = 0; i < 4; i++) {
+		motorCommandNormalized[i] = constrain(motorCommandNormalized[i], 0, 1);
+		if (isnan(motorCommandNormalized[i])) {
+			motorCommandNormalized[i] = 0;
+		}
+	}
 #ifdef USE_ONESHOT
-	int motorCommandScaled = motorCommandNormalized * 125 + 125;
-	motorCommandScaled = constrain(motorCommandScaled, 125, 250);
+	motorCommandScaled = (motorCommandNormalized * 125 + 125*ones).cast<int>();
 #else
-	int motorCommandScaled = motorCommandNormalized * 180;
-	motorCommandScaled = constrain(motorCommandScaled, 0, 180);
+	motorCommandScaled = (motorCommandNormalized * 180).cast<int>();
 #endif
 	return motorCommandScaled;
 }
@@ -39,13 +50,13 @@ void motors::CommandMotor(TeensyTimerTool::OneShotTimer *timer, int commandValue
  * @brief Arms the motors by continually providing idle commands
  * @param timers  Pointer to an array that contains all of the hardware timer objects
  * @param motorPins  Array containing the pins that connect to each motor's ESC
- * @param numberOfMotors	The size of both the motorPins array and timers array
 */
-void motors::ArmMotors(TeensyTimerTool::OneShotTimer **timers, uint8_t *motorPins, uint8_t numberOfMotors) {
-	int command = ScaleCommand(0.0f);
+void motors::ArmMotors(TeensyTimerTool::OneShotTimer **timers, uint8_t *motorPins) {
+	Eigen::Vector4f zeros = Eigen::Vector4f::Zero();
+	Eigen::Vector4i command = ScaleCommand(zeros);
 	for (int i = 0; i < 10000; i++) {
-		for (uint8_t motor = 0; motor < numberOfMotors; motor++) {
-			CommandMotor(timers[motor], command, motorPins[motor]);
+		for (uint8_t motor = 0; motor < 4; motor++) {
+			CommandMotor(timers[motor], command[motor], motorPins[motor]);
 		}
 		delayMicroseconds(500);
 	}

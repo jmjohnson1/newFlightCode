@@ -12,7 +12,7 @@ enum class SwPos {
 
 class RadioChannel {
 public:
-	RadioChannel(String name, uint8_t channel, uint16_t zeroPoint, uint16_t failsafe, bool critical = false);
+	RadioChannel(String name, uint8_t channel, uint16_t zeroPoint, uint16_t failsafe, bool critical = false, uint16_t minRange = 1000, uint16_t maxRange = 2000);
 	void FailureCheck(uint16_t *failureFlag);
 	SwPos SwitchPosition();
 	float NormalizedValue();
@@ -30,6 +30,8 @@ private:
 	uint16_t failsafeValue_;
 	uint8_t channel_;
 	uint16_t zeroPointRawValue_;
+	uint16_t minRange_;
+	uint16_t maxRange_;
 	bool isCritical_;
 
 	const float FILTER_PARAM = 0.7f;

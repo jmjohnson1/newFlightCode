@@ -1,8 +1,10 @@
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 
-#include "commonDefinitions.h"
+#include "common.h"
 #include "eigen.h"
+
+Eigen::Vector4f ControlAllocator(Eigen::Vector4f &inputs);
 
 class AngleAttitudeController {
 public:
@@ -17,6 +19,7 @@ public:
   float GetRollPID() { return rollPID_; }
   float GetPitchPID() { return pitchPID_; }
   float GetYawPID() { return yawPID_; }
+  Eigen::Vector3f GetMoments() { return Eigen::Vector3f(rollPID_, pitchPID_, yawPID_); }
 
   // Need to modify a pointer to an outside array to give out the controller
   // constants
@@ -102,14 +105,6 @@ public:
   Eigen::Vector3f GetKi() { return Ki_.diagonal(); }
   Eigen::Vector3f GetKd() { return Kd_.diagonal(); }
 
-  //====================================================//
-  // REMEMBER TO DELETE ME WHEN DONE //
-  // Temporary variables for logging the raw pid values.
-  Eigen::Vector3f GetTmpPropo() { return tmp_proportional_; }
-  Eigen::Vector3f GetTmpInteg() { return tmp_integral_; }
-  Eigen::Vector3f GetTmpDeriv() { return tmp_derivative_; }
-  //====================================================//
-
   void SetKp(const float (&KpIn)[3]) {
     for (int i = 0; i < 3; i++) {
       Kp_.diagonal()[i] = KpIn[i];
@@ -139,21 +134,6 @@ private:
   Eigen::Matrix3f Kd_;
 
   float iLimit_; // Maximum value for the integral portion
-
-  // Coefficients for mapping the desired thrust to a normalized throttle
-  // setting. Good for 3s batteries.
-  const float A1_3S = 4.612E-05;
-  const float A2_3S = -0.002284f;
-  const float A3_3S = 0.05197f;
-  const float A4_3S = 0.08133f;
-
-  //====================================================//
-  // REMEMBER TO DELETE ME WHEN DONE //
-  // Temporary variables for logging the raw pid values.
-  Eigen::Vector3f tmp_integral_;
-  Eigen::Vector3f tmp_derivative_;
-  Eigen::Vector3f tmp_proportional_;
-  //====================================================//
 };
 
 #endif

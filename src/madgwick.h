@@ -3,7 +3,7 @@
 
 #include "IMU.h"
 #include "math.h"
-#include "commonDefinitions.h"
+#include "common.h"
 
 void Madgwick6DOF(const IMU &imu, Attitude *att, float dt);
 

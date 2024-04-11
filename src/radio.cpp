@@ -1,7 +1,7 @@
 #include "radio.h"
 
 RadioChannel::RadioChannel(String name, uint8_t channel, uint16_t zeroPoint, 
-													 uint16_t failsafe, bool critical) {
+													 uint16_t failsafe, bool critical, uint16_t minRange, uint16_t maxRange) {
 	name_ = name;
 	rawValue_ = failsafe;
 	rawValue_previous_ = failsafe;
@@ -9,6 +9,8 @@ RadioChannel::RadioChannel(String name, uint8_t channel, uint16_t zeroPoint,
 	channel_ = channel;
 	zeroPointRawValue_ = zeroPoint;
 	isCritical_ = critical;
+	minRange_ = minRange;
+	maxRange_ = maxRange;
 }
 
 /**
@@ -45,7 +47,7 @@ SwPos RadioChannel::SwitchPosition() {
 
 float RadioChannel::NormalizedValue() {
 	float normalizedValue = static_cast<float>(rawValue_ - zeroPointRawValue_)/
-		static_cast<float>(2000 - zeroPointRawValue_);
+		static_cast<float>(maxRange_ - zeroPointRawValue_);
 	return normalizedValue;
 }
 

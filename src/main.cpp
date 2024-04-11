@@ -13,7 +13,7 @@
 #include "eigen.h"  	// Linear algebra
 #include "SBUS.h"     //sBus interface
 
-#include "commonDefinitions.h"
+#include "common.h"
 #include "serialDebug.h"
 #include "telemetry.h"
 #include "IMU.h"
@@ -33,7 +33,7 @@
 // Radio channel definitions
 // Syntax: ("name", channel, slider neutral point (meaningless for switches), failsafe value, true
 // (if channel is critical))
-RadioChannel throttleChannel("throttle", 1, 1000, 1000, true);
+RadioChannel throttleChannel("throttle", 1, 1000, 1000, true, 1000, 1965);
 RadioChannel rollChannel("roll", 2, 1500, 1500, true);
 RadioChannel pitchChannel("pitch", 3, 1500, 1500, true);
 RadioChannel yawChannel("yaw", 4, 1500, 1500, true);
@@ -83,8 +83,8 @@ RadioChannel *radioChannels[numChannels] = {&throttleChannel,
 											};
 
 // Max roll/pitch angles in degrees for angle mode
-float maxRoll = globalConstants::MAX_ANGLE;
-float maxPitch = globalConstants::MAX_ANGLE;
+float maxRoll = quadProps::MAX_ANGLE;
+float maxPitch = quadProps::MAX_ANGLE;
 // Max yaw rate in deg/sec
 float maxYaw = 160.0;
 
@@ -94,18 +94,30 @@ float pScale_att = 1.0f;
 float iScale_att = 1.0f;
 float dScale_att = 1.0f;
 float allScale_att = 1.0f;
+// DIVIDE BY 100 IF USING AGAIN
+// float Kp_roll_angle = 0.7f;
+// float Ki_roll_angle = 0.47f;
+// float Kd_roll_angle = 0.12f;
+// float Kp_pitch_angle = 0.7f;
+// float Ki_pitch_angle = 0.47f;
+// float Kd_pitch_angle = 0.12f;
 
-float Kp_roll_angle = 1.0202;
-float Ki_roll_angle = 0.4441*0;
-float Kd_roll_angle = 0.1286;
-float Kp_pitch_angle = 1.0202;
-float Ki_pitch_angle = 0.4441*0;
-float Kd_pitch_angle = 0.1286;
+// // YAW PID GAINS //
+// float Kp_yaw = 0.3;
+// float Ki_yaw = 0.06;
+// float Kd_yaw = 0.00015;
+
+float Kp_roll_angle = 0.007f*1.5;
+float Ki_roll_angle = 0.001645f*1.5;
+float Kd_roll_angle = 0.001305f*1.5;
+float Kp_pitch_angle = 0.007f*1.5;
+float Ki_pitch_angle = 0.001645f*1.5;
+float Kd_pitch_angle = 0.001305f*1.5;
 
 // YAW PID GAINS //
-float Kp_yaw = 0.3;
-float Ki_yaw = 0.06;
-float Kd_yaw = 0.00015;
+float Kp_yaw = 0.002f;
+float Ki_yaw = 0.0f;
+float Kd_yaw = 0.0f;
 
 // POSITION PID GAINS //
 float Kp_pos[3] = {5.0f, 5.0f, 29.0f};
@@ -144,7 +156,7 @@ PWMServo servo4;
 // Use Teensy SDIO
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
 // Interval between points (usec) for 100 samples/sec
-#define LOG_INTERVAL_USEC 0
+#define LOG_INTERVAL_USEC 10000
 // Size to log 256 byte lines at 100 Hz for a while
 #define LOG_FILE_SIZE 256 * 100 * 600 * 10 /*~1,500,000,000 bytes.*/
 // Space to hold more than 1 second of 256-byte lines at 100 Hz in the buffer
@@ -170,27 +182,25 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-IMU quadIMU = IMU(0.1f, -0.08f, 0.01f, -2.91f, -0.55f, -0.98f);
+IMU quadIMU = IMU(0.00f, 0.00f, 0.09f, 0.04f, 2.78f, 0.35f);
 Attitude quadIMU_info;
 
 ParameterManager paramManager;
 
 // Normalized desired state:
-float thro_des, roll_des, pitch_des, yaw_des;
-float roll_passthru, pitch_passthru, yaw_passthru;
+float thrust_des, roll_des, pitch_des, yaw_des;
 
 // Controller:
 float Kp_array[3] = {Kp_roll_angle, Kp_pitch_angle, Kp_yaw};
 float Ki_array[3] = {Ki_roll_angle, Ki_pitch_angle, Ki_yaw};
 float Kd_array[3] = {Kd_roll_angle, Kd_pitch_angle, Kd_yaw};
 AngleAttitudeController controller = AngleAttitudeController(Kp_array, Ki_array, Kd_array);
-
 PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos);
+Eigen::Vector4f controlInputs = Eigen::Vector4f::Zero();
 
 
 // Mixer
-float m1_command_scaled, m2_command_scaled, m3_command_scaled, m4_command_scaled;
-int m1_command_PWM, m2_command_PWM, m3_command_PWM, m4_command_PWM;
+Eigen::Vector4i motorCommands;
 
 // Timers for each motor
 TeensyTimerTool::OneShotTimer m1_timer(TeensyTimerTool::TMR1);
@@ -256,11 +266,13 @@ elapsedMillis EKFUpdateTimer;
 elapsedMicros sdCardUpdateTimer;
 elapsedMillis attitudeCtrlTimer;
 elapsedMillis positionCtrlTimer;
+elapsedMicros IMUUpdateTimer;
 
 // These define some loop rates
 const unsigned long EKFPeriod = 2; // milliseconds  (500 Hz)
 const unsigned long attitudeCtrlPeriod = 5; // milliseconds (200 Hz)
 const unsigned long positionCtrlPeriod = 5; // milliseconds (200 Hz)
+const unsigned long imuUpdatePeriod = 0; // microseconds (1000 Hz)
 
 #ifdef TEST_STAND
 bool restartSineSweep = true;
@@ -276,23 +288,16 @@ bool restartSineSweep = true;
  * later by other functions.
 */
 void getDesState() {
-
-  thro_des = throttleChannel.NormalizedValue(); // Between 0 and 1
+  thrust_des = throttleChannel.NormalizedValue(); // Between 0 and 1
   roll_des = rollChannel.NormalizedValue();  // Between -1 and 1
   pitch_des = -pitchChannel.NormalizedValue(); // Between -1 and 1
   yaw_des = -yawChannel.NormalizedValue();   // Between -1 and 1
-  roll_passthru = roll_des / 2.0;               // Between -0.5 and 0.5
-  pitch_passthru = pitch_des / 2.0;             // Between -0.5 and 0.5
-  yaw_passthru = yaw_des / 2.0;                 // Between -0.5 and 0.5
 
   // Constrain within normalized bounds
-  thro_des = constrain(thro_des, 0.0, 1.0);               // Between 0 and 1
-  roll_des = constrain(roll_des, -1.0, 1.0) * maxRoll;    // Between -maxRoll and +maxRoll
-  pitch_des = constrain(pitch_des, -1.0, 1.0) * maxPitch; // Between -maxPitch and +maxPitch
-  yaw_des = constrain(yaw_des, -1.0, 1.0) * maxYaw;       // Between -maxYaw and +maxYaw
-  roll_passthru = constrain(roll_passthru, -0.5, 0.5);
-  pitch_passthru = constrain(pitch_passthru, -0.5, 0.5);
-  yaw_passthru = constrain(yaw_passthru, -0.5, 0.5);
+  thrust_des = constrain(thrust_des, 0.0, 1.0)*quadProps::MAX_THRUST;  // Between 0 and 1
+  roll_des = constrain(roll_des, -1.0, 1.0) * maxRoll;         // Between -maxRoll and +maxRoll
+  pitch_des = constrain(pitch_des, -1.0, 1.0) * maxPitch;      // Between -maxPitch and +maxPitch
+  yaw_des = constrain(yaw_des, -1.0, 1.0) * maxYaw;            // Between -maxYaw and +maxYaw
 }
 
 
@@ -359,15 +364,9 @@ void m4_EndPulse() {
 int throttleCut() {
   if (throCutChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
 		#ifdef USE_ONESHOT
-    m1_command_PWM = 125;
-    m2_command_PWM = 125;
-    m3_command_PWM = 125;
-    m4_command_PWM = 125;
+		motorCommands = Eigen::Vector4i::Ones()*125;
 		#else
-    m1_command_PWM = 0;
-    m2_command_PWM = 0;
-    m3_command_PWM = 0;
-    m4_command_PWM = 0;
+		motorCommands.setZero();
 		#endif
     return 1;
   }
@@ -439,20 +438,18 @@ void calibrateESCs() {
 		quadIMU.Update();
     Madgwick6DOF(quadIMU, &quadIMU_info, dt);
     getDesState();
-    m1_command_scaled = thro_des;
-    m2_command_scaled = thro_des;
-    m3_command_scaled = thro_des;
-    m4_command_scaled = thro_des;
-		m1_command_PWM = motors::ScaleCommand(m1_command_scaled);
-		m2_command_PWM = motors::ScaleCommand(m2_command_scaled);
-		m3_command_PWM = motors::ScaleCommand(m3_command_scaled);
-		m4_command_PWM = motors::ScaleCommand(m4_command_scaled);
-		// I modified this for some thrust stand stuff
-		motors::CommandMotor(&m1_timer, m1_command_PWM, m1Pin);
-		motors::CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
-		motors::CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
-		motors::CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
-		//
+		controlInputs << thrust_des, 0, 0, 0;
+		Eigen::Vector4f motorRates;
+		// Convert thrust and moments from controller to angular rates
+		motorRates = ControlAllocator(controlInputs);
+		// Convert angular rates to PWM commands
+		motorCommands = motors::ScaleCommand(motorRates);
+		// Serial.println(motorCommands[0]);
+		motors::CommandMotor(&m1_timer, motorCommands[0], m1Pin);
+		motors::CommandMotor(&m2_timer, motorCommands[1], m2Pin);
+		motors::CommandMotor(&m3_timer, motorCommands[2], m3Pin);
+		motors::CommandMotor(&m4_timer, motorCommands[3], m4Pin);
+
     loopRate(2000);
   }
 }
@@ -529,32 +526,32 @@ namespace datalogger {
 	 * @brief Prints the header line for the datalogger csv file
 	*/
 	void PrintCSVHeader() {
-		// buffer.print("roll");
-		// buffer.write(",");
-		// buffer.print("pitch");
-		// buffer.write(",");
-		// buffer.print("yaw");
-		// buffer.write(",");
-		// buffer.print("roll_des");
-		// buffer.write(",");
-		// buffer.print("pitch_des");
-		// buffer.write(",");
-		// buffer.print("yaw_des");
-		// buffer.write(",");
+		buffer.print("roll");
+		buffer.write(",");
+		buffer.print("pitch");
+		buffer.write(",");
+		buffer.print("yaw");
+		buffer.write(",");
+		buffer.print("roll_des");
+		buffer.write(",");
+		buffer.print("pitch_des");
+		buffer.write(",");
+		buffer.print("yaw_des");
+		buffer.write(",");
 		buffer.print("throttle_des");
 		buffer.write(",");
-		// buffer.print("roll_PID");
-		// buffer.write(",");
-		// buffer.print("pitch_PID");
-		// buffer.write(",");
-		// buffer.print("yaw_PID");
-		// buffer.write(",");
+		buffer.print("roll_PID");
+		buffer.write(",");
+		buffer.print("pitch_PID");
+		buffer.write(",");
+		buffer.print("yaw_PID");
+		buffer.write(",");
 
-		// // radio channels
-		// for (int i = 0; i < numChannels; i++) {
-		// 	buffer.print(radioChannels[i]->GetName());
-		// 	buffer.write(",");
-		// }
+		// radio channels
+		for (int i = 0; i < numChannels; i++) {
+			buffer.print(radioChannels[i]->GetName());
+			buffer.write(",");
+		}
 
 		buffer.print("GyroX");
 		buffer.write(",");
@@ -568,125 +565,100 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print("AccZ");
 		buffer.write(","); 
-		// buffer.print("m1_command");
-		// buffer.write(",");
-		// buffer.print("m2_command");
-		// buffer.write(",");
-		// buffer.print("m3_command");
-		// buffer.write(",");
-		// buffer.print("m4_command");
-		// buffer.write(",");
-		// buffer.print("kp_rp");
-		// buffer.write(",");
-		// buffer.print("ki_rp");
-		// buffer.write(",");
-		// buffer.print("kd_rp");
-		// buffer.write(",");
-		// buffer.print("kp_yaw");
-		// buffer.write(",");
-		// buffer.print("ki_yaw");
-		// buffer.write(",");
-		// buffer.print("kd_yaw");
-		// buffer.write(",");
-		// buffer.print("failsafeTriggered");
-		// buffer.write(",");
+		buffer.print("m1_command");
+		buffer.write(",");
+		buffer.print("m2_command");
+		buffer.write(",");
+		buffer.print("m3_command");
+		buffer.write(",");
+		buffer.print("m4_command");
+		buffer.write(",");
+		buffer.print("kp_rp");
+		buffer.write(",");
+		buffer.print("ki_rp");
+		buffer.write(",");
+		buffer.print("kd_rp");
+		buffer.write(",");
+		buffer.print("kp_yaw");
+		buffer.write(",");
+		buffer.print("ki_yaw");
+		buffer.write(",");
+		buffer.print("kd_yaw");
+		buffer.write(",");
+		buffer.print("failsafeTriggered");
+		buffer.write(",");
 		buffer.print("timeSinceBoot");
-	// 	buffer.write(",");
-	// 	buffer.print("EKF_tow");
-	// 	buffer.write(",");
-	// 	buffer.print("MocapPositionX");
-	// 	buffer.write(",");
-	// 	buffer.print("MocapPositionY");
-	// 	buffer.write(",");
-	// 	buffer.print("MocapPositionZ");
+		buffer.write(",");
+		buffer.print("EKF_tow");
+		buffer.write(",");
+		buffer.print("MocapPositionX");
+		buffer.write(",");
+		buffer.print("MocapPositionY");
+		buffer.write(",");
+		buffer.print("MocapPositionZ");
 
-  // #ifdef USE_EKF
-	// 	buffer.write(",");
-  //   buffer.print("rollEstEKF");
-	// 	buffer.write(",");
-  //   buffer.print("pitchEstEKF");
-	// 	buffer.write(",");
-  //   buffer.print("yawEstEKF");
-	// 	buffer.write(",");
-  //   buffer.print("xEstEKF");
-	// 	buffer.write(",");
-  //   buffer.print("yEstEKF");
-	// 	buffer.write(",");
-  //   buffer.print("zEstEKF");
+  #ifdef USE_EKF
+		buffer.write(",");
+    buffer.print("rollEstEKF");
+		buffer.write(",");
+    buffer.print("pitchEstEKF");
+		buffer.write(",");
+    buffer.print("yawEstEKF");
+		buffer.write(",");
+    buffer.print("xEstEKF");
+		buffer.write(",");
+    buffer.print("yEstEKF");
+		buffer.write(",");
+    buffer.print("zEstEKF");
 
-	// 	buffer.write(",");
-	// 	buffer.print("vxEstEKF");
-	// 	buffer.write(",");
-	// 	buffer.print("vyEstEKF");
-	// 	buffer.write(",");
-	// 	buffer.print("vzEstEKF");
-	// 	buffer.write(",");
-	// 	buffer.print("AccelBias1");
-	// 	buffer.write(",");
-	// 	buffer.print("AccelBias2");
-	// 	buffer.write(",");
-	// 	buffer.print("AccelBias3");
-	// 	buffer.write(",");
-	// 	buffer.print("GyroBias1");
-	// 	buffer.write(",");
-	// 	buffer.print("GyroBias2");
-	// 	buffer.write(",");
-	// 	buffer.print("GyroBias3");
+		buffer.write(",");
+		buffer.print("vxEstEKF");
+		buffer.write(",");
+		buffer.print("vyEstEKF");
+		buffer.write(",");
+		buffer.print("vzEstEKF");
+		buffer.write(",");
+		buffer.print("AccelBias1");
+		buffer.write(",");
+		buffer.print("AccelBias2");
+		buffer.write(",");
+		buffer.print("AccelBias3");
+		buffer.write(",");
+		buffer.print("GyroBias1");
+		buffer.write(",");
+		buffer.print("GyroBias2");
+		buffer.write(",");
+		buffer.print("GyroBias3");
 		
 
-  // #endif
+  #endif
 
-	// #ifdef USE_POSITION_CONTROLLER
-	// 	buffer.write(",");
-	// 	buffer.print("setpointX");
-	// 	buffer.write(",");
-	// 	buffer.print("setpointY");
-	// 	buffer.write(",");
-	// 	buffer.print("setpointZ");
+	#ifdef USE_POSITION_CONTROLLER
+		buffer.write(",");
+		buffer.print("setpointX");
+		buffer.write(",");
+		buffer.print("setpointY");
+		buffer.write(",");
+		buffer.print("setpointZ");
 
-	// 	buffer.write(",");
-	// 	buffer.print("kp_xy");
-	// 	buffer.write(",");
-	// 	buffer.print("ki_xy");
-	// 	buffer.write(",");
-	// 	buffer.print("kd_xy");
-	// 	buffer.write(",");
-	// 	buffer.print("kp_z");
-	// 	buffer.write(",");
-	// 	buffer.print("ki_z");
-	// 	buffer.write(",");
-	// 	buffer.print("kd_z");
-	// #endif
+		buffer.write(",");
+		buffer.print("kp_xy");
+		buffer.write(",");
+		buffer.print("ki_xy");
+		buffer.write(",");
+		buffer.print("kd_xy");
+		buffer.write(",");
+		buffer.print("kp_z");
+		buffer.write(",");
+		buffer.print("ki_z");
+		buffer.write(",");
+		buffer.print("kd_z");
+	#endif
 
-  // //====================================================//
-  // // REMEMBER TO DELETE ME WHEN DONE //
-	// // Temporarily outputting the raw P, I, D, components that go into the position 
-	// // controller's desired acceleration.
-	// 	buffer.write(",");
-	// 	buffer.print("tmp_Px_pos");
-	// 	buffer.write(",");
-	// 	buffer.print("tmp_ix_pos");
-	// 	buffer.write(",");
-	// 	buffer.print("tmp_dx_pos");
-	// 	buffer.write(",");
-	// 	buffer.print("tmp_Py_pos");
-	// 	buffer.write(",");
-	// 	buffer.print("tmp_iy_pos");
-	// 	buffer.write(",");
-	// 	buffer.print("tmp_dy_pos");
-	// 	buffer.write(",");
-	// 	buffer.print("tmp_Pz_pos");
-	// 	buffer.write(",");
-	// 	buffer.print("tmp_iz_pos");
-	// 	buffer.write(",");
-	// 	buffer.print("tmp_dz_pos");
-  // //====================================================//
-
-	// 	buffer.write(",");
-	// 	buffer.print("mocapTimestamp");
-	// 	buffer.write(",");
-	// 	buffer.print("quadTimestamp");
-
+		buffer.write(",");
+		buffer.print("mocapTimestamp");
+		buffer.write(",");
+		buffer.print("quadTimestamp");
 
 		buffer.println();
 	}
@@ -745,33 +717,32 @@ namespace datalogger {
 			}
 		}
 
-		// buffer.print(quadIMU_info.roll, 4);
-		// buffer.write(",");
-		// buffer.print(quadIMU_info.pitch, 4);
-		// buffer.write(",");
-		// buffer.print(quadIMU_info.yaw, 4);
-		// buffer.write(",");
-		// buffer.print(roll_des, 4);
-		// buffer.write(",");
-		// buffer.print(pitch_des, 4);
-		// buffer.write(",");
-		// buffer.print(yaw_des, 4);
-		// buffer.write(",");
-		buffer.print(thro_des, 4);
+		buffer.print(quadIMU_info.roll, 4);
 		buffer.write(",");
-		// buffer.print(controller.GetRollPID(), 4);
-		// buffer.write(",");
-		// buffer.print(controller.GetPitchPID(), 4);
-		// buffer.write(",");
-		// buffer.print(controller.GetYawPID(), 4);
-		// buffer.write(",");
+		buffer.print(quadIMU_info.pitch, 4);
+		buffer.write(",");
+		buffer.print(quadIMU_info.yaw, 4);
+		buffer.write(",");
+		buffer.print(roll_des, 4);
+		buffer.write(",");
+		buffer.print(pitch_des, 4);
+		buffer.write(",");
+		buffer.print(yaw_des, 4);
+		buffer.write(",");
+		buffer.print(thrust_des, 4);
+		buffer.write(",");
+		buffer.print(controller.GetRollPID(), 4);
+		buffer.write(",");
+		buffer.print(controller.GetPitchPID(), 4);
+		buffer.write(",");
+		buffer.print(controller.GetYawPID(), 4);
+		buffer.write(",");
 
-		// // radio channels
-		// for (int i = 0; i < numChannels; i++) {
-		// 	buffer.print(radioChannels[i]->GetRawValue());
-		// 	buffer.write(",");
-		// }
-
+		// radio channels
+		for (int i = 0; i < numChannels; i++) {
+			buffer.print(radioChannels[i]->GetRawValue());
+			buffer.write(",");
+		}
 
 		buffer.print(quadIMU.GetGyroX(), 4);
 		buffer.write(",");
@@ -785,117 +756,94 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print(quadIMU.GetAccZ(), 4);
 		buffer.write(",");
-		// buffer.print(m1_command_scaled, 4);
-		// buffer.write(",");
-		// buffer.print(m2_command_scaled, 4);
-		// buffer.write(",");
-		// buffer.print(m3_command_scaled, 4);
-		// buffer.write(",");
-		// buffer.print(m4_command_scaled, 4);
-		// buffer.write(",");
-		// buffer.print(Kp_roll_angle*pScale_att, 4);
-		// buffer.write(",");
-		// buffer.print(Ki_roll_angle*iScale_att, 4);
-		// buffer.write(",");
-		// buffer.print(Kd_roll_angle*dScale_att, 4);
-		// buffer.write(",");
-		// buffer.print(Kp_yaw, 4);
-		// buffer.write(",");
-		// buffer.print(Ki_yaw, 4);
-		// buffer.write(",");
-		// buffer.print(Kd_yaw, 4);
-		// buffer.write(",");
-		// buffer.print(failureFlag);
-		// buffer.write(",");
+		buffer.print(motorCommands[0], 4);
+		buffer.write(",");
+		buffer.print(motorCommands[1], 4);
+		buffer.write(",");
+		buffer.print(motorCommands[2], 4);
+		buffer.write(",");
+		buffer.print(motorCommands[3], 4);
+		buffer.write(",");
+		buffer.print(Kp_roll_angle*pScale_att, 4);
+		buffer.write(",");
+		buffer.print(Ki_roll_angle*iScale_att, 4);
+		buffer.write(",");
+		buffer.print(Kd_roll_angle*dScale_att, 4);
+		buffer.write(",");
+		buffer.print(Kp_yaw, 4);
+		buffer.write(",");
+		buffer.print(Ki_yaw, 4);
+		buffer.write(",");
+		buffer.print(Kd_yaw, 4);
+		buffer.write(",");
+		buffer.print(failureFlag);
+		buffer.write(",");
 		buffer.print(micros());
-	// 	buffer.write(",");
-	// 	buffer.print(EKF_tow);
-	// 	buffer.write(",");
-	// 	buffer.print(mocapPosition[0], 10);
-	// 	buffer.write(",");
-	// 	buffer.print(mocapPosition[1], 10);
-	// 	buffer.write(",");
-	// 	buffer.print(mocapPosition[2], 10);
-  // #ifdef USE_EKF
-	// 	buffer.write(",");
-  //   buffer.print(ins.Get_OrientEst()[0], 5);
-	// 	buffer.write(",");
-  //   buffer.print(ins.Get_OrientEst()[1], 5);
-	// 	buffer.write(",");
-  //   buffer.print(ins.Get_OrientEst()[2], 5);
-	// 	buffer.write(",");
-  //   buffer.print(ins.Get_PosEst()[0], 10);
-	// 	buffer.write(",");
-  //   buffer.print(ins.Get_PosEst()[1], 10);
-	// 	buffer.write(",");
-  //   buffer.print(ins.Get_PosEst()[2], 10);
-	// 	buffer.write(",");
-	// 	buffer.print(ins.Get_VelEst()[0], 4);
-	// 	buffer.write(",");
-	// 	buffer.print(ins.Get_VelEst()[1], 4);
-	// 	buffer.write(",");
-	// 	buffer.print(ins.Get_VelEst()[2], 4);
-	// 	buffer.write(",");
-	// 	buffer.print(ins.Get_AccelBias()[0], 4);
-	// 	buffer.write(",");
-	// 	buffer.print(ins.Get_AccelBias()[1], 4);
-	// 	buffer.write(",");
-	// 	buffer.print(ins.Get_AccelBias()[2], 4);
-	// 	buffer.write(",");
-	// 	buffer.print(ins.Get_RotRateBias()[0], 4);
-	// 	buffer.write(",");
-	// 	buffer.print(ins.Get_RotRateBias()[1], 4);
-	// 	buffer.write(",");
-	// 	buffer.print(ins.Get_RotRateBias()[2], 4);
-  // #endif
-	// #ifdef USE_POSITION_CONTROLLER
-	// 	buffer.write(",");
-	// 	buffer.print(traj.GetSetpoint()[0]);
-	// 	buffer.write(",");
-	// 	buffer.print(traj.GetSetpoint()[1]);
-	// 	buffer.write(",");
-	// 	buffer.print(traj.GetSetpoint()[2]);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetKp()[0]);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetKi()[0]);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetKd()[0]);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetKp()[2]);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetKi()[2]);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetKd()[2]);
-	// #endif
-  // //====================================================//
-  // // REMEMBER TO DELETE ME WHEN DONE //
-	// // Temporarily outputting the raw P, I, D, components that go into the position 
-	// // controller's desired acceleration.
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetTmpPropo()[0], 3);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetTmpInteg()[0], 3);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetTmpDeriv()[0], 3);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetTmpPropo()[1], 3);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetTmpInteg()[1], 3);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetTmpDeriv()[1], 3);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetTmpPropo()[2], 3);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetTmpInteg()[2], 3);
-	// 	buffer.write(",");
-	// 	buffer.print(posControl.GetTmpDeriv()[2], 3);
-  // //====================================================//
+		buffer.write(",");
+		buffer.print(EKF_tow);
+		buffer.write(",");
+		buffer.print(mocapPosition[0], 10);
+		buffer.write(",");
+		buffer.print(mocapPosition[1], 10);
+		buffer.write(",");
+		buffer.print(mocapPosition[2], 10);
+  #ifdef USE_EKF
+		buffer.write(",");
+    buffer.print(ins.Get_OrientEst()[0], 5);
+		buffer.write(",");
+    buffer.print(ins.Get_OrientEst()[1], 5);
+		buffer.write(",");
+    buffer.print(ins.Get_OrientEst()[2], 5);
+		buffer.write(",");
+    buffer.print(ins.Get_PosEst()[0], 10);
+		buffer.write(",");
+    buffer.print(ins.Get_PosEst()[1], 10);
+		buffer.write(",");
+    buffer.print(ins.Get_PosEst()[2], 10);
+		buffer.write(",");
+		buffer.print(ins.Get_VelEst()[0], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_VelEst()[1], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_VelEst()[2], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_AccelBias()[0], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_AccelBias()[1], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_AccelBias()[2], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_RotRateBias()[0], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_RotRateBias()[1], 4);
+		buffer.write(",");
+		buffer.print(ins.Get_RotRateBias()[2], 4);
+  #endif
+	#ifdef USE_POSITION_CONTROLLER
+		buffer.write(",");
+		buffer.print(traj.GetSetpoint()[0]);
+		buffer.write(",");
+		buffer.print(traj.GetSetpoint()[1]);
+		buffer.write(",");
+		buffer.print(traj.GetSetpoint()[2]);
+		buffer.write(",");
+		buffer.print(posControl.GetKp()[0]);
+		buffer.write(",");
+		buffer.print(posControl.GetKi()[0]);
+		buffer.write(",");
+		buffer.print(posControl.GetKd()[0]);
+		buffer.write(",");
+		buffer.print(posControl.GetKp()[2]);
+		buffer.write(",");
+		buffer.print(posControl.GetKi()[2]);
+		buffer.write(",");
+		buffer.print(posControl.GetKd()[2]);
+	#endif
 
-	// 	buffer.write(",");
-	// 	buffer.print(mocapTimestamp);
-	// 	buffer.write(",");
-	// 	buffer.print(quadTimestamp);
+		buffer.write(",");
+		buffer.print(mocapTimestamp);
+		buffer.write(",");
+		buffer.print(quadTimestamp);
 
 		buffer.println();
 
@@ -1002,18 +950,15 @@ void setup() {
 
   // PROPS OFF. Uncomment this to calibrate your ESCs by setting throttle stick
   // to max, powering on, and lowering throttle to zero after the beeps
-  //calibrateESCs();
+  // calibrateESCs();
   // Code will not proceed past here if this function is uncommented!
 
 #ifdef USE_ONESHOT
   // Arm OneShot125 motors
-  m1_command_PWM = 125; // Command OneShot125 ESC from 125 to 250us pulse length
-  m2_command_PWM = 125;
-  m3_command_PWM = 125;
-  m4_command_PWM = 125;
+	motorCommands = Eigen::Vector4i::Ones()*125;
 	TeensyTimerTool::OneShotTimer *motorTimers[4] =  {&m1_timer, &m2_timer, &m3_timer, &m4_timer};
 	uint8_t motorPins[4] = {m1Pin, m2Pin, m3Pin, m4Pin};
-  motors::ArmMotors(motorTimers, motorPins, 4); // Loop over commandMotors() until ESCs happily arm
+  motors::ArmMotors(motorTimers, motorPins); // Loop over commandMotors() until ESCs happily arm
 #endif
 
   // Indicate entering main loop with 3 quick blinks
@@ -1037,16 +982,16 @@ void loop() {
 	if (current_time - print_counter > 100000) {
 		print_counter = current_time;
 		//serialDebug::PrintRadioData(); // Currently does nothing
-		serialDebug::PrintDesiredState(thro_des, roll_des, pitch_des, yaw_des);
+		//serialDebug::PrintDesiredState(thrust_des, roll_des, pitch_des, yaw_des);
 		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
 		//serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());
 		//serialDebug::PrintRollPitchYaw(quadIMU_info.roll, quadIMU_info.pitch, quadIMU_info.yaw);
 		//serialDebug::PrintPIDOutput(controller.GetRollPID(), controller.GetPitchPID(), controller.GetYawPID());
-		//serialDebug::PrintMotorCommands(m1_command_PWM, m2_command_PWM, m3_command_PWM, m4_command_PWM);
+		// serialDebug::PrintMotorCommands(motorCommands[0], motorCommands[1], motorCommands[2], motorCommands[3]);
 		//serialDebug::PrintLoopTime(dt);
 		//serialDebug::PrintZPosPID(posControl.GetTmpPropo()[2],
 		//posControl.GetTmpInteg()[2],posControl.GetTmpDeriv()[2]);
-		//serialDebug::DisplayRoll(roll_des, quadIMU_info.roll);
+		// serialDebug::DisplayRoll(roll_des, quadIMU_info.roll);
 	}
 
   // Check if rotors should be armed
@@ -1094,7 +1039,11 @@ void loop() {
 
   // Get vehicle state
 
+if (IMUUpdateTimer >= imuUpdatePeriod) {
+	IMUUpdateTimer = 0;
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
+}
+
 #ifdef USE_EKF
 	if (EKFUpdateTimer > EKFPeriod) {
 		EKFUpdateTimer = 0;
@@ -1103,8 +1052,8 @@ void loop() {
 	// TEMPORARY!!!
   //quadIMU_info.roll = ins.Get_OrientEst()[0]*RAD_2_DEG;
   //quadIMU_info.pitch = ins.Get_OrientEst()[1]*RAD_2_DEG;
-  //quadIMU_info.yaw = ins.Get_OrientEst()[2]*RAD_2_DEG;
 	Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
+  quadIMU_info.yaw = ins.Get_OrientEst()[2]*RAD_2_DEG;
 #else
 	if (EKFUpdateTimer > EKFPeriod) {
   	quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
@@ -1145,7 +1094,7 @@ void loop() {
 			}
 			traj.GoTo(posSetpoint);
 			posControl.Update(posSetpoint, ins.Get_PosEst(), ins.Get_VelEst(), quadIMU_info, dt, false);
-			thro_des = posControl.GetDesiredThrottle();
+			thrust_des = posControl.GetDesiredThrottle();
 			if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH) {
 				roll_des = posControl.GetDesiredRoll();
 				pitch_des = posControl.GetDesiredPitch();
@@ -1153,27 +1102,29 @@ void loop() {
 		} else {
 			wasTrueLastLoop = false; // Ensures the position controller is reset next time it's enabled
 		}
+		controlInputs[0] = thrust_des;
 	}
 	# else
 		// Compute desired state based on radio inputs
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
+		controlInputs[0] = thrust_des;
 #endif
 	
 #ifdef TEST_STAND
 	// Sine sweep
-  // if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
-	// 	roll_des = testStand::SineSweep(restartSineSweep);
-	// 	restartSineSweep = false;
-  // } else {
-	// 	restartSineSweep = true;
-	// }
-
-	if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
-		thro_des = testStand::ThrustSweep(restartSineSweep);
+  if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
+		roll_des = testStand::SineSweep(restartSineSweep);
 		restartSineSweep = false;
-	} else {
+  } else {
 		restartSineSweep = true;
 	}
+
+	// if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
+	// 	thrust_des = testStand::ThrustSweep(restartSineSweep);
+	// 	restartSineSweep = false;
+	// } else {
+	// 	restartSineSweep = true;
+	// }
 
 	// Step inputs
   if (aux2.SwitchPosition() == SwPos::SWITCH_MID) {
@@ -1214,29 +1165,21 @@ void loop() {
 		float setpoints[3] = {roll_des, pitch_des, yaw_des};
 		float gyroRates[3] = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
 		controller.Update(setpoints, quadIMU_info, gyroRates, dt, noIntegral);
+		controlInputs(lastN(3)) = controller.GetMoments();
 	}
-	float motorCommandsNormalized[4];
-	controller.GetMotorCommands(motorCommandsNormalized, thro_des);
-
-	// TODO: Fix these god awful names and maybe put things in arrays
-	m1_command_scaled = motorCommandsNormalized[0];
-	m2_command_scaled = motorCommandsNormalized[1];
-	m3_command_scaled = motorCommandsNormalized[2];
-	m4_command_scaled = motorCommandsNormalized[3];
-
-
-	m1_command_PWM = motors::ScaleCommand(m1_command_scaled);
-	m2_command_PWM = motors::ScaleCommand(m2_command_scaled);
-	m3_command_PWM = motors::ScaleCommand(m3_command_scaled);
-	m4_command_PWM = motors::ScaleCommand(m4_command_scaled);
+	Eigen::Vector4f motorRates;
+	// Convert thrust and moments from controller to angular rates
+	motorRates = ControlAllocator(controlInputs);
+	// Convert angular rates to PWM commands
+	motorCommands = motors::ScaleCommand(motorRates);
 
   // Throttle cut check
   bool killThrottle = throttleCut(); // Directly sets motor commands to low based on state of ch5
 	
-	motors::CommandMotor(&m1_timer, m1_command_PWM, m1Pin);
-	motors::CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
-	motors::CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
-	motors::CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
+	motors::CommandMotor(&m1_timer, motorCommands[0], m1Pin);
+	motors::CommandMotor(&m2_timer, motorCommands[1], m2Pin);
+	motors::CommandMotor(&m3_timer, motorCommands[2], m3Pin);
+	motors::CommandMotor(&m4_timer, motorCommands[3], m4Pin);
 
   // Get vehicle commands for next loop iteration
   getCommands(); // Pulls current available radio commands
@@ -1247,10 +1190,10 @@ void loop() {
     while (1) {
       getCommands();
 
-			motors::CommandMotor(&m1_timer, m1_command_PWM, m1Pin);
-			motors::CommandMotor(&m2_timer, m2_command_PWM, m2Pin);
-			motors::CommandMotor(&m3_timer, m3_command_PWM, m3Pin);
-			motors::CommandMotor(&m4_timer, m4_command_PWM, m4Pin);
+			motors::CommandMotor(&m1_timer, motorCommands[0], m1Pin);
+			motors::CommandMotor(&m2_timer, motorCommands[1], m2Pin);
+			motors::CommandMotor(&m3_timer, motorCommands[2], m3Pin);
+			motors::CommandMotor(&m4_timer, motorCommands[3], m4Pin);
 
       if (resetChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
         CPU_RESTART;
@@ -1263,7 +1206,7 @@ void loop() {
   }
 
   // Regulate loop rate
-  loopRate(2000); // Do not exceed 2000Hz, all filter parameters tuned to 2000Hz by default
+  loopRate(2000); 
 }
 
 //========== MAIN FUNCTION ==========//

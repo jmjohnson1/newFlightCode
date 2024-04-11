@@ -12,8 +12,6 @@ IMU::IMU(float accNSX, float accNSY, float accNSZ, float gyroNSX, float gyroNSY,
 	gyroNullShiftY_ = gyroNSY;
 	gyroNullShiftZ_ = gyroNSZ;
 
-	butterworth2_init(&accelFilter, accelFilterCutoff, sampleFreq);
-	butterworth2_init(&gyroFilter, gyroFilterCutoff, sampleFreq);
 }
 
 /**
@@ -39,6 +37,12 @@ bool IMU::Init(TwoWire *bus) {
 		return false;
 	}
 
+	butterworth2_init(&accelFilter_1, accelFilterCutoff, sampleFreq);
+	butterworth2_init(&accelFilter_2, accelFilterCutoff, sampleFreq);
+	butterworth2_init(&accelFilter_3, accelFilterCutoff, sampleFreq);
+	butterworth2_init(&gyroFilter_1, gyroFilterCutoff, sampleFreq);
+	butterworth2_init(&gyroFilter_2, gyroFilterCutoff, sampleFreq);
+	butterworth2_init(&gyroFilter_3, gyroFilterCutoff, sampleFreq);
 
 	mpu6050_->setFullScaleGyroRange(GYRO_SCALE);
 	mpu6050_->setFullScaleAccelRange(ACCEL_SCALE);
@@ -62,9 +66,9 @@ void IMU::Update() {
 	accY_ -= accNullShiftY_;
 	accZ_ -= accNullShiftZ_;
 	// Lowpass filter for the accelerometer data.
-	accX_ = butterworth2_apply(&accelFilter, accX_);
-	accY_ = butterworth2_apply(&accelFilter, accY_);
-	accZ_ = butterworth2_apply(&accelFilter, accZ_);
+	accX_ = butterworth2_apply(&accelFilter_1, accX_);
+	accY_ = butterworth2_apply(&accelFilter_2, accY_);
+	accZ_ = butterworth2_apply(&accelFilter_3, accZ_);
 
 	// Gyro
 	gyroX_ = gyroX_raw / GYRO_SCALE_FACTOR;
@@ -75,7 +79,7 @@ void IMU::Update() {
 	gyroY_ -= gyroNullShiftY_;
 	gyroZ_ -= gyroNullShiftZ_;
 	// Lowpass filter for the gyro data.
-	gyroX_ = butterworth2_apply(&gyroFilter, gyroX_);
-	gyroY_ = butterworth2_apply(&gyroFilter, gyroY_);
-	gyroZ_ = butterworth2_apply(&gyroFilter, gyroZ_);
+	gyroX_ = butterworth2_apply(&gyroFilter_1, gyroX_);
+	gyroY_ = butterworth2_apply(&gyroFilter_2, gyroY_);
+	gyroZ_ = butterworth2_apply(&gyroFilter_3, gyroZ_);
 }

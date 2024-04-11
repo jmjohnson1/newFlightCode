@@ -2,6 +2,22 @@
 #include "Arduino.h"
 #include "nav-functions.h"
 
+
+//===============//
+// Control Mixer //
+//===============//
+/**
+ * @brief Control allocator. Maps the control inputs (thrust and moments) to
+ * angular rates for each motor.
+ * @param inputs 4-element vector that contains the desired thrust in N and
+ * moments about each axis in Nm. (T, Mx, My, Mz)
+ * @return 4-element vector containing the angular rate setpoints for each motor
+*/
+Eigen::Vector4f ControlAllocator(Eigen::Vector4f &inputs) {
+  Eigen::Vector4f w = (quadProps::ALLOCATION_MATRIX_INV*inputs).cwiseSqrt().real();
+  return w;
+}
+
 //==================//
 // Attitude Control //
 //==================//
@@ -105,7 +121,7 @@ float AngleAttitudeController::AnglePID(float setpoint, float measuredAngle,
                 iLimit_); // Saturate integrator to prevent unsafe buildup
   float derivative =
       -gyroRate; // This is an approximation of the error derivative
-  float PIDOutput = 0.01 * (Kp * error + Ki * integral + Kd * derivative);
+  float PIDOutput = (Kp * error + Ki * integral + Kd * derivative);
   *integral_prev = integral;
 
   return PIDOutput;
@@ -144,7 +160,7 @@ float AngleAttitudeController::RatePID(float setpoint, float measuredRate,
   }
   integral = constrain(integral, -iLimit_, iLimit_);
   float derivative = (error - *error_prev) / dt;
-  float PIDOutput = 0.01f * (Kp * error + Ki * integral + Kd * derivative);
+  float PIDOutput = (Kp * error + Ki * integral + Kd * derivative);
   *integral_prev = integral;
   *error_prev = error;
   return PIDOutput;
@@ -207,7 +223,7 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   float Cr = cos(att.roll * DEG_TO_RAD);
   float Cp = cos(att.pitch * DEG_TO_RAD);
   float sinRoll, sinPitch; // Sin of the roll and pitch angles
-  float maxAngle_sinArg = sin(globalConstants::MAX_ANGLE * DEG_TO_RAD);
+  float maxAngle_sinArg = sin(quadProps::MAX_ANGLE * DEG_TO_RAD);
 
   posError_ned = (posSetpoints - currentPosition).cast<float>();
   integral = prevIntegral_ + posError_ned * dt;
@@ -229,28 +245,19 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
 	prevError_ = posError_ned;
 	prevIntegral_ = integral;
 
-  //====================================================//
-  // REMEMBER TO DELETE ME WHEN DONE //
-  // Temporary variables for logging the raw pid values.
-  tmp_derivative_ = Kd_*derivative;
-  tmp_integral_ = Ki_*integral;
-  tmp_proportional_ = Kp_*posError_ned;
-
-  //====================================================//
-
   // Extract the third term and use it to get the desired thrust in the body
   // frame. Need to add the amount of thrust required to hover with the
   // current attitude.
   desAcc_b3 = (desAcc_ned[2] - 9.81)/Cr/Cp;
-  desiredThrust_ = globalConstants::QUAD_MASS * (desAcc_b3);
-  desiredThrust_ = constrain(desiredThrust_, -globalConstants::MAX_THRUST, -globalConstants::MIN_THRUST);
+  desiredThrust_ = quadProps::QUAD_MASS * (desAcc_b3);
+  desiredThrust_ = constrain(desiredThrust_, -quadProps::MAX_THRUST, -quadProps::MIN_THRUST);
   desAcc_b3 =
-      desiredThrust_ / globalConstants::QUAD_MASS; // It's easier to constrain the thrust. maybe
+      desiredThrust_ / quadProps::QUAD_MASS; // It's easier to constrain the thrust. maybe
   
   // Calculate a new desired attitude based on the amount of thrust available
   // and the desired accelerations in n1 and n2;
   // Let's make sure we can't break arcsin.
-  if (abs(desiredThrust_ - globalConstants::MIN_THRUST) > EPSILON) {
+  if (abs(desiredThrust_ - quadProps::MIN_THRUST) > EPSILON) {
     sinRoll = (Sy * desAcc_ned[0] - Cy * desAcc_ned[1]) / desAcc_b3;
     sinRoll = constrain(sinRoll, -maxAngle_sinArg, maxAngle_sinArg);
     desiredRoll_ = asin(sinRoll);
@@ -282,8 +289,7 @@ void PositionController::Reset() {
  * desired thrust setting.
 */
 float PositionController::GetDesiredThrottle() {
-  float desThrottle = A1_3S*pow(abs(desiredThrust_), 3) + 
-                      A2_3S*pow(desiredThrust_, 2) + 
-                      A3_3S*abs(desiredThrust_) + A4_3S;
+  float desThrottle = map(-desiredThrust_, quadProps::MIN_THRUST, quadProps::MAX_THRUST,
+                            0, 1);
   return desThrottle;
 }
