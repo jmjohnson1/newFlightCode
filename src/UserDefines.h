@@ -6,13 +6,13 @@
 #define BAT_4S
 
 /**Uncomment only one full scale gyro range (deg/sec)**/
-// #define GYRO_250DPS // Default
+// #define GYRO_250DPS
 #define GYRO_500DPS
 // #define GYRO_1000DPS
 // #define GYRO_2000DPS
 
 /**Uncomment only one full scale accelerometer range (G's)**/
-// #define ACCEL_2G // Default
+// #define ACCEL_2G
  #define ACCEL_4G
 // #define ACCEL_8G
 // #define ACCEL_16G

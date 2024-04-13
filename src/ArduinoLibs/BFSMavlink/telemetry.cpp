@@ -23,6 +23,14 @@
 * IN THE SOFTWARE.
 */
 
+/**
+ * Modifications:
+ *  (4/13/23) Calls to functions that were changed in the Units library have been fixed (template issues)
+ * 
+ * James Johnson
+ * joh18362@umn.edu
+*/
+
 #if defined(ARDUINO)
 #include "Arduino.h"
 #else
@@ -40,27 +48,21 @@ namespace bfs {
 namespace {
 
 /* Converts a +/- 180 value to a 0 - 360 value */
-template<typename T>
-T WrapTo2Pi(T ang) {
-  static_assert(std::is_floating_point<T>::value,
-                "Only floating point types supported");
-  ang = std::fmod(ang, BFS_2PI<T>);
-  if (ang < static_cast<T>(0)) {
-    ang += BFS_2PI<T>;
+float WrapTo2Pi(float ang) {
+  ang = std::fmod(ang, BFS_2PI_FLOAT);
+  if (ang < 0.0f) {
+    ang += BFS_2PI_FLOAT;
   }
   return ang;
 }
 
 /* Converts a 0 - 360 value to a +/- 180 value */
-template<typename T>
-T WrapToPi(T ang) {
-  static_assert(std::is_floating_point<T>::value,
-                "Only floating point types supported");
-  if (ang > BFS_PI<T>) {
-    ang -= BFS_2PI<T>;
+float WrapToPi(float ang) {
+  if (ang > BFS_PI_FLOAT) {
+    ang -= BFS_2PI_FLOAT;
   }
-  if (ang < -BFS_PI<T>) {
-    ang += BFS_2PI<T>;
+  if (ang < -BFS_PI_FLOAT) {
+    ang += BFS_2PI_FLOAT;
   }
   return ang;
 }

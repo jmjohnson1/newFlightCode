@@ -132,18 +132,8 @@ float Kd_pos[3] = {12.0f, 12.0f, 16.0f};
 // 			 MPU6050 IMU for default setup
 
 // Motor pin outputs:
-const int m1Pin = 0;
-const int m2Pin = 1;
-const int m3Pin = 2;
-const int m4Pin = 3;
+const uint8_t motorPins[4] = {0, 1, 2, 3};
 
-// Create servo objects to control a servo or ESC with PWM
-#ifndef USE_ONESHOT
-PWMServo servo1;
-PWMServo servo2;
-PWMServo servo3;
-PWMServo servo4;
-#endif
 
 //================================================================================================//
 
@@ -199,20 +189,13 @@ PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos);
 Eigen::Vector4f controlInputs = Eigen::Vector4f::Zero();
 
 
-// Mixer
-Eigen::Vector4i motorCommands;
+// Motor object
+#ifdef USE_ONESHOT
+Motors motors(motorPins, 125, 250);
+#else
+Motors motors(motorPins, 1000, 2000);
+#endif
 
-// Timers for each motor
-TeensyTimerTool::OneShotTimer m1_timer(TeensyTimerTool::TMR1);
-TeensyTimerTool::OneShotTimer m2_timer(TeensyTimerTool::TMR1);
-TeensyTimerTool::OneShotTimer m3_timer(TeensyTimerTool::TMR1);
-TeensyTimerTool::OneShotTimer m4_timer(TeensyTimerTool::TMR1);
-
-// Flag for whether the motors are busy writing
-bool m1_writing = false;
-bool m2_writing = false;
-bool m3_writing = false;
-bool m4_writing = false;
 
 // SD Card settings
 String filePrefix = "flight_data";
@@ -337,25 +320,6 @@ void failSafe() {
   }
 }
 
-void m1_EndPulse() {
-  digitalWrite(m1Pin, LOW);
-  m1_writing = false;
-}
- 
-void m2_EndPulse() {
-  digitalWrite(m2Pin, LOW);
-  m2_writing = false;
-}
-
-void m3_EndPulse() {
-  digitalWrite(m3Pin, LOW);
-  m3_writing = false;
-}
-
-void m4_EndPulse() {
-  digitalWrite(m4Pin, LOW);
-  m4_writing = false;
-}
 
 /**
  * @brief Commands the motors not to rotate if the transmitter switch for
@@ -363,11 +327,8 @@ void m4_EndPulse() {
 */
 int throttleCut() {
   if (throCutChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
-		#ifdef USE_ONESHOT
-		motorCommands = Eigen::Vector4i::Ones()*125;
-		#else
-		motorCommands.setZero();
-		#endif
+		Eigen::Vector4f zerosCommand = Eigen::Vector4f::Zero();
+		motors.ScaleCommand(zerosCommand);
     return 1;
   }
   return 0;
@@ -443,13 +404,8 @@ void calibrateESCs() {
 		// Convert thrust and moments from controller to angular rates
 		motorRates = ControlAllocator(controlInputs);
 		// Convert angular rates to PWM commands
-		motorCommands = motors::ScaleCommand(motorRates);
-		// Serial.println(motorCommands[0]);
-		motors::CommandMotor(&m1_timer, motorCommands[0], m1Pin);
-		motors::CommandMotor(&m2_timer, motorCommands[1], m2Pin);
-		motors::CommandMotor(&m3_timer, motorCommands[2], m3Pin);
-		motors::CommandMotor(&m4_timer, motorCommands[3], m4Pin);
-
+		motors.ScaleCommand(motorRates);
+		motors.CommandMotor();
     loopRate(2000);
   }
 }
@@ -756,6 +712,8 @@ namespace datalogger {
 		buffer.write(",");
 		buffer.print(quadIMU.GetAccZ(), 4);
 		buffer.write(",");
+		float motorCommands[4] = {0, 0, 0, 0};
+		motors.GetMotorCommands(motorCommands);
 		buffer.print(motorCommands[0], 4);
 		buffer.write(",");
 		buffer.print(motorCommands[1], 4);
@@ -880,24 +838,6 @@ void setup() {
   // Initialize all pins
   pinMode(13, OUTPUT); // Pin 13 LED blinker on board, do not modify
 
-  pinMode(m1Pin, OUTPUT);
-  pinMode(m2Pin, OUTPUT);
-  pinMode(m3Pin, OUTPUT);
-  pinMode(m4Pin, OUTPUT);
-
-	#ifdef USE_ONESHOT
-  // Initialize timers for OneShot125
-  m1_timer.begin(m1_EndPulse);
-  m2_timer.begin(m2_EndPulse);
-  m3_timer.begin(m3_EndPulse);
-  m4_timer.begin(m4_EndPulse);
-	#else
-  servo1.attach(m1Pin, 1000, 2100); // Pin, min PWM value, max PWM value
-  servo2.attach(m2Pin, 1000, 2100);
-  servo3.attach(m3Pin, 1000, 2100);
-  servo4.attach(m4Pin, 1000, 2100);
-	#endif
-
   // Set built in LED to turn on to signal startup
   digitalWrite(13, HIGH);
 
@@ -937,14 +877,6 @@ void setup() {
   // forever.
 	//calculate_IMU_error(&quadIMU, &quadIMU_info);
 
-#ifndef USE_ONESHOT
-  // Arm servo channels
-  servo1.write(0); // Command servo angle from 0-180 degrees (1000 to 2000 PWM)
-  servo2.write(0); // Set these to 90 for servos if you do not want them to
-                   // briefly max out on startup
-  servo3.write(0); // Keep these at 0 if you are using servo outputs for motors
-  servo4.write(0);
-#endif
 
   delay(5);
 
@@ -953,13 +885,7 @@ void setup() {
   // calibrateESCs();
   // Code will not proceed past here if this function is uncommented!
 
-#ifdef USE_ONESHOT
-  // Arm OneShot125 motors
-	motorCommands = Eigen::Vector4i::Ones()*125;
-	TeensyTimerTool::OneShotTimer *motorTimers[4] =  {&m1_timer, &m2_timer, &m3_timer, &m4_timer};
-	uint8_t motorPins[4] = {m1Pin, m2Pin, m3Pin, m4Pin};
-  motors::ArmMotors(motorTimers, motorPins); // Loop over commandMotors() until ESCs happily arm
-#endif
+  motors.ArmMotors(); // Loop over commandMotors() until ESCs happily arm
 
   // Indicate entering main loop with 3 quick blinks
   setupBlink(3, 160, 70); // numBlinks, upTime (ms), downTime (ms)
@@ -1171,16 +1097,13 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
 	// Convert thrust and moments from controller to angular rates
 	motorRates = ControlAllocator(controlInputs);
 	// Convert angular rates to PWM commands
-	motorCommands = motors::ScaleCommand(motorRates);
+	motors.ScaleCommand(motorRates);
 
   // Throttle cut check
   bool killThrottle = throttleCut(); // Directly sets motor commands to low based on state of ch5
 	
-	motors::CommandMotor(&m1_timer, motorCommands[0], m1Pin);
-	motors::CommandMotor(&m2_timer, motorCommands[1], m2Pin);
-	motors::CommandMotor(&m3_timer, motorCommands[2], m3Pin);
-	motors::CommandMotor(&m4_timer, motorCommands[3], m4Pin);
 
+	motors.CommandMotor();
   // Get vehicle commands for next loop iteration
   getCommands(); // Pulls current available radio commands
   failSafe();    // Prevent failures in event of bad receiver connection, defaults to failsafe values assigned in setup
@@ -1190,11 +1113,7 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
     while (1) {
       getCommands();
 
-			motors::CommandMotor(&m1_timer, motorCommands[0], m1Pin);
-			motors::CommandMotor(&m2_timer, motorCommands[1], m2Pin);
-			motors::CommandMotor(&m3_timer, motorCommands[2], m3Pin);
-			motors::CommandMotor(&m4_timer, motorCommands[3], m4Pin);
-
+			motors.CommandMotor();
       if (resetChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
         CPU_RESTART;
       }
