@@ -10,7 +10,7 @@ class AngleAttitudeController {
 public:
   AngleAttitudeController(const float (&Kp)[3], const float (&Ki)[3],
                           const float (&Kd)[3], float iLimit = 25.0f);
-  void Update(const float (&setpoints)[3], const Attitude &att,
+  void Update(const float (&setpoints)[3], const Attitude_t &att,
               const float (&gyroRates)[3], float dt, bool noIntegral);
 
   void GetMotorCommands(float motorCommandsNormalized[4],
@@ -92,12 +92,12 @@ public:
   void Update(const Eigen::Vector3d &posSetpoints,
               const Eigen::Vector3d &currentPosition, 
               const Eigen::Vector3f &currentVelocity,
-              const Attitude &att,
+              const Attitude_t &att,
               float dt, bool noIntegral);
 
 	void Reset();
 
-  float GetDesiredThrottle(); 
+  float GetDesiredThrust() { return desiredThrust_; }; 
   float GetDesiredRoll() { return desiredRoll_; }
   float GetDesiredPitch() { return desiredPitch_; }
 

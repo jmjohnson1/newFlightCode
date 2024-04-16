@@ -4,21 +4,19 @@
 #include "eigen.h"
 #include "UserDefines.h"
 
-typedef struct Attitude {
-  float roll, pitch, yaw;
-  // Used by Madgwick
-  float q0 = 1.0f;
-  float q1 = 0.0f;
-  float q2 = 0.0f;
-  float q3 = 0.0f;
-} Attitude;
+typedef struct Attitude_s {
+  Eigen::Vector3f eulerAngles_madgwick = Eigen::Vector3f::Zero();
+  Eigen::Vector3f eulerAngles_ekf = Eigen::Vector3f::Zero();
+  Eigen::Quaternionf quat_madgwick = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
+  Eigen::Quaternionf quat_ekf = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
+  Eigen::Vector3f * eulerAngles_active = &eulerAngles_madgwick;
+} Attitude_t;
 
 
-typedef struct quadcopter {
- // Attitude
- Eigen::Vector3f eulerAngles;
- Eigen::Quaternionf quat;
-} quadcopter;
+typedef struct Quadcopter_s {
+  // Attitude
+  Attitude_t att;
+} Quadcopter_t;
 
 namespace quadProps {
 	constexpr float MAX_ANGLE = 30.0f;  // Maximum pitch/roll angle in degrees

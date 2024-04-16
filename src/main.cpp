@@ -160,6 +160,7 @@ RingBuf<FsFile, RING_BUF_CAPACITY> buffer;
 // DECLARE GLOBAL VARIABLES
 // General stuff
 float dt;
+Quadcopter_t quadData;
 
 unsigned long current_time, prev_time;
 unsigned long print_counter;
@@ -173,7 +174,6 @@ bool sbusFailSafe;
 bool sbusLostFrame;
 
 IMU quadIMU = IMU(0.00f, 0.00f, 0.09f, 0.04f, 2.78f, 0.35f);
-Attitude quadIMU_info;
 
 ParameterManager paramManager;
 
@@ -397,7 +397,7 @@ void calibrateESCs() {
     failSafe();  
     getDesState();
 		quadIMU.Update();
-    Madgwick6DOF(quadIMU, &quadIMU_info, dt);
+    Madgwick6DOF(quadIMU, quadData, dt);
     getDesState();
 		controlInputs << thrust_des, 0, 0, 0;
 		Eigen::Vector4f motorRates;
@@ -416,7 +416,7 @@ void calibrateESCs() {
  * @param imu Pointer to the imu object to get the error from
  * @param att Pointer to the structure that contains attitude info for the IMU
 */
-void calculate_IMU_error(IMU *imu, Attitude *att) {
+void calculate_IMU_error(IMU *imu) {
   int16_t AcX, AcY, AcZ, GyX, GyY, GyZ;
 	
 	float errorAcc[3] = {0, 0, 0};
@@ -673,11 +673,11 @@ namespace datalogger {
 			}
 		}
 
-		buffer.print(quadIMU_info.roll, 4);
+		buffer.print(quadData.att.eulerAngles_madgwick[0], 4);
 		buffer.write(",");
-		buffer.print(quadIMU_info.pitch, 4);
+		buffer.print(quadData.att.eulerAngles_madgwick[0], 4);
 		buffer.write(",");
-		buffer.print(quadIMU_info.yaw, 4);
+		buffer.print(quadData.att.eulerAngles_madgwick[0], 4);
 		buffer.write(",");
 		buffer.print(roll_des, 4);
 		buffer.write(",");
@@ -875,7 +875,7 @@ void setup() {
   // level when powered up Calibration parameters printed to serial monitor.
   // Paste these in the user specified variables section, then comment this out
   // forever.
-	//calculate_IMU_error(&quadIMU, &quadIMU_info);
+	//calculate_IMU_error(&quadIMU);
 
 
   delay(5);
@@ -942,7 +942,10 @@ void loop() {
   }
   if (fastMavlinkTimer > 100) {
 		fastMavlinkTimer = 0;
-    telem.SendAttitude(quadIMU_info.roll, quadIMU_info.pitch, 0.0f, quadIMU.GetGyroX(), quadIMU.GetGyroY(), 0.0f);
+    telem.SendAttitude(quadData.att.eulerAngles_madgwick[0],
+											 quadData.att.eulerAngles_madgwick[1],
+											 quadData.att.eulerAngles_madgwick[2], 
+											 quadIMU.GetGyroX(), quadIMU.GetGyroY(), 0.0f);
   }
 
   telem.UpdateReceived();
@@ -975,15 +978,12 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
 		EKFUpdateTimer = 0;
   	ins.Update(micros(), EKF_tow, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, mocapPosition);
 	}
-	// TEMPORARY!!!
-  //quadIMU_info.roll = ins.Get_OrientEst()[0]*RAD_2_DEG;
-  //quadIMU_info.pitch = ins.Get_OrientEst()[1]*RAD_2_DEG;
-	Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
-  quadIMU_info.yaw = ins.Get_OrientEst()[2]*RAD_2_DEG;
+  quadData.att.eulerAngles_ekf = ins.Get_OrientEst()*RAD_2_DEG;
+	Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 #else
 	if (EKFUpdateTimer > EKFPeriod) {
   	quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
-		Madgwick6DOF(quadIMU, &quadIMU_info, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
+		Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 	}
 #endif
 
@@ -1019,8 +1019,8 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
 				posSetpoint(0) = 1.0;
 			}
 			traj.GoTo(posSetpoint);
-			posControl.Update(posSetpoint, ins.Get_PosEst(), ins.Get_VelEst(), quadIMU_info, dt, false);
-			thrust_des = posControl.GetDesiredThrottle();
+			posControl.Update(posSetpoint, ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
+			thrust_des = posControl.GetDesiredThrust();
 			if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH) {
 				roll_des = posControl.GetDesiredRoll();
 				pitch_des = posControl.GetDesiredPitch();
@@ -1090,7 +1090,7 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
 		attitudeCtrlTimer = 0;
 		float setpoints[3] = {roll_des, pitch_des, yaw_des};
 		float gyroRates[3] = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
-		controller.Update(setpoints, quadIMU_info, gyroRates, dt, noIntegral);
+		controller.Update(setpoints, quadData.att, gyroRates, dt, noIntegral);
 		controlInputs(lastN(3)) = controller.GetMoments();
 	}
 	Eigen::Vector4f motorRates;

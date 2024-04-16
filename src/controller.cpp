@@ -56,13 +56,14 @@ AngleAttitudeController::AngleAttitudeController(const float (&Kp)[3],
 */
 
 void AngleAttitudeController::Update(const float (&setpoints)[3],
-                                     const Attitude &att,
+                                     const Attitude_t &att,
                                      const float (&gyroRates)[3], float dt,
                                      bool noIntegral) {
+  Eigen::Vector3f eulerAngles = *(att.eulerAngles_active);
   rollPID_ =
-      AnglePID(setpoints[0], att.roll, gyroRates[0], dt, noIntegral, ROLL);
+      AnglePID(setpoints[0], eulerAngles[0], gyroRates[0], dt, noIntegral, ROLL);
   pitchPID_ =
-      AnglePID(setpoints[1], att.pitch, gyroRates[1], dt, noIntegral, PITCH);
+      AnglePID(setpoints[1], eulerAngles[1], gyroRates[1], dt, noIntegral, PITCH);
   yawPID_ = RatePID(setpoints[2], gyroRates[2], dt, noIntegral, YAW);
 }
 
@@ -214,14 +215,15 @@ PositionController::PositionController(const float (&Kp)[3],
 void PositionController::Update(const Eigen::Vector3d &posSetpoints,
                                 const Eigen::Vector3d &currentPosition,
                                 const Eigen::Vector3f &currentVelocity,
-                                const Attitude &att, float dt, bool noIntegral) {
+                                const Attitude_t &att, float dt, bool noIntegral) {
   // Declare some variables
   Eigen::Vector3f posError_ned, integral, derivative, desAcc_ned;
   float desAcc_b3; // Desired thrust resolved in the 3 axis of the body frame
-  float Cy = cos(att.yaw * DEG_TO_RAD);
-  float Sy = sin(att.yaw * DEG_TO_RAD);
-  float Cr = cos(att.roll * DEG_TO_RAD);
-  float Cp = cos(att.pitch * DEG_TO_RAD);
+  Eigen::Vector3f eulerAngles = *(att.eulerAngles_active);
+  float Cy = cos(eulerAngles[2] * DEG_TO_RAD);
+  float Sy = sin(eulerAngles[2] * DEG_TO_RAD);
+  float Cr = cos(eulerAngles[0] * DEG_TO_RAD);
+  float Cp = cos(eulerAngles[1] * DEG_TO_RAD);
   float sinRoll, sinPitch; // Sin of the roll and pitch angles
   float maxAngle_sinArg = sin(quadProps::MAX_ANGLE * DEG_TO_RAD);
 
@@ -282,14 +284,4 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
 void PositionController::Reset() {
 	prevIntegral_ = Eigen::Vector3f::Zero();
 	prevError_ = Eigen::Vector3f::Zero();
-}
-
-/**
- * @brief Computes the desired throttle setting (between 0 and 1) based on the
- * desired thrust setting.
-*/
-float PositionController::GetDesiredThrottle() {
-  float desThrottle = map(-desiredThrust_, quadProps::MIN_THRUST, quadProps::MAX_THRUST,
-                            0, 1);
-  return desThrottle;
 }
