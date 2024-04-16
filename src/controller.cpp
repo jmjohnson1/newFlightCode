@@ -56,7 +56,7 @@ AngleAttitudeController::AngleAttitudeController(const float (&Kp)[3],
 */
 
 void AngleAttitudeController::Update(const float (&setpoints)[3],
-                                     const Attitude_t &att,
+                                     const AttitudeData_t &att,
                                      const float (&gyroRates)[3], float dt,
                                      bool noIntegral) {
   Eigen::Vector3f eulerAngles = *(att.eulerAngles_active);
@@ -215,7 +215,7 @@ PositionController::PositionController(const float (&Kp)[3],
 void PositionController::Update(const Eigen::Vector3d &posSetpoints,
                                 const Eigen::Vector3d &currentPosition,
                                 const Eigen::Vector3f &currentVelocity,
-                                const Attitude_t &att, float dt, bool noIntegral) {
+                                const AttitudeData_t &att, float dt, bool noIntegral) {
   // Declare some variables
   Eigen::Vector3f posError_ned, integral, derivative, desAcc_ned;
   float desAcc_b3; // Desired thrust resolved in the 3 axis of the body frame

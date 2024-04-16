@@ -28,7 +28,6 @@
  *  (4/13/23) Calls to functions that were changed in the Units library have been fixed (template issues)
  * 
  * James Johnson
- * joh18362@umn.edu
 */
 
 #if defined(ARDUINO)

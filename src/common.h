@@ -3,19 +3,30 @@
 
 #include "eigen.h"
 #include "UserDefines.h"
+#include "ArduinoLibs/BFSMavlink/mavlink.h"  // BFS Mavlink implementation
 
-typedef struct Attitude_s {
+typedef struct AttitudeData_s {
   Eigen::Vector3f eulerAngles_madgwick = Eigen::Vector3f::Zero();
   Eigen::Vector3f eulerAngles_ekf = Eigen::Vector3f::Zero();
   Eigen::Quaternionf quat_madgwick = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
   Eigen::Quaternionf quat_ekf = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
   Eigen::Vector3f * eulerAngles_active = &eulerAngles_madgwick;
-} Attitude_t;
+} AttitudeData_t;
 
+typedef struct MissionData_s {
+  bfs::MissionItem waypoints[200];
+  bfs::MissionItem fence[20]; // I have no idea what to do with this yet.
+  bfs::MissionItem rally[5];  // nor this.
+  bfs::MissionItem temp[200];  // I think this is for receiving new missions
+  int16_t currentWaypoint;
+  uint16_t numWaypoints;
+  uint16_t numFencePoints;
+  uint16_t numRallyPoints;
+} MissionData_t;
 
 typedef struct Quadcopter_s {
   // Attitude
-  Attitude_t att;
+  AttitudeData_t att;
 } Quadcopter_t;
 
 namespace quadProps {
