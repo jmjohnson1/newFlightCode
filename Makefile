@@ -33,9 +33,9 @@ MCU_LD = imxrt1062.ld
 MCU_DEF = ARDUINO_TEENSY40
 
 # Use these lines for Teensy 4.1
-#MCU = IMXRT1062
-#MCU_LD = imxrt1062_t41.ld
-#MCU_DEF = ARDUINO_TEENSY41
+# MCU = IMXRT1062
+# MCU_LD = imxrt1062_t41.ld
+# MCU_DEF = ARDUINO_TEENSY41
 
 BUILDDIR = build
 
@@ -118,10 +118,10 @@ endif
 #************************************************************************
 
 # CPPFLAGS = compiler options for C and C++
-CPPFLAGS = -Wall -g -O2 $(CPUOPTIONS) -MMD $(OPTIONS) -Isrc -I$(COREPATH) -ffunction-sections -fdata-sections
+CPPFLAGS = -Wall -g -O2 $(CPUOPTIONS) -MMD $(OPTIONS) -Isrc -I$(COREPATH) -ffunction-sections -fdata-sections -fno-exceptions
 
 # compiler options for C++ only
-CXXFLAGS = -std=gnu++17 -felide-constructors -fno-exceptions -fpermissive -fno-rtti -Wno-error=narrowing
+CXXFLAGS = -std=gnu++20 -felide-constructors -fno-exceptions -fpermissive -fno-rtti -Wno-error=narrowing -Wno-volatile
 
 # compiler options for C only
 CFLAGS =
@@ -130,7 +130,7 @@ CFLAGS =
 LD_PATH = $(COREPATH)/$(MCU_LD)
 
 # linker options
-LDFLAGS = -Os -Wl,--gc-sections,--relax $(SPECS) $(CPUOPTIONS) -T$(LD_PATH)
+LDFLAGS = -Os -Wl,--gc-sections,--relax $(SPECS) $(CPUOPTIONS) -T$(LD_PATH) 
 
 # additional libraries to link
 #LIBS = -larm_cortexM7lfsp_math -lm -lstdc++
@@ -201,7 +201,7 @@ $(BUILDDIR)/%.o: %.ino
 $(TARGET).elf: $(OBJS) $(LD_PATH)
 	$(DIR_GUARD)
 	@echo -e "[LD]\t$@"
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS) -Wl,-Map=$(TARGET).map 
 
 %.hex: %.elf
 	$(SIZE) $<

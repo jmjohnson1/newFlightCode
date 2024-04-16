@@ -5,6 +5,11 @@
 #include "UserDefines.h"
 #include "ArduinoLibs/BFSMavlink/mavlink.h"  // BFS Mavlink implementation
 
+// Define some constants for mission parameters
+constexpr std::size_t MAX_WAYPOINTS = 20;
+constexpr std::size_t MAX_FENCEPOINTS = 10;
+constexpr std::size_t MAX_RALLYPOINTS = 5;
+
 typedef struct AttitudeData_s {
   Eigen::Vector3f eulerAngles_madgwick = Eigen::Vector3f::Zero();
   Eigen::Vector3f eulerAngles_ekf = Eigen::Vector3f::Zero();
@@ -14,10 +19,10 @@ typedef struct AttitudeData_s {
 } AttitudeData_t;
 
 typedef struct MissionData_s {
-  bfs::MissionItem waypoints[200];
-  bfs::MissionItem fence[20]; // I have no idea what to do with this yet.
-  bfs::MissionItem rally[5];  // nor this.
-  bfs::MissionItem temp[200];  // I think this is for receiving new missions
+  std::array<bfs::MissionItem, MAX_WAYPOINTS> waypoints;
+  std::array<bfs::MissionItem, MAX_FENCEPOINTS> fencePoints;  // No idea what to do with this yet
+  std::array<bfs::MissionItem, MAX_RALLYPOINTS> rallyPoints;  // Nor this
+  std::array<bfs::MissionItem, MAX_WAYPOINTS> temp;
   int16_t currentWaypoint;
   uint16_t numWaypoints;
   uint16_t numFencePoints;
@@ -27,6 +32,7 @@ typedef struct MissionData_s {
 typedef struct Quadcopter_s {
   // Attitude
   AttitudeData_t att;
+  MissionData_t missionData;
 } Quadcopter_t;
 
 namespace quadProps {

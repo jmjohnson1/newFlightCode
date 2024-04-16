@@ -23,8 +23,6 @@
 #include "radio.h"
 #include "testing.h"
 #include "uNavINS.h"
-#include "trajectory.h"
-#include "parameters.h"
 
 //================================================================================================//
 //                                     USER-SPECIFIED VARIABLES                                   //
@@ -175,7 +173,6 @@ bool sbusLostFrame;
 
 IMU quadIMU = IMU(0.00f, 0.00f, 0.09f, 0.04f, 2.78f, 0.35f);
 
-ParameterManager paramManager;
 
 // Normalized desired state:
 float thrust_des, roll_des, pitch_des, yaw_des;
@@ -197,6 +194,10 @@ Motors motors(motorPins, 1000, 2000);
 #endif
 
 
+// Telemetry
+telem telemetry;
+
+
 // SD Card settings
 String filePrefix = "flight_data";
 String fileExtension = ".csv";
@@ -215,9 +216,6 @@ bool flightLoopStarted = 0;
 
 int loopCount = 0;
 
-// Telemetry
-Telemetry telem;
-
 // Position vector taken from mocap
 Eigen::Vector3d mocapPosition(0, 0, 0);
 uint32_t EKF_tow = 0; // Time of week used with the EKF. It increments whenever a new position is received from the transmitter
@@ -230,7 +228,6 @@ uint32_t quadTimestamp = 0; // Records when a motion position update was receive
 uNavINS ins;
 
 // Trajectory thing (this is temporary)
-trajectory traj;
 Eigen::Vector3d homePosition(0, 0.5, -0.5);
 Eigen::Vector3d posSetpoint;
 
@@ -779,11 +776,11 @@ namespace datalogger {
   #endif
 	#ifdef USE_POSITION_CONTROLLER
 		buffer.write(",");
-		buffer.print(traj.GetSetpoint()[0]);
+		buffer.print(posSetpoint[0]);
 		buffer.write(",");
-		buffer.print(traj.GetSetpoint()[1]);
+		buffer.print(posSetpoint[1]);
 		buffer.write(",");
-		buffer.print(traj.GetSetpoint()[2]);
+		buffer.print(posSetpoint[2]);
 		buffer.write(",");
 		buffer.print(posControl.GetKp()[0]);
 		buffer.write(",");
@@ -847,14 +844,7 @@ void setup() {
   radioSetup();
 
   // Begin mavlink telemetry module
-	// TODO: Find a better way to add and manage params. No hardcode for index
-	paramManager.addParameter("kp_xy", Kp_pos[0], MAV_PARAM_TYPE_REAL32);
-	paramManager.addParameter("ki_xy", Ki_pos[0], MAV_PARAM_TYPE_REAL32);
-	paramManager.addParameter("kd_xy", Kd_pos[0], MAV_PARAM_TYPE_REAL32);
-	paramManager.addParameter("kp_z", Kp_pos[2], MAV_PARAM_TYPE_REAL32);
-	paramManager.addParameter("ki_z", Ki_pos[2], MAV_PARAM_TYPE_REAL32);
-	paramManager.addParameter("kd_z", Kd_pos[2], MAV_PARAM_TYPE_REAL32);
-  telem.InitTelemetry(&paramManager);
+	telemetry.Begin(quadData.missionData);
 
 
 	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
@@ -924,8 +914,8 @@ void loop() {
   if (!flightLoopStarted && (throCutChannel.SwitchPosition() == SwPos::SWITCH_LOW)) {
     flightLoopStarted = 1;
 		// Let the GCS know that things are running
-    telem.SetSystemState(MAV_STATE_ACTIVE);
-    telem.SetSystemMode(MAV_MODE_MANUAL_ARMED);
+    // telem.SetSystemState(MAV_STATE_ACTIVE);
+    // telem.SetSystemMode(MAV_MODE_MANUAL_ARMED);
   }
 
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
@@ -935,38 +925,8 @@ void loop() {
   }
 
 	// TODO: Be better
-  if (heartbeatTimer > 1000) {
-		heartbeatTimer = 0;
-    telem.SendHeartbeat();
-    telem.SendPIDGains_core(Kp_roll_angle * pScale_att, Ki_roll_angle * iScale_att, Kd_roll_angle * dScale_att);
-  }
-  if (fastMavlinkTimer > 100) {
-		fastMavlinkTimer = 0;
-    telem.SendAttitude(quadData.att.eulerAngles_madgwick[0],
-											 quadData.att.eulerAngles_madgwick[1],
-											 quadData.att.eulerAngles_madgwick[2], 
-											 quadIMU.GetGyroX(), quadIMU.GetGyroY(), 0.0f);
-  }
+  telemetry.Run();
 
-  telem.UpdateReceived();
-  EKF_tow = telem.CheckForNewPosition(mocapPosition, &mocapTimestamp, EKF_tow, &quadTimestamp);
-	// TODO: Implement some way to not do this every loop and do this without
-	// hardcoded indecies
-	// Update position PID gains
-	Kp_pos[0] = paramManager.parameters[0].value;
-	Ki_pos[0] = paramManager.parameters[1].value;
-	Kd_pos[0] = paramManager.parameters[2].value;
-	Kp_pos[1] = paramManager.parameters[0].value;
-	Ki_pos[1] = paramManager.parameters[1].value;
-	Kd_pos[1] = paramManager.parameters[2].value;
-	Kp_pos[2] = paramManager.parameters[3].value;
-	Ki_pos[2] = paramManager.parameters[4].value;
-	Kd_pos[2] = paramManager.parameters[5].value;
-	posControl.SetKp(Kp_pos);
-	posControl.SetKi(Ki_pos);
-	posControl.SetKd(Kd_pos);
-
-  // Get vehicle state
 
 if (IMUUpdateTimer >= imuUpdatePeriod) {
 	IMUUpdateTimer = 0;
@@ -1008,7 +968,7 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
 				posControl.Reset();
 			}
 			posSetpoint = homePosition;
-			telem.SetSystemMode(MAV_MODE_GUIDED_ARMED);
+			// telem.SetSystemMode(MAV_MODE_GUIDED_ARMED);
 			if (aux3.SwitchPosition() == SwPos::SWITCH_HIGH) {
 				posSetpoint(2) = -1.0;
 			}
@@ -1018,7 +978,6 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
 			if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
 				posSetpoint(0) = 1.0;
 			}
-			traj.GoTo(posSetpoint);
 			posControl.Update(posSetpoint, ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
 			thrust_des = posControl.GetDesiredThrust();
 			if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH) {
