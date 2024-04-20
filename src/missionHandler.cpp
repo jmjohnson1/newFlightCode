@@ -14,7 +14,7 @@ int MissionHandler::Run() {
     if (quadData_->telemData.mavlink->num_mission_items() > 0) {
       if (quadData_->flightStatus.missionStarted == false) {
         quadData_->flightStatus.missionStarted = true;
-        quadData_->flightStatus.mode = FlightMode::TAKEOFF;
+        quadData_->flightStatus.phase = FlightPhase::TAKEOFF;
       }
       SetpointHandler(navData_, quadData_);
       return 1;

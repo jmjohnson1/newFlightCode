@@ -18,6 +18,7 @@ typedef struct AttitudeData_s {
   Eigen::Quaternionf quat_madgwick = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
   Eigen::Quaternionf quat_ekf = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
   Eigen::Vector3f * eulerAngles_active = &eulerAngles_madgwick;
+  // Setpoints: [roll angle, pitch angle, yaw rate]
   Eigen::Vector3f eulerAngleSetpoint = Eigen::Vector3f::Zero();
 } AttitudeData_t;
 
@@ -38,32 +39,59 @@ typedef struct NavData_s {
   Eigen::Vector3f positionSetpoint_NED = Eigen::Vector3f::Zero();
   Eigen::Vector3f velocitySetpoint_NED = Eigen::Vector3f::Zero();
   Eigen::Vector3f homePosition_NED = Eigen::Vector3f::Zero();
-  // Timers for getting the time since the start of a flight mode
+  Eigen::Vector3f mocapPosition_NED = Eigen::Vector3f::Zero();
+  uint32_t numMocapUpdates = 0;
+  uint32_t mocapUpdate_mocapTime = 0;
+  uint32_t mocapUpdate_quadTime = 0;
+  // Timers for getting the time since the start of a flight phase
   elapsedMicros takeoffTime;
   elapsedMicros missionTime;
   elapsedMicros landingTime;
-  bool inAir();
   bool firstTakeoff = true;
   bool takeoffTrigger = false;
   bool landingTrigger = false;
   bool firstLanding = true;
   Eigen::Vector3f takeoffPosition;
   Eigen::Vector3f landingPosition;
+
+  bool waypointArrived = false;
+  elapsedMicros waypointArrivedTimer;
 } NavData_t;
 
-enum FlightMode {
+typedef struct FilterData_s {
+  Eigen::Vector3f accBias;
+  Eigen::Vector3f gyroBias;
+  Eigen::Vector3f covPos;
+  Eigen::Vector3f covVel;
+  Eigen::Vector3f covOrient;
+  Eigen::Vector3f innovationPos;
+  Eigen::Vector3f innovationVel;
+} FilterData_t;
+
+enum FlightPhase {
   DISARMED,
-  ARMED,
+  READY,
   TAKEOFF,
   LANDING,
   INFLIGHT
 };
 
+enum AutopilotMode {
+  MANUAL,
+  ALTITUDE,
+  POSITION
+};
+
 typedef struct FlightStatus_s {
-  FlightMode mode = FlightMode::DISARMED;
+  FlightPhase phase = FlightPhase::DISARMED;
+  AutopilotMode apMode = AutopilotMode::MANUAL;
   bfs::AircraftMode mavMode = bfs::AircraftMode::MANUAL;
   bfs::AircraftState mavState = bfs::AircraftState::INIT;
   bool missionStarted = false;
+
+  float thrustSetpoint = 0.0f;
+  Eigen::Vector4f controlInputs = Eigen::Vector4f::Zero();
+  Eigen::Vector4f motorRates = Eigen::Vector4f::Zero();
 } FlightStatus_t;
 
 typedef struct TelemData_s {
@@ -77,6 +105,7 @@ typedef struct Quadcopter_s {
   NavData_t navData;
   FlightStatus_t flightStatus;
   TelemData_t telemData;
+  FilterData_t filterData;
 } Quadcopter_t;
 
 namespace quadProps {

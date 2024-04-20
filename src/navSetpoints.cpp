@@ -2,7 +2,7 @@
 
 void SetpointHandler(NavData_t *navdata, Quadcopter_t *quadData) {
   // Flight mode check
-  switch (quadData->flightStatus.mode)
+  switch (quadData->flightStatus.phase)
   {
   case TAKEOFF:
     TakeoffSetpoints(navdata, quadData);
@@ -32,7 +32,7 @@ void TakeoffSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
   //Check if we're close. Start timer
   if (navdata->takeoffTrigger == true) {
     if (navdata->takeoffTime > 3000000) {
-      quadData->flightStatus.mode = FlightMode::INFLIGHT;
+      quadData->flightStatus.phase = FlightPhase::INFLIGHT;
     }
   }
   if (abs(navdata->positionSetpoint_NED[2] - navdata->position_NED[2]) < 0.1f && navdata->takeoffTrigger == false) {
@@ -65,7 +65,7 @@ void MissionSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
     curIdx = quadData->telemData.mavlink->active_mission_item();
   }
   if (curIdx == quadData->telemData.mavlink->num_mission_items() - 1) {
-    quadData->flightStatus.mode = FlightMode::LANDING;
+    quadData->flightStatus.phase = FlightPhase::LANDING;
   }
   // Extract data
   posLeft[0] = static_cast<float>(quadData->missionData.waypoints[curIdx - 1].x)*1e-4;  
@@ -101,7 +101,7 @@ void LandingSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
   //Check if we're close. Start timer
   if (navdata->landingTrigger == true) {
     if (navdata->landingTime > 3000000) {
-      quadData->flightStatus.mode = FlightMode::ARMED;
+      quadData->flightStatus.phase = FlightPhase::READY;
     }
   }
   if (abs(navdata->positionSetpoint_NED[2] - navdata->position_NED[2]) < 0.1f && navdata->landingTrigger == false) {
