@@ -78,7 +78,7 @@ OPTIONS += -D__$(MCU)__ -DARDUINO=10813 -DTEENSYDUINO=159 -D$(MCU_DEF)
 CPUOPTIONS = -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 -mthumb
 
 # use this for a smaller, no-float printf
-#SPECS = --specs=nano.specs
+SPECS = --specs=nano.specs
 
 # Other Makefiles and project templates for Teensy
 #

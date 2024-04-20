@@ -23,6 +23,7 @@
 #include "radio.h"
 #include "testing.h"
 #include "uNavINS.h"
+#include "missionHandler.h"
 
 //================================================================================================//
 //                                     USER-SPECIFIED VARIABLES                                   //
@@ -119,8 +120,8 @@ float Kd_yaw = 0.0f;
 
 // POSITION PID GAINS //
 float Kp_pos[3] = {5.0f, 5.0f, 29.0f};
-float Ki_pos[3] = {1.0f, 1.0f, 8.0f};
-float Kd_pos[3] = {12.0f, 12.0f, 16.0f};
+float Ki_pos[3] = {3.0f, 3.0f, 8.0f};
+float Kd_pos[3] = {8.0f, 8.0f, 16.0f};
 
 //================================================================================================//
 //                                      DECLARE PINS                                              //
@@ -173,6 +174,7 @@ bool sbusLostFrame;
 
 IMU quadIMU = IMU(0.00f, 0.00f, 0.09f, 0.04f, 2.78f, 0.35f);
 
+MissionHandler mission;
 
 // Normalized desired state:
 float thrust_des, roll_des, pitch_des, yaw_des;
@@ -192,10 +194,6 @@ Motors motors(motorPins, 125, 250);
 #else
 Motors motors(motorPins, 1000, 2000);
 #endif
-
-
-// Telemetry
-telem telemetry;
 
 
 // SD Card settings
@@ -776,11 +774,11 @@ namespace datalogger {
   #endif
 	#ifdef USE_POSITION_CONTROLLER
 		buffer.write(",");
-		buffer.print(posSetpoint[0]);
+		buffer.print(quadData.navData.positionSetpoint_NED[0]);
 		buffer.write(",");
-		buffer.print(posSetpoint[1]);
+		buffer.print(quadData.navData.positionSetpoint_NED[1]);
 		buffer.write(",");
-		buffer.print(posSetpoint[2]);
+		buffer.print(quadData.navData.positionSetpoint_NED[2]);
 		buffer.write(",");
 		buffer.print(posControl.GetKp()[0]);
 		buffer.write(",");
@@ -844,8 +842,8 @@ void setup() {
   radioSetup();
 
   // Begin mavlink telemetry module
-	telemetry.Begin(quadData.missionData);
-
+	telem::Begin(quadData);
+	mission.Init(&quadData, &quadData.navData);
 
 	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
   quadIMU.Update(); // Get an initial reading. If not, initial attitude estimate will be NaN
@@ -898,11 +896,13 @@ void loop() {
 	if (current_time - print_counter > 100000) {
 		print_counter = current_time;
 		//serialDebug::PrintRadioData(); // Currently does nothing
-		//serialDebug::PrintDesiredState(thrust_des, roll_des, pitch_des, yaw_des);
+		// serialDebug::PrintDesiredState(thrust_des, roll_des, pitch_des, yaw_des);
 		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
 		//serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());
 		//serialDebug::PrintRollPitchYaw(quadIMU_info.roll, quadIMU_info.pitch, quadIMU_info.yaw);
 		//serialDebug::PrintPIDOutput(controller.GetRollPID(), controller.GetPitchPID(), controller.GetYawPID());
+		// float motorCommands[4] = {0, 0, 0, 0};
+		// motors.GetMotorCommands(motorCommands);
 		// serialDebug::PrintMotorCommands(motorCommands[0], motorCommands[1], motorCommands[2], motorCommands[3]);
 		//serialDebug::PrintLoopTime(dt);
 		//serialDebug::PrintZPosPID(posControl.GetTmpPropo()[2],
@@ -916,6 +916,10 @@ void loop() {
 		// Let the GCS know that things are running
     // telem.SetSystemState(MAV_STATE_ACTIVE);
     // telem.SetSystemMode(MAV_MODE_MANUAL_ARMED);
+		quadData.telemData.mavlink->aircraft_state(bfs::AircraftState::ACTIVE);
+		quadData.telemData.mavlink->aircraft_mode(bfs::AircraftMode::MANUAL);
+		quadData.flightStatus.mavState = bfs::AircraftState::ACTIVE;
+		quadData.flightStatus.mavMode = bfs::AircraftMode::MANUAL;
   }
 
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
@@ -925,7 +929,6 @@ void loop() {
   }
 
 	// TODO: Be better
-  telemetry.Run();
 
 
 if (IMUUpdateTimer >= imuUpdatePeriod) {
@@ -933,8 +936,11 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
 }
 
+EKF_tow = telem::CheckForNewPosition(quadData, mocapPosition, &mocapTimestamp, &quadTimestamp);
+
 #ifdef USE_EKF
 	if (EKFUpdateTimer > EKFPeriod) {
+	telem::Run(quadData);
 		EKFUpdateTimer = 0;
   	ins.Update(micros(), EKF_tow, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, mocapPosition);
 	}
@@ -967,18 +973,8 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
 				wasTrueLastLoop = true;
 				posControl.Reset();
 			}
-			posSetpoint = homePosition;
-			// telem.SetSystemMode(MAV_MODE_GUIDED_ARMED);
-			if (aux3.SwitchPosition() == SwPos::SWITCH_HIGH) {
-				posSetpoint(2) = -1.0;
-			}
-			if (aux2.SwitchPosition() == SwPos::SWITCH_HIGH) {
-				posSetpoint(1) = 1.5;
-			}
-			if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
-				posSetpoint(0) = 1.0;
-			}
-			posControl.Update(posSetpoint, ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
+			mission.Run();
+			posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
 			thrust_des = posControl.GetDesiredThrust();
 			if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH) {
 				roll_des = posControl.GetDesiredRoll();
@@ -987,7 +983,7 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
 		} else {
 			wasTrueLastLoop = false; // Ensures the position controller is reset next time it's enabled
 		}
-		controlInputs[0] = thrust_des;
+		controlInputs[0] = abs(thrust_des);
 	}
 	# else
 		// Compute desired state based on radio inputs

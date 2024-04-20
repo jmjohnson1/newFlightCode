@@ -37,7 +37,7 @@
 #define USE_ONESHOT
 
 /**Uncomment to have access to step inputs and sine sweeps**/
-#define TEST_STAND
+// #define TEST_STAND
 // Parameters for sine sweep
 #define SWP_MIN_FREQ 0.5 /*Hz*/
 #define SWP_MAX_FREQ 3.0 /*Hz*/

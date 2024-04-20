@@ -6,9 +6,11 @@
 #include "ArduinoLibs/BFSMavlink/mavlink.h"  // BFS Mavlink implementation
 
 // Define some constants for mission parameters
-constexpr std::size_t MAX_WAYPOINTS = 20;
+constexpr std::size_t MAX_WAYPOINTS = 200;
 constexpr std::size_t MAX_FENCEPOINTS = 10;
 constexpr std::size_t MAX_RALLYPOINTS = 5;
+constexpr std::size_t NUM_PARAMS = 20;
+constexpr std::size_t NUM_UTM = 0;
 
 typedef struct AttitudeData_s {
   Eigen::Vector3f eulerAngles_madgwick = Eigen::Vector3f::Zero();
@@ -16,6 +18,7 @@ typedef struct AttitudeData_s {
   Eigen::Quaternionf quat_madgwick = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
   Eigen::Quaternionf quat_ekf = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
   Eigen::Vector3f * eulerAngles_active = &eulerAngles_madgwick;
+  Eigen::Vector3f eulerAngleSetpoint = Eigen::Vector3f::Zero();
 } AttitudeData_t;
 
 typedef struct MissionData_s {
@@ -23,16 +26,57 @@ typedef struct MissionData_s {
   std::array<bfs::MissionItem, MAX_FENCEPOINTS> fencePoints;  // No idea what to do with this yet
   std::array<bfs::MissionItem, MAX_RALLYPOINTS> rallyPoints;  // Nor this
   std::array<bfs::MissionItem, MAX_WAYPOINTS> temp;
-  int16_t currentWaypoint;
+  int32_t currentWaypoint;
   uint16_t numWaypoints;
   uint16_t numFencePoints;
   uint16_t numRallyPoints;
 } MissionData_t;
 
+typedef struct NavData_s {
+  Eigen::Vector3f position_NED;
+  Eigen::Vector3f velocity_NED;
+  Eigen::Vector3f positionSetpoint_NED = Eigen::Vector3f::Zero();
+  Eigen::Vector3f velocitySetpoint_NED = Eigen::Vector3f::Zero();
+  Eigen::Vector3f homePosition_NED = Eigen::Vector3f::Zero();
+  // Timers for getting the time since the start of a flight mode
+  elapsedMicros takeoffTime;
+  elapsedMicros missionTime;
+  elapsedMicros landingTime;
+  bool inAir();
+  bool firstTakeoff = true;
+  bool takeoffTrigger = false;
+  bool landingTrigger = false;
+  bool firstLanding = true;
+  Eigen::Vector3f takeoffPosition;
+  Eigen::Vector3f landingPosition;
+} NavData_t;
+
+enum FlightMode {
+  DISARMED,
+  ARMED,
+  TAKEOFF,
+  LANDING,
+  INFLIGHT
+};
+
+typedef struct FlightStatus_s {
+  FlightMode mode = FlightMode::DISARMED;
+  bfs::AircraftMode mavMode = bfs::AircraftMode::MANUAL;
+  bfs::AircraftState mavState = bfs::AircraftState::INIT;
+  bool missionStarted = false;
+} FlightStatus_t;
+
+typedef struct TelemData_s {
+  bfs::MavLink<NUM_PARAMS, NUM_UTM> *mavlink = nullptr;
+} TelemData_t;
+
 typedef struct Quadcopter_s {
   // Attitude
   AttitudeData_t att;
   MissionData_t missionData;
+  NavData_t navData;
+  FlightStatus_t flightStatus;
+  TelemData_t telemData;
 } Quadcopter_t;
 
 namespace quadProps {
