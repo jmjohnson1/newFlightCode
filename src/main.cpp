@@ -4,8 +4,6 @@
 
 #include <stdint.h>
 
-#include "RingBuf.h"  // Ring buffer used to store values for SD card
-#include "SdFat.h"    // Library used for SD card
 #include "TeensyTimerTool.h"  // Oneshot timer
 #include "PWMServo.h" // Commanding any extra actuators, installed with teensyduino installer
 #include "SPI.h"      // SPI communication
@@ -24,6 +22,7 @@
 #include "testing.h"
 #include "uNavINS.h"
 #include "missionHandler.h"
+#include "datalogger.h"
 
 //================================================================================================//
 //                                     USER-SPECIFIED VARIABLES                                   //
@@ -142,19 +141,8 @@ const uint8_t motorPins[4] = {0, 1, 2, 3};
 #define CPU_RESTART (*CPU_RESTART_ADDR = CPU_RESTART_VAL);
 
 // SD card setup
-// Use Teensy SDIO
-#define SD_CONFIG SdioConfig(FIFO_SDIO)
 // Interval between points (usec) for 100 samples/sec
 #define LOG_INTERVAL_USEC 10000
-// Size to log 256 byte lines at 100 Hz for a while
-#define LOG_FILE_SIZE 256 * 100 * 600 * 10 /*~1,500,000,000 bytes.*/
-// Space to hold more than 1 second of 256-byte lines at 100 Hz in the buffer
-#define RING_BUF_CAPACITY 50 * 512
-SdFs sd;
-FsFile file;
-
-// Ring buffer for filetype FsFile (The filemanager that will handle the data stream)
-RingBuf<FsFile, RING_BUF_CAPACITY> buffer;
 
 // DECLARE GLOBAL VARIABLES
 // General stuff
@@ -183,7 +171,6 @@ float Kd_array[3] = {Kd_roll_angle, Kd_pitch_angle, Kd_yaw};
 AngleAttitudeController controller = AngleAttitudeController(Kp_array, Ki_array, Kd_array);
 PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos);
 
-
 // Motor object
 #ifdef USE_ONESHOT
 Motors motors(motorPins, 125, 250);
@@ -191,23 +178,12 @@ Motors motors(motorPins, 125, 250);
 Motors motors(motorPins, 1000, 2000);
 #endif
 
-
-// SD Card settings
-String filePrefix = "flight_data";
-String fileExtension = ".csv";
-String fileName;
-
 bool SD_is_present = 0;
-
 bool doneWithSetup = 0;
-
 uint16_t failureFlag = 0;
-
 int throttleCutCount = 0;
-
 // Flag to check if the flight loop has started yet, prevents lock in main loop when throttle killed
 bool flightLoopStarted = 0;
-
 int loopCount = 0;
 
 // Position vector taken from mocap
@@ -216,6 +192,9 @@ const float positionCovarianceLimit = 1.0f;	// Maximum allowable position covari
 
 // EKF
 uNavINS ins;
+
+// Datalogging
+Datalogger logging;
 
 bool wasTrueLastLoop = false; // This will be renamed at some point
 
@@ -382,11 +361,11 @@ void calibrateESCs() {
 		quadIMU.Update();
     Madgwick6DOF(quadIMU, quadData, dt);
     getDesState();
-		quadData.flightStatus.controlInputs << thrust_des, 0, 0, 0;
+		quadData.flightStatus.controlInputs << quadData.flightStatus.thrustSetpoint, 0, 0, 0;
 		// Convert thrust and moments from controller to angular rates
 		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs);
 		// Convert angular rates to PWM commands
-		motors.ScaleCommand(quadData.flighStatus.motorRates);
+		motors.ScaleCommand(quadData.flightStatus.motorRates);
 		motors.CommandMotor();
     loopRate(2000);
   }
@@ -456,10 +435,9 @@ void calculate_IMU_error(IMU *imu) {
   for (;;);
 }
 
-//=====================================//
-//========== SD Card Logging ==========//
-//=====================================//
-namespace datalogger {
+// Adds items to the datalogger
+void LoggingSetup() {
+	logging.AddItem(quadData.att.eulerAngles_madgwick, "euler_madgwick", 4);
 }
 
 //===========================//
@@ -484,6 +462,7 @@ void setup() {
 	telem::Begin(quadData);
 	mission.Init(&quadData, &quadData.navData);
 
+
 	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
   quadIMU.Update(); // Get an initial reading. If not, initial attitude estimate will be NaN
 	Serial.print("IMU initialization successful: ");
@@ -491,12 +470,13 @@ void setup() {
 
 #ifdef USE_EKF
   ins.Configure();
-	ins.Initialize(quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, mocapPosition);
+	ins.Initialize(quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, quadData.navData.mocapPosition_NED.cast<double>());
 #endif
 
   // Initialize the SD card, returns 1 if no sd card is detected or it can't be
   // initialized. So it's negated to make SD_is_present true when everything is OK
-  SD_is_present = !(datalogger::Setup());
+	LoggingSetup();
+  SD_is_present = !(logging.Setup());
 
   // Get IMU error to zero accelerometer and gyro readings, assuming vehicle is
   // level when powered up Calibration parameters printed to serial monitor.
@@ -564,7 +544,7 @@ void loop() {
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
   	// Write to SD card buffer
 		print_counterSD = micros();
-		datalogger::WriteBuffer();
+		logging.Write();
   }
 
 	// TODO: Be better
@@ -575,13 +555,13 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
 }
 
-numMocapUpdates = telem::CheckForNewPosition(quadData, mocapPosition, &mocapTimestamp, &quadTimestamp);
+quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
 
 #ifdef USE_EKF
 	if (EKFUpdateTimer > EKFPeriod) {
 	telem::Run(quadData);
 		EKFUpdateTimer = 0;
-  	ins.Update(micros(), numMocapUpdates, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, mocapPosition);
+  	ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, quadData.navData.mocapPosition_NED.cast<double>());
 	}
   quadData.att.eulerAngles_ekf = ins.Get_OrientEst()*RAD_2_DEG;
 	Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
@@ -614,20 +594,20 @@ numMocapUpdates = telem::CheckForNewPosition(quadData, mocapPosition, &mocapTime
 			}
 			mission.Run();
 			posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
-			thrust_des = posControl.GetDesiredThrust();
+			quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
 			if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH) {
-				roll_des = posControl.GetDesiredRoll();
-				pitch_des = posControl.GetDesiredPitch();
+				quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
+				quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredPitch();
 			}
 		} else {
 			wasTrueLastLoop = false; // Ensures the position controller is reset next time it's enabled
 		}
-		controlInputs[0] = abs(thrust_des);
+		quadData.flightStatus.controlInputs[0] = quadData.flightStatus.thrustSetpoint;
 	}
 	# else
 		// Compute desired state based on radio inputs
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
-		controlInputs[0] = thrust_des;
+		quadData.flightStatus.controlInputs[0] = quadData.flightStatus.thrustSetpoint;
 #endif
 	
 #ifdef TEST_STAND
@@ -682,16 +662,15 @@ numMocapUpdates = telem::CheckForNewPosition(quadData, mocapPosition, &mocapTime
 	
 	if (attitudeCtrlTimer >= attitudeCtrlPeriod) {
 		attitudeCtrlTimer = 0;
-		float setpoints[3] = {roll_des, pitch_des, yaw_des};
+		// FIXME: Make the function take Eigen::Vector or give up on it
 		float gyroRates[3] = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
-		controller.Update(setpoints, quadData.att, gyroRates, dt, noIntegral);
-		controlInputs(lastN(3)) = controller.GetMoments();
+		controller.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, dt, noIntegral);
+		quadData.flightStatus.controlInputs(lastN(3)) = controller.GetMoments();
 	}
-	Eigen::Vector4f motorRates;
 	// Convert thrust and moments from controller to angular rates
-	motorRates = ControlAllocator(controlInputs);
+	quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs);
 	// Convert angular rates to PWM commands
-	motors.ScaleCommand(motorRates);
+	motors.ScaleCommand(quadData.flightStatus.motorRates);
 
   // Throttle cut check
   bool killThrottle = throttleCut(); // Directly sets motor commands to low based on state of ch5
@@ -703,7 +682,7 @@ numMocapUpdates = telem::CheckForNewPosition(quadData, mocapPosition, &mocapTime
   failSafe();    // Prevent failures in event of bad receiver connection, defaults to failsafe values assigned in setup
 
   if (killThrottle && (throttleCutCount > 100) && flightLoopStarted) {
-		datalogger::EndProcess();
+		logging.End();
     while (1) {
       getCommands();
 

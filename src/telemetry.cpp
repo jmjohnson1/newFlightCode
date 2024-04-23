@@ -26,12 +26,12 @@ void telem::Run(Quadcopter_t &quadData) {
 }
   
 
-uint32_t telem::CheckForNewPosition(Quadcopter_t &quadData, Eigen::Vector3d& pos, uint32_t *mocapTimestamp, uint32_t *quadTimestamp) {
-  pos[0] = quadData.telemData.mavlink->viconX();
-  pos[1] = quadData.telemData.mavlink->viconY();
-  pos[2] = quadData.telemData.mavlink->viconZ();
-  *mocapTimestamp = quadData.telemData.mavlink->viconTime();
-  *quadTimestamp = micros();
+uint32_t telem::CheckForNewPosition(Quadcopter_t &quadData) {
+  quadData.navData.mocapPosition_NED[0] = quadData.telemData.mavlink->viconX();
+  quadData.navData.mocapPosition_NED[1] = quadData.telemData.mavlink->viconY();
+  quadData.navData.mocapPosition_NED[2] = quadData.telemData.mavlink->viconZ();
+  quadData.navData.mocapUpdate_mocapTime = quadData.telemData.mavlink->viconTime();
+  quadData.navData.mocapUpdate_quadTime = micros();
 
   return quadData.telemData.mavlink->numViconRX();
 }
