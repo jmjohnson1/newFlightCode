@@ -23,9 +23,10 @@ public:
 	uint8_t GetChannel() {return channel_;}
 	uint16_t GetRawValue() {return rawValue_;}
 	String GetName() {return name_;}
+	// This has to be public because of the way I do datalogging for now
+	uint16_t rawValue_;
 private:
 	String name_;
-	uint16_t rawValue_;
 	uint16_t rawValue_previous_;
 	uint16_t failsafeValue_;
 	uint8_t channel_;

@@ -92,10 +92,16 @@ typedef struct FlightStatus_s {
   float thrustSetpoint = 0.0f;
   Eigen::Vector4f controlInputs = Eigen::Vector4f::Zero();
   Eigen::Vector4f motorRates = Eigen::Vector4f::Zero();
+  uint64_t timeSinceBoot = micros();
 } FlightStatus_t;
 
 typedef struct TelemData_s {
   bfs::MavLink<NUM_PARAMS, NUM_UTM> *mavlink = nullptr;
+  // debug
+  uint64_t numMissionItemsRX;
+  uint64_t lastSequenceRX;
+  uint64_t numMissionRequestTX;
+  uint64_t lastSequenceTx;
 } TelemData_t;
 
 typedef struct Quadcopter_s {

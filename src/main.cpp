@@ -436,8 +436,37 @@ void calculate_IMU_error(IMU *imu) {
 }
 
 // Adds items to the datalogger
+// FIXME: PID GAINS NOT YET INCLUDED
 void LoggingSetup() {
+	// Attitude
 	logging.AddItem(quadData.att.eulerAngles_madgwick, "euler_madgwick", 4);
+	logging.AddItem(quadData.att.eulerAngles_ekf, "euler_ekf", 4);
+	logging.AddItem(quadData.att.eulerAngleSetpoint, "euler_setpoint", 4);
+	logging.AddItem(&quadData.flightStatus.thrustSetpoint, "thrust_setpoint", 4);
+	// Raw radio PWM values (1000-2000)
+	for (int i = 0; i < numChannels; i++) {
+		logging.AddItem(&(radioChannels[i]->rawValue_), radioChannels[i]->GetName(), 10);
+	}
+	// LP-filtered IMU data
+	logging.AddItem(quadIMU.GetAccXPtr(), "Acc1", 4);
+	logging.AddItem(quadIMU.GetAccYPtr(), "Acc2", 4);
+	logging.AddItem(quadIMU.GetAccZPtr(), "Acc3", 4);
+	logging.AddItem(quadIMU.GetGyroXPtr(), "Gyro1", 4);
+	logging.AddItem(quadIMU.GetGyroYPtr(), "Gyro2", 4);
+	logging.AddItem(quadIMU.GetGyroZPtr(), "Gyro3", 4);
+	// Control inputs and motor rates
+	logging.AddItem(quadData.flightStatus.controlInputs, "u", 4);
+	logging.AddItem(quadData.flightStatus.motorRates, "w", 4);
+	// Timers
+	logging.AddItem(&(quadData.flightStatus.timeSinceBoot), "timeSinceBoot", 10);
+	logging.AddItem(&(quadData.navData.mocapUpdate_mocapTime), "mocapTime", 10);
+	logging.AddItem(&(quadData.navData.mocapUpdate_quadTime), "quadTime", 10);
+	// Nav
+	logging.AddItem(quadData.navData.position_NED, "positionNED_", 6);
+	logging.AddItem(quadData.navData.velocity_NED, "velocityNED_", 6);
+	logging.AddItem(quadData.navData.positionSetpoint_NED, "positionSetpointNED_", 6);
+	logging.AddItem(quadData.navData.velocitySetpoint_NED, "velocitySetpointNED_", 6);
+	logging.AddItem(quadData.navData.mocapPosition_NED, "mocapPositionNED_", 6);
 }
 
 //===========================//
@@ -508,6 +537,7 @@ void loop() {
   prev_time = current_time;
   current_time = micros();
   dt = (current_time - prev_time) / 1000000.0;
+	quadData.flightStatus.timeSinceBoot = micros();
 
   loopBlink(); // Indicate we are in main loop with short blink every 1.5 seconds
 

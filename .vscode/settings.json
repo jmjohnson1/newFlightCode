@@ -23,6 +23,8 @@
         "lu": "cpp",
         "qr": "cpp",
         "svd": "cpp",
-        "string_view": "cpp"
+        "string_view": "cpp",
+        "string": "cpp",
+        "ranges": "cpp"
     }
 }
