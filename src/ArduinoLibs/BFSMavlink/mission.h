@@ -23,6 +23,13 @@
 * IN THE SOFTWARE.
 */
 
+
+/**
+ * Modified to better handle system and component ID's in received messages.
+ * There was an issue where it would change during mission transfer if a message
+ * from a different system was received.
+*/
+
 #ifndef MAVLINK_SRC_MISSION_H_  // NOLINT
 #define MAVLINK_SRC_MISSION_H_
 
@@ -169,14 +176,22 @@ class MavLinkMission {
   static constexpr std::size_t MAX_RETRIES_ = 5;
   /* Message handlers */
   uint8_t rx_sys_id_, rx_comp_id_;
-  void MessageRequestListHandler(const mavlink_mission_request_list_t &ref);
-  void MissionCountHandler(const mavlink_mission_count_t &ref);
-  void MissionRequestHandler(const mavlink_mission_request_t &ref);
-  void MissionRequestIntHandler(const mavlink_mission_request_int_t &ref);
-  void MissionItemHandler(const mavlink_mission_item_t &ref);
-  void MissionItemIntHandler(const mavlink_mission_item_int_t &ref);
-  void MissionSetCurrentHandler(const mavlink_mission_set_current_t &ref);
-  void MissionClearAllHandler(const mavlink_mission_clear_all_t &ref);
+  void MessageRequestListHandler(const mavlink_mission_request_list_t &ref,
+                                 const uint8_t rx_sys, const uint8_t rx_comp);
+  void MissionCountHandler(const mavlink_mission_count_t &ref,
+                           const uint8_t rx_sys, const uint8_t rx_comp);
+  void MissionRequestHandler(const mavlink_mission_request_t &ref,
+                             const uint8_t rx_sys, const uint8_t rx_comp);
+  void MissionRequestIntHandler(const mavlink_mission_request_int_t &ref,
+                                const uint8_t rx_sys, const uint8_t rx_comp);
+  void MissionItemHandler(const mavlink_mission_item_t &ref,
+                          const uint8_t rx_sys, const uint8_t rx_comp);
+  void MissionItemIntHandler(const mavlink_mission_item_int_t &ref,
+                             const uint8_t rx_sys, const uint8_t rx_comp);
+  void MissionSetCurrentHandler(const mavlink_mission_set_current_t &ref,
+                                const uint8_t rx_sys, const uint8_t rx_comp);
+  void MissionClearAllHandler(const mavlink_mission_clear_all_t &ref,
+                              const uint8_t rx_sys, const uint8_t rx_comp);
   /* Message emitters */
   void SendMissionRequestInt(const std::size_t index, const uint8_t type);
   void SendMissionCount(const std::size_t count, const uint8_t type);

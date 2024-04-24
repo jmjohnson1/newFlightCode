@@ -80,47 +80,45 @@ void MavLinkMission::Update() {
   }
 }
 void MavLinkMission::MsgHandler(const mavlink_message_t &ref) {
-  rx_sys_id_ = ref.sysid;
-  rx_comp_id_ = ref.compid;
   switch (ref.msgid) {
     case MAVLINK_MSG_ID_MISSION_COUNT: {
       mavlink_msg_mission_count_decode(&ref, &mission_count_);
-      MissionCountHandler(mission_count_);
+      MissionCountHandler(mission_count_, ref.sysid, ref.compid);
       break;
     }
     case MAVLINK_MSG_ID_MISSION_ITEM: {
       mavlink_msg_mission_item_decode(&ref, &mission_item_);
-      MissionItemHandler(mission_item_);
+      MissionItemHandler(mission_item_, ref.sysid, ref.compid);
       break;
     }
     case MAVLINK_MSG_ID_MISSION_ITEM_INT: {
       mavlink_msg_mission_item_int_decode(&ref, &mission_item_int_);
-      MissionItemIntHandler(mission_item_int_);
+      MissionItemIntHandler(mission_item_int_, ref.sysid, ref.compid);
       break;
     }
     case MAVLINK_MSG_ID_MISSION_REQUEST_LIST: {
       mavlink_msg_mission_request_list_decode(&ref, &mission_request_list_);
-      MessageRequestListHandler(mission_request_list_);
+      MessageRequestListHandler(mission_request_list_, ref.sysid, ref.compid);
       break;
     }
     case MAVLINK_MSG_ID_MISSION_REQUEST: {
       mavlink_msg_mission_request_decode(&ref, &mission_request_);
-      MissionRequestHandler(mission_request_);
+      MissionRequestHandler(mission_request_, ref.sysid, ref.compid);
       break;
     }
     case MAVLINK_MSG_ID_MISSION_REQUEST_INT: {
       mavlink_msg_mission_request_int_decode(&ref, &mission_request_int_);
-      MissionRequestIntHandler(mission_request_int_);
+      MissionRequestIntHandler(mission_request_int_, ref.sysid, ref.compid);
       break;
     }
     case MAVLINK_MSG_ID_MISSION_SET_CURRENT: {
       mavlink_msg_mission_set_current_decode(&ref, &mission_set_current_);
-      MissionSetCurrentHandler(mission_set_current_);
+      MissionSetCurrentHandler(mission_set_current_, ref.sysid, ref.compid);
       break;
     }
     case MAVLINK_MSG_ID_MISSION_CLEAR_ALL: {
       mavlink_msg_mission_clear_all_decode(&ref, &mission_clear_all_);
-      MissionClearAllHandler(mission_clear_all_);
+      MissionClearAllHandler(mission_clear_all_, ref.sysid, ref.compid);
       break;
     }
   }
@@ -133,8 +131,11 @@ void MavLinkMission::AdvanceMissionItem() {
   SendMissionCurrent(mission_current_index_);
 }
 void MavLinkMission::MessageRequestListHandler(
-                     const mavlink_mission_request_list_t &ref) {
+                     const mavlink_mission_request_list_t &ref,
+                     const uint8_t rx_sys, const uint8_t rx_comp) {
   if ((ref.target_system == sys_id_) && (ref.target_component == comp_id_)) {
+    rx_sys_id_ = rx_sys;
+    rx_comp_id_ = rx_comp;
     switch (ref.mission_type) {
       case MAV_MISSION_TYPE_MISSION: {
         SendMissionCount(mission_current_count_, ref.mission_type);
@@ -151,8 +152,11 @@ void MavLinkMission::MessageRequestListHandler(
     }
   }
 }
-void MavLinkMission::MissionCountHandler(const mavlink_mission_count_t &ref) {
+void MavLinkMission::MissionCountHandler(const mavlink_mission_count_t &ref,
+                                         const uint8_t rx_sys, const uint8_t rx_comp) {
   if ((ref.target_system == sys_id_) && (ref.target_component == comp_id_)) {
+    rx_sys_id_ = rx_sys;
+    rx_comp_id_ = rx_comp;
     /* Ack an empty count */
     if (ref.count == 0) {
       SendMissionAck(MAV_MISSION_ACCEPTED, ref.mission_type);
@@ -191,19 +195,28 @@ void MavLinkMission::MissionCountHandler(const mavlink_mission_count_t &ref) {
   }
 }
 void MavLinkMission::MissionRequestHandler(
-                     const mavlink_mission_request_t &ref) {
+                     const mavlink_mission_request_t &ref,
+                     const uint8_t rx_sys, const uint8_t rx_comp) {
   if ((ref.target_system == sys_id_) && (ref.target_component == comp_id_)) {
+    rx_sys_id_ = rx_sys;
+    rx_comp_id_ = rx_comp;
     SendMissionItemInt(ref.seq, ref.mission_type);
   }
 }
 void MavLinkMission::MissionRequestIntHandler(
-                     const mavlink_mission_request_int_t &ref) {
+                     const mavlink_mission_request_int_t &ref,
+                     const uint8_t rx_sys, const uint8_t rx_comp) {
   if ((ref.target_system == sys_id_) && (ref.target_component == comp_id_)) {
+    rx_sys_id_ = rx_sys;
+    rx_comp_id_ = rx_comp;
     SendMissionItemInt(ref.seq, ref.mission_type);
   }
 }
-void MavLinkMission::MissionItemHandler(const mavlink_mission_item_t &ref) {
+void MavLinkMission::MissionItemHandler(const mavlink_mission_item_t &ref,
+                                        const uint8_t rx_sys, const uint8_t rx_comp) {
   if ((ref.target_system == sys_id_) && (ref.target_component == comp_id_)) {
+    rx_sys_id_ = rx_sys;
+    rx_comp_id_ = rx_comp;
     retries_ = 0;
     /* Parse the item */
     item_.autocontinue = ref.autocontinue;
@@ -283,8 +296,11 @@ void MavLinkMission::MissionItemHandler(const mavlink_mission_item_t &ref) {
   }
 }
 void MavLinkMission::MissionItemIntHandler(
-                     const mavlink_mission_item_int_t &ref) {
+                     const mavlink_mission_item_int_t &ref,
+                     const uint8_t rx_sys, const uint8_t rx_comp) {
   if ((ref.target_system == sys_id_) && (ref.target_component == comp_id_)) {
+    rx_sys_id_ = rx_sys;
+    rx_comp_id_ = rx_comp;
     retries_ = 0;
     /* Parse the item */
     item_.autocontinue = ref.autocontinue;
@@ -297,6 +313,7 @@ void MavLinkMission::MissionItemIntHandler(
     item_.x = ref.x;
     item_.y = ref.y;
     item_.z = ref.z;
+
     switch (ref.mission_type) {
       case MAV_MISSION_TYPE_MISSION: {
         if (ref.seq == mission_upload_index_) {
@@ -364,8 +381,11 @@ void MavLinkMission::MissionItemIntHandler(
   }
 }
 void MavLinkMission::MissionSetCurrentHandler(
-                     const mavlink_mission_set_current_t &ref) {
+                     const mavlink_mission_set_current_t &ref,
+                     const uint8_t rx_sys, const uint8_t rx_comp) {
   if ((ref.target_system == sys_id_) && (ref.target_component == comp_id_)) {
+    rx_sys_id_ = rx_sys;
+    rx_comp_id_ = rx_comp;
     if (ref.seq < mission_current_count_) {
       mission_current_index_ = ref.seq;
       SendMissionCurrent(mission_current_index_);
@@ -376,8 +396,11 @@ void MavLinkMission::MissionSetCurrentHandler(
   }
 }
 void MavLinkMission::MissionClearAllHandler(
-                     const mavlink_mission_clear_all_t &ref) {
+                     const mavlink_mission_clear_all_t &ref,
+                     const uint8_t rx_sys, const uint8_t rx_comp) {
   if ((ref.target_system == sys_id_) && (ref.target_component == comp_id_)) {
+    rx_sys_id_ = rx_sys;
+    rx_comp_id_ = rx_comp;
     switch (ref.mission_type) {
       case MAV_MISSION_TYPE_MISSION: {
         mission_current_index_ = -1;
