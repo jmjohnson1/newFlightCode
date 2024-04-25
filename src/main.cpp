@@ -467,12 +467,6 @@ void LoggingSetup() {
 	logging.AddItem(quadData.navData.positionSetpoint_NED, "positionSetpointNED_", 6);
 	logging.AddItem(quadData.navData.velocitySetpoint_NED, "velocitySetpointNED_", 6);
 	logging.AddItem(quadData.navData.mocapPosition_NED, "mocapPositionNED_", 6);
-	
-	logging.AddItem(&(quadData.telemData.lastSequenceRX), "lastSequenceRX", 10);
-	logging.AddItem(&(quadData.telemData.lastSequenceTx), "lastSequenceTX", 10);
-	logging.AddItem(&(quadData.telemData.numMissionItemsRX), "numMissionItemsRX", 10);
-	logging.AddItem(&(quadData.telemData.numMissionRequestTX), "numMissionRequestTX", 10);
-
 }
 
 //===========================//
@@ -575,6 +569,7 @@ void loop() {
 		quadData.telemData.mavlink->aircraft_mode(bfs::AircraftMode::MANUAL);
 		quadData.flightStatus.mavState = bfs::AircraftState::ACTIVE;
 		quadData.flightStatus.mavMode = bfs::AircraftMode::MANUAL;
+		quadData.flightStatus.phase = FlightPhase::ARMED;
   }
 
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {

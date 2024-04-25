@@ -101,7 +101,7 @@ void LandingSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
   //Check if we're close. Start timer
   if (navdata->landingTrigger == true) {
     if (navdata->landingTime > 3000000) {
-      quadData->flightStatus.phase = FlightPhase::READY;
+      quadData->flightStatus.phase = FlightPhase::ARMED;
     }
   }
   if (abs(navdata->positionSetpoint_NED[2] - navdata->position_NED[2]) < 0.1f && navdata->landingTrigger == false) {

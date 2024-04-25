@@ -70,7 +70,7 @@ typedef struct FilterData_s {
 
 enum FlightPhase {
   DISARMED,
-  READY,
+  ARMED,
   TAKEOFF,
   LANDING,
   INFLIGHT
@@ -97,11 +97,6 @@ typedef struct FlightStatus_s {
 
 typedef struct TelemData_s {
   bfs::MavLink<NUM_PARAMS, NUM_UTM> *mavlink = nullptr;
-  // debug
-  uint64_t numMissionItemsRX;
-  uint64_t lastSequenceRX;
-  uint64_t numMissionRequestTX;
-  uint64_t lastSequenceTx;
 } TelemData_t;
 
 typedef struct Quadcopter_s {
