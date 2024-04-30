@@ -21,23 +21,25 @@ void SetpointHandler(NavData_t *navdata, Quadcopter_t *quadData) {
 
 
 void TakeoffSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
-  if (navdata->firstTakeoff == true) {
-    navdata->firstTakeoff = false;
+  if (navdata->takeoffFlag == false) {
+    navdata->takeoffFlag = true;
+    // Set all setpoints to the current position
     navdata->takeoffPosition = navdata->position_NED;
+    // Set the third component to the desired altitude (remember Z down)
     navdata->takeoffPosition[2] = -0.75;
   }
   navdata->positionSetpoint_NED = navdata->takeoffPosition;
   navdata->velocitySetpoint_NED.setZero();
 
   //Check if we're close. Start timer
-  if (navdata->takeoffTrigger == true) {
-    if (navdata->takeoffTime > 3000000) {
-      quadData->flightStatus.phase = FlightPhase::INFLIGHT;
-    }
+  if (abs(navdata->position_NED[2] - navdata->positionSetpoint_NED[2]) < waypointArrivedThresh) {
+    navdata->waypointArrived = true;
+  } else {
+    navdata->waypointArrived = false;
+    navdata->waypointArrivedTimer = 0;
   }
-  if (abs(navdata->positionSetpoint_NED[2] - navdata->position_NED[2]) < 0.1f && navdata->takeoffTrigger == false) {
-    navdata->takeoffTrigger = true;
-    navdata->takeoffTime = 0;
+  if (navdata->waypointArrivedTimer > waypointArrivedTime) {
+      quadData->flightStatus.phase = FlightPhase::INFLIGHT;
   }
 }
 void MissionSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
@@ -90,22 +92,24 @@ void MissionSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
   navdata->velocitySetpoint_NED = velLeft + (velRight - velLeft)*frac;
 }
 void LandingSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
-  if (navdata->firstLanding == true) {
-    navdata->firstLanding = false;
+  if (navdata->landingFlag == false) {
+    navdata->landingFlag = true;
+    // Set all setpoints to the current position
     navdata->landingPosition = navdata->position_NED;
-    navdata->landingPosition[2] = -0.1;
+    // Set the third component to the desired altitude (remember Z down)
+    navdata->landingPosition[2] = 0.0f;
   }
-  navdata->positionSetpoint_NED = navdata->landingPosition;
+  navdata->positionSetpoint_NED = navdata->takeoffPosition;
   navdata->velocitySetpoint_NED.setZero();
 
   //Check if we're close. Start timer
-  if (navdata->landingTrigger == true) {
-    if (navdata->landingTime > 3000000) {
-      quadData->flightStatus.phase = FlightPhase::ARMED;
-    }
+  if (abs(navdata->position_NED[2] - navdata->positionSetpoint_NED[2]) < waypointArrivedThresh) {
+    navdata->waypointArrived = true;
+  } else {
+    navdata->waypointArrived = false;
+    navdata->waypointArrivedTimer = 0;
   }
-  if (abs(navdata->positionSetpoint_NED[2] - navdata->position_NED[2]) < 0.1f && navdata->landingTrigger == false) {
-    navdata->landingTrigger = true;
-    navdata->landingTime = 0;
+  if (navdata->waypointArrivedTimer > waypointArrivedTime) {
+      quadData->flightStatus.phase = FlightPhase::DISARMED;
   }
 }
