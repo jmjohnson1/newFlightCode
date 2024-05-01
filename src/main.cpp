@@ -185,6 +185,7 @@ int throttleCutCount = 0;
 // Flag to check if the flight loop has started yet, prevents lock in main loop when throttle killed
 bool flightLoopStarted = 0;
 int loopCount = 0;
+bool killThrottle = true;
 
 // Position vector taken from mocap
 bool positionFix = false;  // Set true if the position covariance from the EKF is less than a certain value.
@@ -467,6 +468,7 @@ void LoggingSetup() {
 	logging.AddItem(quadData.navData.positionSetpoint_NED, "positionSetpointNED_", 6);
 	logging.AddItem(quadData.navData.velocitySetpoint_NED, "velocitySetpointNED_", 6);
 	logging.AddItem(quadData.navData.mocapPosition_NED, "mocapPositionNED_", 6);
+	logging.AddItem(&(quadData.navData.numMocapUpdates), "numMocapUpdates", 10);
 }
 
 //===========================//
@@ -505,7 +507,6 @@ void setup() {
   // Initialize the SD card, returns 1 if no sd card is detected or it can't be
   // initialized. So it's negated to make SD_is_present true when everything is OK
 	LoggingSetup();
-  SD_is_present = !(logging.Setup());
 
   // Get IMU error to zero accelerometer and gyro readings, assuming vehicle is
   // level when powered up Calibration parameters printed to serial monitor.
@@ -559,18 +560,63 @@ void loop() {
 		// serialDebug::DisplayRoll(roll_des, quadIMU_info.roll);
 	}
 
+	// Mode checking
   // Check if rotors should be armed
   if (!flightLoopStarted && (throCutChannel.SwitchPosition() == SwPos::SWITCH_LOW)) {
-    flightLoopStarted = 1;
-		// Let the GCS know that things are running
-    // telem.SetSystemState(MAV_STATE_ACTIVE);
-    // telem.SetSystemMode(MAV_MODE_MANUAL_ARMED);
-		quadData.telemData.mavlink->aircraft_state(bfs::AircraftState::ACTIVE);
-		quadData.telemData.mavlink->aircraft_mode(bfs::AircraftMode::MANUAL);
-		quadData.flightStatus.mavState = bfs::AircraftState::ACTIVE;
-		quadData.flightStatus.mavMode = bfs::AircraftMode::MANUAL;
-		quadData.flightStatus.phase = FlightPhase::ARMED;
   }
+	// Check the status of the armed switch
+	switch(throCutChannel.SwitchPosition()) {
+		case SwPos::SWITCH_LOW:
+			if (!flightLoopStarted) {
+				flightLoopStarted = true;
+				quadData.UpdatePhase(FlightPhase::ARMED);
+  			SD_is_present = !(logging.Setup());
+			}
+			if (quadData.flightStatus.inputOverride==false) {
+				killThrottle = false;
+			} else {
+				killThrottle = true;
+			}
+			break;
+		case SwPos::SWITCH_HIGH:
+			killThrottle = true;
+			quadData.UpdatePhase(FlightPhase::DISARMED);
+			if (flightLoopStarted==true) {
+				flightLoopStarted = false;
+				logging.End();
+				SD_is_present = false;
+			}
+			quadData.flightStatus.inputOverride = false;
+			break;
+		default:
+			break;
+	}
+
+	// Check autopilot switch
+	switch(aux0.SwitchPosition()) {
+		case SwPos::SWITCH_HIGH:
+			// Full autopilot
+			quadData.UpdateMode(AutopilotMode::POSITION);
+			break;
+		case SwPos::SWITCH_MID:
+			// Altitude assistance
+			quadData.UpdateMode(AutopilotMode::ALTITUDE);
+			break;
+		case SwPos::SWITCH_LOW:
+			// Manual flight
+			quadData.UpdateMode(AutopilotMode::MANUAL);
+			break;
+		default:
+			break;
+
+	}
+
+	// Handle restart request
+  if (killThrottle) {
+		if (resetChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
+			CPU_RESTART;
+		}
+	}
 
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
   	// Write to SD card buffer
@@ -587,18 +633,19 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
 }
 
 quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
+telem::Run(quadData);
 
 #ifdef USE_EKF
 	if (EKFUpdateTimer > EKFPeriod) {
-	telem::Run(quadData);
 		EKFUpdateTimer = 0;
   	ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, quadData.navData.mocapPosition_NED.cast<double>());
+		quadData.navData.position_NED = ins.Get_PosEst().cast<float>();
+		quadData.navData.velocity_NED = ins.Get_VelEst();
+  	quadData.att.eulerAngles_ekf = ins.Get_OrientEst()*RAD_2_DEG;
 	}
-  quadData.att.eulerAngles_ekf = ins.Get_OrientEst()*RAD_2_DEG;
 	Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 #else
 	if (EKFUpdateTimer > EKFPeriod) {
-  	quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
 		Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 	}
 #endif
@@ -617,21 +664,27 @@ quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
 	if (positionCtrlTimer >= positionCtrlPeriod) {
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
 		positionCtrlTimer = 0;
-		if ((aux0.SwitchPosition() == SwPos::SWITCH_HIGH || aux0.SwitchPosition() == SwPos::SWITCH_MID)
-				&& positionFix==true) {
-			if (!wasTrueLastLoop) {
-				wasTrueLastLoop = true;
-				posControl.Reset();
-			}
-			mission.Run();
-			posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
-			quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
-			if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH) {
-				quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
-				quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredPitch();
-			}
+		if (positionFix == true) {
+			switch(quadData.flightStatus.apMode) {
+				case AutopilotMode::POSITION:
+					mission.Run();
+					posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
+					quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+					quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
+					quadData.att.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
+					break;
+				case AutopilotMode::ALTITUDE:
+					// Throttle stick input controls altitude between 0 and 1.5 m
+					quadData.navData.positionSetpoint_NED[2] = -throttleChannel.NormalizedValue()*1.5f;
+					posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
+					quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+					break;
+				case AutopilotMode::MANUAL:
+					posControl.Reset();
+					break;
+		}
 		} else {
-			wasTrueLastLoop = false; // Ensures the position controller is reset next time it's enabled
+			posControl.Reset();
 		}
 		quadData.flightStatus.controlInputs[0] = quadData.flightStatus.thrustSetpoint;
 	}
@@ -699,34 +752,19 @@ quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
 		quadData.flightStatus.controlInputs(lastN(3)) = controller.GetMoments();
 	}
 	// Convert thrust and moments from controller to angular rates
-	quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs);
+	if (quadData.flightStatus.phase != FlightPhase::DISARMED) {
+		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs);
+	} else {
+		quadData.flightStatus.motorRates = Eigen::Vector4f::Zero();
+	}
 	// Convert angular rates to PWM commands
 	motors.ScaleCommand(quadData.flightStatus.motorRates);
-
-  // Throttle cut check
-  bool killThrottle = throttleCut(); // Directly sets motor commands to low based on state of ch5
-	
 
 	motors.CommandMotor();
   // Get vehicle commands for next loop iteration
   getCommands(); // Pulls current available radio commands
   failSafe();    // Prevent failures in event of bad receiver connection, defaults to failsafe values assigned in setup
 
-  if (killThrottle && (throttleCutCount > 100) && flightLoopStarted) {
-		logging.End();
-    while (1) {
-      getCommands();
-
-			motors.CommandMotor();
-      if (resetChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
-        CPU_RESTART;
-      }
-    }
-  } else if (killThrottle && flightLoopStarted) {
-    throttleCutCount++;
-  } else {
-    throttleCutCount = 0;
-  }
 
   // Regulate loop rate
   loopRate(2000); 

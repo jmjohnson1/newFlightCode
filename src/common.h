@@ -56,7 +56,6 @@ typedef struct NavData_s {
   Eigen::Vector3f landingPosition;
 
   bool waypointArrived = false;
-  elapsedMicros waypointArrivedTimer;
 } NavData_t;
 
 typedef struct FilterData_s {
@@ -89,6 +88,7 @@ typedef struct FlightStatus_s {
   bfs::AircraftMode mavMode = bfs::AircraftMode::MANUAL;
   bfs::AircraftState mavState = bfs::AircraftState::INIT;
   bool missionStarted = false;
+  bool inputOverride = false;
 
   float thrustSetpoint = 0.0f;
   Eigen::Vector4f controlInputs = Eigen::Vector4f::Zero();
@@ -108,7 +108,48 @@ typedef struct Quadcopter_s {
   FlightStatus_t flightStatus;
   TelemData_t telemData;
   FilterData_t filterData;
+
+  void UpdatePhase(FlightPhase phase) {
+    flightStatus.phase = phase;
+    // For armed/disarmed, will set mavState as well
+    switch(phase) {
+      case FlightPhase::ARMED:
+        telemData.mavlink->aircraft_state(bfs::AircraftState::ACTIVE);
+        flightStatus.mavState = bfs::AircraftState::ACTIVE;
+        break;
+      case FlightPhase::DISARMED:
+        telemData.mavlink->aircraft_state(bfs::AircraftState::STANDBY);
+        flightStatus.mavState = bfs::AircraftState::STANDBY;
+        break;
+      default:
+        break;
+    }
+  }
+
+  void UpdateMode(AutopilotMode mode) {
+    flightStatus.apMode = mode;
+    // Set the mavmode as well
+    switch(mode) {
+      case AutopilotMode::MANUAL:
+        telemData.mavlink->aircraft_mode(bfs::AircraftMode::MANUAL);
+        flightStatus.mavMode = bfs::AircraftMode::MANUAL;
+        break;
+      case AutopilotMode::ALTITUDE:
+        telemData.mavlink->aircraft_mode(bfs::AircraftMode::STABALIZED);
+        flightStatus.mavMode = bfs::AircraftMode::STABALIZED;
+        break;
+      case AutopilotMode::POSITION:
+        telemData.mavlink->aircraft_mode(bfs::AircraftMode::AUTO);
+        flightStatus.mavMode = bfs::AircraftMode::AUTO;
+        break;
+      default:
+        telemData.mavlink->aircraft_mode(bfs::AircraftMode::TEST);
+        flightStatus.mavMode = bfs::AircraftMode::TEST;
+        break;
+    }
+  }
 } Quadcopter_t;
+
 
 namespace quadProps {
 	constexpr float MAX_ANGLE = 30.0f;  // Maximum pitch/roll angle in degrees

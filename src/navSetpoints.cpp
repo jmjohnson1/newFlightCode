@@ -26,7 +26,7 @@ void TakeoffSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
     // Set all setpoints to the current position
     navdata->takeoffPosition = navdata->position_NED;
     // Set the third component to the desired altitude (remember Z down)
-    navdata->takeoffPosition[2] = -0.75;
+    navdata->takeoffPosition[2] = -0.75 * 0;
   }
   navdata->positionSetpoint_NED = navdata->takeoffPosition;
   navdata->velocitySetpoint_NED.setZero();
@@ -110,6 +110,8 @@ void LandingSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
     navdata->waypointArrivedTimer = 0;
   }
   if (navdata->waypointArrivedTimer > waypointArrivedTime) {
-      quadData->flightStatus.phase = FlightPhase::DISARMED;
+      // Set status to disarm regardless of switch position
+      quadData->UpdatePhase(FlightPhase::DISARMED);
+      quadData->flightStatus.inputOverride = true;
   }
 }
