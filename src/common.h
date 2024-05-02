@@ -5,29 +5,151 @@
 #include "UserDefines.h"
 #include "ArduinoLibs/BFSMavlink/mavlink.h"  // BFS Mavlink implementation
 
+// Define some constants for mission parameters
+constexpr std::size_t MAX_WAYPOINTS = 200;
+constexpr std::size_t MAX_FENCEPOINTS = 10;
+constexpr std::size_t MAX_RALLYPOINTS = 5;
+constexpr std::size_t NUM_PARAMS = 20;
+constexpr std::size_t NUM_UTM = 0;
+
+// Minimum distance from waypoint for it to be considered "arrived"
+constexpr float waypointArrivedThresh = 0.05;
+constexpr uint64_t waypointArrivedTime = 3000000;
+
 typedef struct AttitudeData_s {
   Eigen::Vector3f eulerAngles_madgwick = Eigen::Vector3f::Zero();
   Eigen::Vector3f eulerAngles_ekf = Eigen::Vector3f::Zero();
   Eigen::Quaternionf quat_madgwick = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
   Eigen::Quaternionf quat_ekf = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
   Eigen::Vector3f * eulerAngles_active = &eulerAngles_madgwick;
+  // Setpoints: [roll angle, pitch angle, yaw rate]
+  Eigen::Vector3f eulerAngleSetpoint = Eigen::Vector3f::Zero();
 } AttitudeData_t;
 
 typedef struct MissionData_s {
-  bfs::MissionItem waypoints[200];
-  bfs::MissionItem fence[20]; // I have no idea what to do with this yet.
-  bfs::MissionItem rally[5];  // nor this.
-  bfs::MissionItem temp[200];  // I think this is for receiving new missions
-  int16_t currentWaypoint;
+  std::array<bfs::MissionItem, MAX_WAYPOINTS> waypoints;
+  std::array<bfs::MissionItem, MAX_FENCEPOINTS> fencePoints;  // No idea what to do with this yet
+  std::array<bfs::MissionItem, MAX_RALLYPOINTS> rallyPoints;  // Nor this
+  std::array<bfs::MissionItem, MAX_WAYPOINTS> temp;
+  int32_t currentWaypoint;
   uint16_t numWaypoints;
   uint16_t numFencePoints;
   uint16_t numRallyPoints;
 } MissionData_t;
 
+typedef struct NavData_s {
+  Eigen::Vector3f position_NED;
+  Eigen::Vector3f velocity_NED;
+  Eigen::Vector3f positionSetpoint_NED = Eigen::Vector3f::Zero();
+  Eigen::Vector3f velocitySetpoint_NED = Eigen::Vector3f::Zero();
+  Eigen::Vector3f homePosition_NED = Eigen::Vector3f::Zero();
+  Eigen::Vector3f mocapPosition_NED = Eigen::Vector3f::Zero();
+  uint32_t numMocapUpdates = 0;
+  uint32_t mocapUpdate_mocapTime = 0;
+  uint32_t mocapUpdate_quadTime = 0;
+  // Timers for getting the time since the start of a flight phase
+  elapsedMicros missionTime;
+  elapsedMicros waypointArrivedTimer;
+  bool takeoffFlag = false;
+  bool landingFlag = false;
+  Eigen::Vector3f takeoffPosition;
+  Eigen::Vector3f landingPosition;
+
+  bool waypointArrived = false;
+} NavData_t;
+
+typedef struct FilterData_s {
+  Eigen::Vector3f accBias;
+  Eigen::Vector3f gyroBias;
+  Eigen::Vector3f covPos;
+  Eigen::Vector3f covVel;
+  Eigen::Vector3f covOrient;
+  Eigen::Vector3f innovationPos;
+  Eigen::Vector3f innovationVel;
+} FilterData_t;
+
+enum FlightPhase {
+  DISARMED,
+  ARMED,
+  TAKEOFF,
+  LANDING,
+  INFLIGHT
+};
+
+enum AutopilotMode {
+  MANUAL,
+  ALTITUDE,
+  POSITION
+};
+
+typedef struct FlightStatus_s {
+  FlightPhase phase = FlightPhase::DISARMED;
+  AutopilotMode apMode = AutopilotMode::MANUAL;
+  bfs::AircraftMode mavMode = bfs::AircraftMode::MANUAL;
+  bfs::AircraftState mavState = bfs::AircraftState::INIT;
+  bool missionStarted = false;
+  bool inputOverride = false;
+
+  float thrustSetpoint = 0.0f;
+  Eigen::Vector4f controlInputs = Eigen::Vector4f::Zero();
+  Eigen::Vector4f motorRates = Eigen::Vector4f::Zero();
+  uint64_t timeSinceBoot = micros();
+} FlightStatus_t;
+
+typedef struct TelemData_s {
+  bfs::MavLink<NUM_PARAMS, NUM_UTM> *mavlink = nullptr;
+} TelemData_t;
+
 typedef struct Quadcopter_s {
   // Attitude
   AttitudeData_t att;
+  MissionData_t missionData;
+  NavData_t navData;
+  FlightStatus_t flightStatus;
+  TelemData_t telemData;
+  FilterData_t filterData;
+
+  void UpdatePhase(FlightPhase phase) {
+    flightStatus.phase = phase;
+    // For armed/disarmed, will set mavState as well
+    switch(phase) {
+      case FlightPhase::ARMED:
+        telemData.mavlink->aircraft_state(bfs::AircraftState::ACTIVE);
+        flightStatus.mavState = bfs::AircraftState::ACTIVE;
+        break;
+      case FlightPhase::DISARMED:
+        telemData.mavlink->aircraft_state(bfs::AircraftState::STANDBY);
+        flightStatus.mavState = bfs::AircraftState::STANDBY;
+        break;
+      default:
+        break;
+    }
+  }
+
+  void UpdateMode(AutopilotMode mode) {
+    flightStatus.apMode = mode;
+    // Set the mavmode as well
+    switch(mode) {
+      case AutopilotMode::MANUAL:
+        telemData.mavlink->aircraft_mode(bfs::AircraftMode::MANUAL);
+        flightStatus.mavMode = bfs::AircraftMode::MANUAL;
+        break;
+      case AutopilotMode::ALTITUDE:
+        telemData.mavlink->aircraft_mode(bfs::AircraftMode::STABALIZED);
+        flightStatus.mavMode = bfs::AircraftMode::STABALIZED;
+        break;
+      case AutopilotMode::POSITION:
+        telemData.mavlink->aircraft_mode(bfs::AircraftMode::AUTO);
+        flightStatus.mavMode = bfs::AircraftMode::AUTO;
+        break;
+      default:
+        telemData.mavlink->aircraft_mode(bfs::AircraftMode::TEST);
+        flightStatus.mavMode = bfs::AircraftMode::TEST;
+        break;
+    }
+  }
 } Quadcopter_t;
+
 
 namespace quadProps {
 	constexpr float MAX_ANGLE = 30.0f;  // Maximum pitch/roll angle in degrees

@@ -24,6 +24,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+// MODIFICATIONS
+// Using floats for calculating duty cycle. Increased frequency to 500 Hz
+
 #define NO_ANGLE (0xff)
 
 #if defined(__AVR__)
@@ -176,9 +179,11 @@ uint8_t PWMServo::attach(int pinArg, int min, int max)
 	if (pinArg < 0 || pinArg >= NUM_DIGITAL_PINS) return 0;
 	if (!digitalPinHasPWM(pinArg)) return 0;
 	pin = pinArg;
-	analogWriteFrequency(pin, 50);
-	min16 = min >> 4;
-	max16 = max >> 4;
+	analogWriteFrequency(pin, 500);
+	// min16 = min >> 4;
+	// max16 = max >> 4;
+	min16 = min;
+	max16 = max;
 	angle = NO_ANGLE;
 	digitalWrite(pin, LOW);
 	pinMode(pin, OUTPUT);
@@ -193,10 +198,11 @@ void PWMServo::write(int angleArg)
 	if (angleArg < 0) angleArg = 0;
 	if (angleArg > 180) angleArg = 180;
 	angle = angleArg;
-	uint32_t us = (((max16 - min16) * 46603 * angle) >> 11) + (min16 << 12); // us*256
-	uint32_t duty = (us * 3355) >> 22;
-	//float usec = (float)((max16 - min16)<<4) * ((float)angle / 180.0f) + (float)(min16<<4);
-	//uint32_t duty = (int)(usec / 20000.0f * 4096.0f);
+	// uint32_t us = (((max16 - min16) * 46603 * angle) >> 11) + (min16 << 12); // us*256
+	// uint32_t duty = (us * 3355) >> 22;
+	// float usec = (float)((max16 - min16)<<4) * ((float)angle / 180.0f) + (float)(min16<<4);
+	float usec = (float)((max16 - min16)) * ((float)angle / 180.0f) + (float)(min16);
+	uint32_t duty = (int)(usec / 2000.0f * 4096.0f);
 	//Serial.printf("angle=%d, usec=%.2f, us=%.2f, duty=%d, min=%d, max=%d\n",
 		//angle, usec, (float)us / 256.0f, duty, min16<<4, max16<<4);
 #if TEENSYDUINO >= 137

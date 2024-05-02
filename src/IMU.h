@@ -61,6 +61,14 @@ public:
 	float GetGyroX() const {return gyroX_;}
 	float GetGyroY() const {return gyroY_;}
 	float GetGyroZ() const {return gyroZ_;}
+
+	const float* GetAccXPtr() {return &(accX_);}
+	const float* GetAccYPtr() {return &(accY_);}
+	const float* GetAccZPtr() {return &(accZ_);}
+	const float* GetGyroXPtr() {return &(gyroX_);}
+	const float* GetGyroYPtr() {return &(gyroY_);}
+	const float* GetGyroZPtr() {return &(gyroZ_);}
+
 	Eigen::Vector3f GetAcc() const {return Eigen::Vector3f(accX_, accY_, accZ_);}
 	Eigen::Vector3f GetGyro() const {return Eigen::Vector3f(gyroX_, gyroY_, gyroZ_);}
 
@@ -95,7 +103,7 @@ private:
 	float gyroFilterCutoff = 50;  // Hz
 	float accelFilterCutoff = 50;  // Hz
 	// FIXME: don't hardcode this
-	float sampleFreq = 1000;  // Hz
+	float sampleFreq = 2000;  // Hz
 };
 
 #endif

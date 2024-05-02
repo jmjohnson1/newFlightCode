@@ -132,6 +132,10 @@ void MavLinkTelemetry::MsgHandler(const mavlink_message_t &ref) {
       ParseGlobalPosInt(global_pos_int_);
       break;
     }
+    case MAVLINK_MSG_ID_VICON_POSITION_ESTIMATE: {
+      mavlink_msg_vicon_position_estimate_decode(&ref, &vicon_pos_est_);
+      ParseViconPos(vicon_pos_est_);
+    }
   }
 }
 void MavLinkTelemetry::SRx_ALL() {
@@ -618,6 +622,14 @@ void MavLinkTelemetry::ParseGlobalPosInt(
   rx_nav_north_vel_mps_ = static_cast<float>(ref.vx) / 100.0f;
   rx_nav_east_vel_mps_ = static_cast<float>(ref.vy) / 100.0f;
   rx_nav_down_vel_mps_ = static_cast<float>(ref.vz) /100.0f;
+}
+
+void MavLinkTelemetry::ParseViconPos(const mavlink_vicon_position_estimate_t &ref) {
+  viconX_ = ref.x;
+  viconY_ = ref.y;
+  viconZ_ = ref.z;
+  viconTime_ = ref.usec;
+  numViconRX_ += 1;
 }
 
 void MavLinkTelemetry::SendHomePos() {

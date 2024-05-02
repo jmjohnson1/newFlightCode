@@ -351,6 +351,20 @@ class MavLinkTelemetry {
     rx_diff_pres_die_temp_c_.reset();
     return ret;
   }
+
+
+
+
+  /* RX Vicon*/
+  inline float viconX() {return viconX_;}
+  inline float viconY() {return viconY_;}
+  inline float viconZ() {return viconZ_;}
+  inline uint32_t viconTime() {return viconTime_;}
+  inline uint32_t numViconRX() {return numViconRX_;}
+  
+
+
+
   /* GNSS data */
   inline optional<int8_t> gnss_fix() {
     optional<int8_t> ret = rx_gnss_fix_;
@@ -701,6 +715,11 @@ class MavLinkTelemetry {
   optional<float> rx_nav_east_vel_mps_;
   optional<float> rx_nav_down_vel_mps_;
   void ParseGlobalPosInt(const mavlink_global_position_int_t &ref);
+
+  /* RX Vicon */
+  void ParseViconPos(const mavlink_vicon_position_estimate_t &ref);
+  mavlink_vicon_position_estimate_t vicon_pos_est_;
+
   /* Telemetry Messages */
   /* SRx_ALL */
   void SRx_ALL();
@@ -848,6 +867,13 @@ class MavLinkTelemetry {
   static constexpr uint8_t chancount_ = 16;
   static constexpr uint8_t rssi_ = 255;
   uint16_t chan_[18] = {0};
+
+  /* RX VICON */
+  float viconX_ = 0.0f;
+  float viconY_ = 0.0f;
+  float viconZ_ = 0.0f;
+  uint32_t viconTime_ = 0.0f;
+  uint32_t numViconRX_ = 0;
 };
 
 }  // namespace bfs

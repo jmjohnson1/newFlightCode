@@ -390,6 +390,13 @@ class MavLink {
   inline optional<float> diff_pres_die_temp_c() {
     return telem_.diff_pres_die_temp_c();
   }
+  /* RX VICON */
+  inline float viconX() {return telem_.viconX();}
+  inline float viconY() {return telem_.viconY();}
+  inline float viconZ() {return telem_.viconZ();}
+  inline uint32_t viconTime() {return telem_.viconTime();}
+  inline uint32_t numViconRX() {return telem_.numViconRX();}
+
   /* RX GNSS */
   inline optional<int8_t> gnss_fix() {return telem_.gnss_fix();}
   inline optional<int8_t> gnss_num_sats() {return telem_.gnss_num_sats();}

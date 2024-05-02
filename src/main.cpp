@@ -4,8 +4,6 @@
 
 #include <stdint.h>
 
-#include "RingBuf.h"  // Ring buffer used to store values for SD card
-#include "SdFat.h"    // Library used for SD card
 #include "TeensyTimerTool.h"  // Oneshot timer
 #include "PWMServo.h" // Commanding any extra actuators, installed with teensyduino installer
 #include "SPI.h"      // SPI communication
@@ -23,8 +21,8 @@
 #include "radio.h"
 #include "testing.h"
 #include "uNavINS.h"
-#include "trajectory.h"
-#include "parameters.h"
+#include "missionHandler.h"
+#include "datalogger.h"
 
 //================================================================================================//
 //                                     USER-SPECIFIED VARIABLES                                   //
@@ -121,8 +119,8 @@ float Kd_yaw = 0.0f;
 
 // POSITION PID GAINS //
 float Kp_pos[3] = {5.0f, 5.0f, 29.0f};
-float Ki_pos[3] = {1.0f, 1.0f, 8.0f};
-float Kd_pos[3] = {12.0f, 12.0f, 16.0f};
+float Ki_pos[3] = {3.0f, 3.0f, 8.0f};
+float Kd_pos[3] = {8.0f, 8.0f, 16.0f};
 
 //================================================================================================//
 //                                      DECLARE PINS                                              //
@@ -143,19 +141,8 @@ const uint8_t motorPins[4] = {0, 1, 2, 3};
 #define CPU_RESTART (*CPU_RESTART_ADDR = CPU_RESTART_VAL);
 
 // SD card setup
-// Use Teensy SDIO
-#define SD_CONFIG SdioConfig(FIFO_SDIO)
 // Interval between points (usec) for 100 samples/sec
 #define LOG_INTERVAL_USEC 10000
-// Size to log 256 byte lines at 100 Hz for a while
-#define LOG_FILE_SIZE 256 * 100 * 600 * 10 /*~1,500,000,000 bytes.*/
-// Space to hold more than 1 second of 256-byte lines at 100 Hz in the buffer
-#define RING_BUF_CAPACITY 50 * 512
-SdFs sd;
-FsFile file;
-
-// Ring buffer for filetype FsFile (The filemanager that will handle the data stream)
-RingBuf<FsFile, RING_BUF_CAPACITY> buffer;
 
 // DECLARE GLOBAL VARIABLES
 // General stuff
@@ -175,10 +162,7 @@ bool sbusLostFrame;
 
 IMU quadIMU = IMU(0.00f, 0.00f, 0.09f, 0.04f, 2.78f, 0.35f);
 
-ParameterManager paramManager;
-
-// Normalized desired state:
-float thrust_des, roll_des, pitch_des, yaw_des;
+MissionHandler mission;
 
 // Controller:
 float Kp_array[3] = {Kp_roll_angle, Kp_pitch_angle, Kp_yaw};
@@ -186,8 +170,6 @@ float Ki_array[3] = {Ki_roll_angle, Ki_pitch_angle, Ki_yaw};
 float Kd_array[3] = {Kd_roll_angle, Kd_pitch_angle, Kd_yaw};
 AngleAttitudeController controller = AngleAttitudeController(Kp_array, Ki_array, Kd_array);
 PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos);
-Eigen::Vector4f controlInputs = Eigen::Vector4f::Zero();
-
 
 // Motor object
 #ifdef USE_ONESHOT
@@ -196,43 +178,24 @@ Motors motors(motorPins, 125, 250);
 Motors motors(motorPins, 1000, 2000);
 #endif
 
-
-// SD Card settings
-String filePrefix = "flight_data";
-String fileExtension = ".csv";
-String fileName;
-
 bool SD_is_present = 0;
-
 bool doneWithSetup = 0;
-
 uint16_t failureFlag = 0;
-
 int throttleCutCount = 0;
-
 // Flag to check if the flight loop has started yet, prevents lock in main loop when throttle killed
 bool flightLoopStarted = 0;
-
 int loopCount = 0;
-
-// Telemetry
-Telemetry telem;
+bool killThrottle = true;
 
 // Position vector taken from mocap
-Eigen::Vector3d mocapPosition(0, 0, 0);
-uint32_t EKF_tow = 0; // Time of week used with the EKF. It increments whenever a new position is received from the transmitter
 bool positionFix = false;  // Set true if the position covariance from the EKF is less than a certain value.
 const float positionCovarianceLimit = 1.0f;	// Maximum allowable position covariance from EKF. [m^2]
-uint32_t mocapTimestamp = 0; // Records when a mocap position update was sent according to its clock [us]
-uint32_t quadTimestamp = 0; // Records when a motion position update was received accroding to our clock [us]
 
 // EKF
 uNavINS ins;
 
-// Trajectory thing (this is temporary)
-trajectory traj;
-Eigen::Vector3d homePosition(0, 0.5, -0.5);
-Eigen::Vector3d posSetpoint;
+// Datalogging
+Datalogger logging;
 
 bool wasTrueLastLoop = false; // This will be renamed at some point
 
@@ -240,7 +203,6 @@ bool wasTrueLastLoop = false; // This will be renamed at some point
 const float DEG_2_RAD = PI/180.0f;
 const float RAD_2_DEG = 1.0f/DEG_2_RAD;
 const float G = 9.81f;  // m/s/s
-
 
 // Various timers
 elapsedMillis heartbeatTimer;
@@ -271,16 +233,17 @@ bool restartSineSweep = true;
  * later by other functions.
 */
 void getDesState() {
+	float thrust_des; float roll_des; float pitch_des; float yaw_des;
   thrust_des = throttleChannel.NormalizedValue(); // Between 0 and 1
   roll_des = rollChannel.NormalizedValue();  // Between -1 and 1
   pitch_des = -pitchChannel.NormalizedValue(); // Between -1 and 1
   yaw_des = -yawChannel.NormalizedValue();   // Between -1 and 1
 
   // Constrain within normalized bounds
-  thrust_des = constrain(thrust_des, 0.0, 1.0)*quadProps::MAX_THRUST;  // Between 0 and 1
-  roll_des = constrain(roll_des, -1.0, 1.0) * maxRoll;         // Between -maxRoll and +maxRoll
-  pitch_des = constrain(pitch_des, -1.0, 1.0) * maxPitch;      // Between -maxPitch and +maxPitch
-  yaw_des = constrain(yaw_des, -1.0, 1.0) * maxYaw;            // Between -maxYaw and +maxYaw
+  quadData.flightStatus.thrustSetpoint = constrain(thrust_des, 0.0, 1.0)*quadProps::MAX_THRUST;
+  quadData.att.eulerAngleSetpoint[0] = constrain(roll_des, -1.0, 1.0) * maxRoll;
+  quadData.att.eulerAngleSetpoint[1] = constrain(pitch_des, -1.0, 1.0) * maxPitch;
+  quadData.att.eulerAngleSetpoint[2] = constrain(yaw_des, -1.0, 1.0) * maxYaw;
 }
 
 
@@ -399,12 +362,11 @@ void calibrateESCs() {
 		quadIMU.Update();
     Madgwick6DOF(quadIMU, quadData, dt);
     getDesState();
-		controlInputs << thrust_des, 0, 0, 0;
-		Eigen::Vector4f motorRates;
+		quadData.flightStatus.controlInputs << quadData.flightStatus.thrustSetpoint, 0, 0, 0;
 		// Convert thrust and moments from controller to angular rates
-		motorRates = ControlAllocator(controlInputs);
+		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs);
 		// Convert angular rates to PWM commands
-		motors.ScaleCommand(motorRates);
+		motors.ScaleCommand(quadData.flightStatus.motorRates);
 		motors.CommandMotor();
     loopRate(2000);
   }
@@ -474,358 +436,39 @@ void calculate_IMU_error(IMU *imu) {
   for (;;);
 }
 
-//=====================================//
-//========== SD Card Logging ==========//
-//=====================================//
-namespace datalogger {
-	/**
-	 * @brief Prints the header line for the datalogger csv file
-	*/
-	void PrintCSVHeader() {
-		buffer.print("roll");
-		buffer.write(",");
-		buffer.print("pitch");
-		buffer.write(",");
-		buffer.print("yaw");
-		buffer.write(",");
-		buffer.print("roll_des");
-		buffer.write(",");
-		buffer.print("pitch_des");
-		buffer.write(",");
-		buffer.print("yaw_des");
-		buffer.write(",");
-		buffer.print("throttle_des");
-		buffer.write(",");
-		buffer.print("roll_PID");
-		buffer.write(",");
-		buffer.print("pitch_PID");
-		buffer.write(",");
-		buffer.print("yaw_PID");
-		buffer.write(",");
-
-		// radio channels
-		for (int i = 0; i < numChannels; i++) {
-			buffer.print(radioChannels[i]->GetName());
-			buffer.write(",");
-		}
-
-		buffer.print("GyroX");
-		buffer.write(",");
-		buffer.print("GyroY");
-		buffer.write(",");
-		buffer.print("GyroZ");
-		buffer.write(",");
-		buffer.print("AccX");
-		buffer.write(",");
-		buffer.print("AccY");
-		buffer.write(",");
-		buffer.print("AccZ");
-		buffer.write(","); 
-		buffer.print("m1_command");
-		buffer.write(",");
-		buffer.print("m2_command");
-		buffer.write(",");
-		buffer.print("m3_command");
-		buffer.write(",");
-		buffer.print("m4_command");
-		buffer.write(",");
-		buffer.print("kp_rp");
-		buffer.write(",");
-		buffer.print("ki_rp");
-		buffer.write(",");
-		buffer.print("kd_rp");
-		buffer.write(",");
-		buffer.print("kp_yaw");
-		buffer.write(",");
-		buffer.print("ki_yaw");
-		buffer.write(",");
-		buffer.print("kd_yaw");
-		buffer.write(",");
-		buffer.print("failsafeTriggered");
-		buffer.write(",");
-		buffer.print("timeSinceBoot");
-		buffer.write(",");
-		buffer.print("EKF_tow");
-		buffer.write(",");
-		buffer.print("MocapPositionX");
-		buffer.write(",");
-		buffer.print("MocapPositionY");
-		buffer.write(",");
-		buffer.print("MocapPositionZ");
-
-  #ifdef USE_EKF
-		buffer.write(",");
-    buffer.print("rollEstEKF");
-		buffer.write(",");
-    buffer.print("pitchEstEKF");
-		buffer.write(",");
-    buffer.print("yawEstEKF");
-		buffer.write(",");
-    buffer.print("xEstEKF");
-		buffer.write(",");
-    buffer.print("yEstEKF");
-		buffer.write(",");
-    buffer.print("zEstEKF");
-
-		buffer.write(",");
-		buffer.print("vxEstEKF");
-		buffer.write(",");
-		buffer.print("vyEstEKF");
-		buffer.write(",");
-		buffer.print("vzEstEKF");
-		buffer.write(",");
-		buffer.print("AccelBias1");
-		buffer.write(",");
-		buffer.print("AccelBias2");
-		buffer.write(",");
-		buffer.print("AccelBias3");
-		buffer.write(",");
-		buffer.print("GyroBias1");
-		buffer.write(",");
-		buffer.print("GyroBias2");
-		buffer.write(",");
-		buffer.print("GyroBias3");
-		
-
-  #endif
-
-	#ifdef USE_POSITION_CONTROLLER
-		buffer.write(",");
-		buffer.print("setpointX");
-		buffer.write(",");
-		buffer.print("setpointY");
-		buffer.write(",");
-		buffer.print("setpointZ");
-
-		buffer.write(",");
-		buffer.print("kp_xy");
-		buffer.write(",");
-		buffer.print("ki_xy");
-		buffer.write(",");
-		buffer.print("kd_xy");
-		buffer.write(",");
-		buffer.print("kp_z");
-		buffer.write(",");
-		buffer.print("ki_z");
-		buffer.write(",");
-		buffer.print("kd_z");
-	#endif
-
-		buffer.write(",");
-		buffer.print("mocapTimestamp");
-		buffer.write(",");
-		buffer.print("quadTimestamp");
-
-		buffer.println();
+// Adds items to the datalogger
+// FIXME: PID GAINS NOT YET INCLUDED
+void LoggingSetup() {
+	// Attitude
+	logging.AddItem(quadData.att.eulerAngles_madgwick, "euler_madgwick", 4);
+	logging.AddItem(quadData.att.eulerAngles_ekf, "euler_ekf", 4);
+	logging.AddItem(quadData.att.eulerAngleSetpoint, "euler_setpoint", 4);
+	logging.AddItem(&quadData.flightStatus.thrustSetpoint, "thrust_setpoint", 4);
+	// Raw radio PWM values (1000-2000)
+	for (int i = 0; i < numChannels; i++) {
+		logging.AddItem(&(radioChannels[i]->rawValue_), radioChannels[i]->GetName(), 10);
 	}
-
-	/**
-	 * @brief Initializes SD card logging
-	 * @returns 1 if there was an error communicating with the SD card or creating
-	 * the file. 0 if successful
-	*/
-	int Setup() {
-		// Initialize the SD
-		if (!sd.begin(SD_CONFIG)) {
-			sd.initErrorPrint(&Serial); // Prints message to serial if SD can't init
-			return 1;
-		}
-		// Determine logfile name
-		int fileIncrement = 0;
-		fileName = filePrefix + String(fileIncrement) + fileExtension;
-		while(sd.exists(fileName)) {
-			// Increment file name if it exists and try again
-			fileIncrement++;
-			fileName = filePrefix + String(fileIncrement) + fileExtension;
-		}
-		//Open or create file - truncate existing
-		if (!file.open(fileName.c_str(), O_RDWR | O_CREAT | O_TRUNC)) {
-			Serial.println("open failed\n");
-			return 1;
-		}
-		// Initialize ring buffer
-		buffer.begin(&file);
-		Serial.println("Buffer initialized");
-		datalogger::PrintCSVHeader();
-		return 0;
-	}
-
-	/**
-	 * @brief Writes the data to the FIFO buffer used for the sd card. Once the
-	 * amount of data in the FIFO buffer has reached the SD sector size (512
-	 * bytes), the data is written to the SD card.
-	 * @returns 1 if the log file is full or the data buffer failed to write to
-	 * the SD card. 0 if successful.
-	*/
-	int WriteBuffer() {
-		size_t amtDataInBuf = buffer.bytesUsed();
-		
-		if ((amtDataInBuf + file.curPosition()) > (LOG_FILE_SIZE - 20)) {
-			Serial.println("Log file full -- No longer writing");
-			return 1;
-		}
-		if (amtDataInBuf >= 1024 && !file.isBusy()) {
-			// One sector (512 bytes) can be printed before busy wait
-			// Write from buffer to file
-			if (1024 != buffer.writeOut(1024)) {
-				Serial.println("Write to file from buffer failed -- breaking");
-				return 1;
-			}
-		}
-
-		buffer.print(quadData.att.eulerAngles_madgwick[0], 4);
-		buffer.write(",");
-		buffer.print(quadData.att.eulerAngles_madgwick[0], 4);
-		buffer.write(",");
-		buffer.print(quadData.att.eulerAngles_madgwick[0], 4);
-		buffer.write(",");
-		buffer.print(roll_des, 4);
-		buffer.write(",");
-		buffer.print(pitch_des, 4);
-		buffer.write(",");
-		buffer.print(yaw_des, 4);
-		buffer.write(",");
-		buffer.print(thrust_des, 4);
-		buffer.write(",");
-		buffer.print(controller.GetRollPID(), 4);
-		buffer.write(",");
-		buffer.print(controller.GetPitchPID(), 4);
-		buffer.write(",");
-		buffer.print(controller.GetYawPID(), 4);
-		buffer.write(",");
-
-		// radio channels
-		for (int i = 0; i < numChannels; i++) {
-			buffer.print(radioChannels[i]->GetRawValue());
-			buffer.write(",");
-		}
-
-		buffer.print(quadIMU.GetGyroX(), 4);
-		buffer.write(",");
-		buffer.print(quadIMU.GetGyroY(), 4);
-		buffer.write(",");
-		buffer.print(quadIMU.GetGyroZ(), 4);
-		buffer.write(",");
-		buffer.print(quadIMU.GetAccX(), 4);
-		buffer.write(",");
-		buffer.print(quadIMU.GetAccY(), 4);
-		buffer.write(",");
-		buffer.print(quadIMU.GetAccZ(), 4);
-		buffer.write(",");
-		float motorCommands[4] = {0, 0, 0, 0};
-		motors.GetMotorCommands(motorCommands);
-		buffer.print(motorCommands[0], 4);
-		buffer.write(",");
-		buffer.print(motorCommands[1], 4);
-		buffer.write(",");
-		buffer.print(motorCommands[2], 4);
-		buffer.write(",");
-		buffer.print(motorCommands[3], 4);
-		buffer.write(",");
-		buffer.print(Kp_roll_angle*pScale_att, 4);
-		buffer.write(",");
-		buffer.print(Ki_roll_angle*iScale_att, 4);
-		buffer.write(",");
-		buffer.print(Kd_roll_angle*dScale_att, 4);
-		buffer.write(",");
-		buffer.print(Kp_yaw, 4);
-		buffer.write(",");
-		buffer.print(Ki_yaw, 4);
-		buffer.write(",");
-		buffer.print(Kd_yaw, 4);
-		buffer.write(",");
-		buffer.print(failureFlag);
-		buffer.write(",");
-		buffer.print(micros());
-		buffer.write(",");
-		buffer.print(EKF_tow);
-		buffer.write(",");
-		buffer.print(mocapPosition[0], 10);
-		buffer.write(",");
-		buffer.print(mocapPosition[1], 10);
-		buffer.write(",");
-		buffer.print(mocapPosition[2], 10);
-  #ifdef USE_EKF
-		buffer.write(",");
-    buffer.print(ins.Get_OrientEst()[0], 5);
-		buffer.write(",");
-    buffer.print(ins.Get_OrientEst()[1], 5);
-		buffer.write(",");
-    buffer.print(ins.Get_OrientEst()[2], 5);
-		buffer.write(",");
-    buffer.print(ins.Get_PosEst()[0], 10);
-		buffer.write(",");
-    buffer.print(ins.Get_PosEst()[1], 10);
-		buffer.write(",");
-    buffer.print(ins.Get_PosEst()[2], 10);
-		buffer.write(",");
-		buffer.print(ins.Get_VelEst()[0], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_VelEst()[1], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_VelEst()[2], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_AccelBias()[0], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_AccelBias()[1], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_AccelBias()[2], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_RotRateBias()[0], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_RotRateBias()[1], 4);
-		buffer.write(",");
-		buffer.print(ins.Get_RotRateBias()[2], 4);
-  #endif
-	#ifdef USE_POSITION_CONTROLLER
-		buffer.write(",");
-		buffer.print(traj.GetSetpoint()[0]);
-		buffer.write(",");
-		buffer.print(traj.GetSetpoint()[1]);
-		buffer.write(",");
-		buffer.print(traj.GetSetpoint()[2]);
-		buffer.write(",");
-		buffer.print(posControl.GetKp()[0]);
-		buffer.write(",");
-		buffer.print(posControl.GetKi()[0]);
-		buffer.write(",");
-		buffer.print(posControl.GetKd()[0]);
-		buffer.write(",");
-		buffer.print(posControl.GetKp()[2]);
-		buffer.write(",");
-		buffer.print(posControl.GetKi()[2]);
-		buffer.write(",");
-		buffer.print(posControl.GetKd()[2]);
-	#endif
-
-		buffer.write(",");
-		buffer.print(mocapTimestamp);
-		buffer.write(",");
-		buffer.print(quadTimestamp);
-
-		buffer.println();
-
-		if (buffer.getWriteError()) {
-			Serial.println("WriteError");
-			return 1;
-		}
-		return 0;
-	}
-
-	/**
-	 * @brief Ends the process of writing to the SD card and closes the file. This
-	 * must be called in order for the logfile to save.
-	*/
-
-	void EndProcess() {
-		// Write any remaining buffer data to file
-		buffer.sync();
-		file.truncate();
-		file.rewind();
-		file.close();
-		
-		Serial.println("logging ended peacefully");
-	}
+	// LP-filtered IMU data
+	logging.AddItem(quadIMU.GetAccXPtr(), "Acc1", 4);
+	logging.AddItem(quadIMU.GetAccYPtr(), "Acc2", 4);
+	logging.AddItem(quadIMU.GetAccZPtr(), "Acc3", 4);
+	logging.AddItem(quadIMU.GetGyroXPtr(), "Gyro1", 4);
+	logging.AddItem(quadIMU.GetGyroYPtr(), "Gyro2", 4);
+	logging.AddItem(quadIMU.GetGyroZPtr(), "Gyro3", 4);
+	// Control inputs and motor rates
+	logging.AddItem(quadData.flightStatus.controlInputs, "u", 4);
+	logging.AddItem(quadData.flightStatus.motorRates, "w", 4);
+	// Timers
+	logging.AddItem(&(quadData.flightStatus.timeSinceBoot), "timeSinceBoot", 10);
+	logging.AddItem(&(quadData.navData.mocapUpdate_mocapTime), "mocapTime", 10);
+	logging.AddItem(&(quadData.navData.mocapUpdate_quadTime), "quadTime", 10);
+	// Nav
+	logging.AddItem(quadData.navData.position_NED, "positionNED_", 6);
+	logging.AddItem(quadData.navData.velocity_NED, "velocityNED_", 6);
+	logging.AddItem(quadData.navData.positionSetpoint_NED, "positionSetpointNED_", 6);
+	logging.AddItem(quadData.navData.velocitySetpoint_NED, "velocitySetpointNED_", 6);
+	logging.AddItem(quadData.navData.mocapPosition_NED, "mocapPositionNED_", 6);
+	logging.AddItem(&(quadData.navData.numMocapUpdates), "numMocapUpdates", 10);
 }
 
 //===========================//
@@ -847,14 +490,8 @@ void setup() {
   radioSetup();
 
   // Begin mavlink telemetry module
-	// TODO: Find a better way to add and manage params. No hardcode for index
-	paramManager.addParameter("kp_xy", Kp_pos[0], MAV_PARAM_TYPE_REAL32);
-	paramManager.addParameter("ki_xy", Ki_pos[0], MAV_PARAM_TYPE_REAL32);
-	paramManager.addParameter("kd_xy", Kd_pos[0], MAV_PARAM_TYPE_REAL32);
-	paramManager.addParameter("kp_z", Kp_pos[2], MAV_PARAM_TYPE_REAL32);
-	paramManager.addParameter("ki_z", Ki_pos[2], MAV_PARAM_TYPE_REAL32);
-	paramManager.addParameter("kd_z", Kd_pos[2], MAV_PARAM_TYPE_REAL32);
-  telem.InitTelemetry(&paramManager);
+	telem::Begin(quadData);
+	mission.Init(&quadData, &quadData.navData);
 
 
 	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
@@ -864,12 +501,12 @@ void setup() {
 
 #ifdef USE_EKF
   ins.Configure();
-	ins.Initialize(quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, mocapPosition);
+	ins.Initialize(quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, quadData.navData.mocapPosition_NED.cast<double>());
 #endif
 
   // Initialize the SD card, returns 1 if no sd card is detected or it can't be
   // initialized. So it's negated to make SD_is_present true when everything is OK
-  SD_is_present = !(datalogger::Setup());
+	LoggingSetup();
 
   // Get IMU error to zero accelerometer and gyro readings, assuming vehicle is
   // level when powered up Calibration parameters printed to serial monitor.
@@ -901,6 +538,7 @@ void loop() {
   prev_time = current_time;
   current_time = micros();
   dt = (current_time - prev_time) / 1000000.0;
+	quadData.flightStatus.timeSinceBoot = micros();
 
   loopBlink(); // Indicate we are in main loop with short blink every 1.5 seconds
 
@@ -908,11 +546,13 @@ void loop() {
 	if (current_time - print_counter > 100000) {
 		print_counter = current_time;
 		//serialDebug::PrintRadioData(); // Currently does nothing
-		//serialDebug::PrintDesiredState(thrust_des, roll_des, pitch_des, yaw_des);
+		// serialDebug::PrintDesiredState(thrust_des, roll_des, pitch_des, yaw_des);
 		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
 		//serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());
 		//serialDebug::PrintRollPitchYaw(quadIMU_info.roll, quadIMU_info.pitch, quadIMU_info.yaw);
 		//serialDebug::PrintPIDOutput(controller.GetRollPID(), controller.GetPitchPID(), controller.GetYawPID());
+		// float motorCommands[4] = {0, 0, 0, 0};
+		// motors.GetMotorCommands(motorCommands);
 		// serialDebug::PrintMotorCommands(motorCommands[0], motorCommands[1], motorCommands[2], motorCommands[3]);
 		//serialDebug::PrintLoopTime(dt);
 		//serialDebug::PrintZPosPID(posControl.GetTmpPropo()[2],
@@ -920,69 +560,92 @@ void loop() {
 		// serialDebug::DisplayRoll(roll_des, quadIMU_info.roll);
 	}
 
+	// Mode checking
   // Check if rotors should be armed
   if (!flightLoopStarted && (throCutChannel.SwitchPosition() == SwPos::SWITCH_LOW)) {
-    flightLoopStarted = 1;
-		// Let the GCS know that things are running
-    telem.SetSystemState(MAV_STATE_ACTIVE);
-    telem.SetSystemMode(MAV_MODE_MANUAL_ARMED);
   }
+	// Check the status of the armed switch
+	switch(throCutChannel.SwitchPosition()) {
+		case SwPos::SWITCH_LOW:
+			if (!flightLoopStarted) {
+				flightLoopStarted = true;
+				quadData.UpdatePhase(FlightPhase::ARMED);
+  			SD_is_present = !(logging.Setup());
+			}
+			if (quadData.flightStatus.inputOverride==false) {
+				killThrottle = false;
+			} else {
+				killThrottle = true;
+			}
+			break;
+		case SwPos::SWITCH_HIGH:
+			killThrottle = true;
+			quadData.UpdatePhase(FlightPhase::DISARMED);
+			if (flightLoopStarted==true) {
+				flightLoopStarted = false;
+				logging.End();
+				SD_is_present = false;
+			}
+			quadData.flightStatus.inputOverride = false;
+			break;
+		default:
+			break;
+	}
+
+	// Check autopilot switch
+	switch(aux0.SwitchPosition()) {
+		case SwPos::SWITCH_HIGH:
+			// Full autopilot
+			quadData.UpdateMode(AutopilotMode::POSITION);
+			break;
+		case SwPos::SWITCH_MID:
+			// Altitude assistance
+			quadData.UpdateMode(AutopilotMode::ALTITUDE);
+			break;
+		case SwPos::SWITCH_LOW:
+			// Manual flight
+			quadData.UpdateMode(AutopilotMode::MANUAL);
+			break;
+		default:
+			break;
+
+	}
+
+	// Handle restart request
+  if (killThrottle) {
+		if (resetChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
+			CPU_RESTART;
+		}
+	}
 
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
   	// Write to SD card buffer
 		print_counterSD = micros();
-		datalogger::WriteBuffer();
+		logging.Write();
   }
 
 	// TODO: Be better
-  if (heartbeatTimer > 1000) {
-		heartbeatTimer = 0;
-    telem.SendHeartbeat();
-    telem.SendPIDGains_core(Kp_roll_angle * pScale_att, Ki_roll_angle * iScale_att, Kd_roll_angle * dScale_att);
-  }
-  if (fastMavlinkTimer > 100) {
-		fastMavlinkTimer = 0;
-    telem.SendAttitude(quadData.att.eulerAngles_madgwick[0],
-											 quadData.att.eulerAngles_madgwick[1],
-											 quadData.att.eulerAngles_madgwick[2], 
-											 quadIMU.GetGyroX(), quadIMU.GetGyroY(), 0.0f);
-  }
 
-  telem.UpdateReceived();
-  EKF_tow = telem.CheckForNewPosition(mocapPosition, &mocapTimestamp, EKF_tow, &quadTimestamp);
-	// TODO: Implement some way to not do this every loop and do this without
-	// hardcoded indecies
-	// Update position PID gains
-	Kp_pos[0] = paramManager.parameters[0].value;
-	Ki_pos[0] = paramManager.parameters[1].value;
-	Kd_pos[0] = paramManager.parameters[2].value;
-	Kp_pos[1] = paramManager.parameters[0].value;
-	Ki_pos[1] = paramManager.parameters[1].value;
-	Kd_pos[1] = paramManager.parameters[2].value;
-	Kp_pos[2] = paramManager.parameters[3].value;
-	Ki_pos[2] = paramManager.parameters[4].value;
-	Kd_pos[2] = paramManager.parameters[5].value;
-	posControl.SetKp(Kp_pos);
-	posControl.SetKi(Ki_pos);
-	posControl.SetKd(Kd_pos);
-
-  // Get vehicle state
 
 if (IMUUpdateTimer >= imuUpdatePeriod) {
 	IMUUpdateTimer = 0;
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
 }
 
+quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
+telem::Run(quadData);
+
 #ifdef USE_EKF
 	if (EKFUpdateTimer > EKFPeriod) {
 		EKFUpdateTimer = 0;
-  	ins.Update(micros(), EKF_tow, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, mocapPosition);
+  	ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, quadData.navData.mocapPosition_NED.cast<double>());
+		quadData.navData.position_NED = ins.Get_PosEst().cast<float>();
+		quadData.navData.velocity_NED = ins.Get_VelEst();
+  	quadData.att.eulerAngles_ekf = ins.Get_OrientEst()*RAD_2_DEG;
 	}
-  quadData.att.eulerAngles_ekf = ins.Get_OrientEst()*RAD_2_DEG;
 	Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 #else
 	if (EKFUpdateTimer > EKFPeriod) {
-  	quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
 		Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 	}
 #endif
@@ -1001,39 +664,34 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
 	if (positionCtrlTimer >= positionCtrlPeriod) {
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
 		positionCtrlTimer = 0;
-		if ((aux0.SwitchPosition() == SwPos::SWITCH_HIGH || aux0.SwitchPosition() == SwPos::SWITCH_MID)
-				&& positionFix==true) {
-			if (!wasTrueLastLoop) {
-				wasTrueLastLoop = true;
-				posControl.Reset();
-			}
-			posSetpoint = homePosition;
-			telem.SetSystemMode(MAV_MODE_GUIDED_ARMED);
-			if (aux3.SwitchPosition() == SwPos::SWITCH_HIGH) {
-				posSetpoint(2) = -1.0;
-			}
-			if (aux2.SwitchPosition() == SwPos::SWITCH_HIGH) {
-				posSetpoint(1) = 1.5;
-			}
-			if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
-				posSetpoint(0) = 1.0;
-			}
-			traj.GoTo(posSetpoint);
-			posControl.Update(posSetpoint, ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
-			thrust_des = posControl.GetDesiredThrust();
-			if (aux0.SwitchPosition() == SwPos::SWITCH_HIGH) {
-				roll_des = posControl.GetDesiredRoll();
-				pitch_des = posControl.GetDesiredPitch();
-			}
-		} else {
-			wasTrueLastLoop = false; // Ensures the position controller is reset next time it's enabled
+		if (positionFix == true) {
+			switch(quadData.flightStatus.apMode) {
+				case AutopilotMode::POSITION:
+					mission.Run();
+					posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
+					quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+					quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
+					quadData.att.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
+					break;
+				case AutopilotMode::ALTITUDE:
+					// Throttle stick input controls altitude between 0 and 1.5 m
+					quadData.navData.positionSetpoint_NED[2] = -throttleChannel.NormalizedValue()*1.5f;
+					posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
+					quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+					break;
+				case AutopilotMode::MANUAL:
+					posControl.Reset();
+					break;
 		}
-		controlInputs[0] = thrust_des;
+		} else {
+			posControl.Reset();
+		}
+		quadData.flightStatus.controlInputs[0] = quadData.flightStatus.thrustSetpoint;
 	}
 	# else
 		// Compute desired state based on radio inputs
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
-		controlInputs[0] = thrust_des;
+		quadData.flightStatus.controlInputs[0] = quadData.flightStatus.thrustSetpoint;
 #endif
 	
 #ifdef TEST_STAND
@@ -1088,41 +746,25 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
 	
 	if (attitudeCtrlTimer >= attitudeCtrlPeriod) {
 		attitudeCtrlTimer = 0;
-		float setpoints[3] = {roll_des, pitch_des, yaw_des};
+		// FIXME: Make the function take Eigen::Vector or give up on it
 		float gyroRates[3] = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
-		controller.Update(setpoints, quadData.att, gyroRates, dt, noIntegral);
-		controlInputs(lastN(3)) = controller.GetMoments();
+		controller.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, dt, noIntegral);
+		quadData.flightStatus.controlInputs(lastN(3)) = controller.GetMoments();
 	}
-	Eigen::Vector4f motorRates;
 	// Convert thrust and moments from controller to angular rates
-	motorRates = ControlAllocator(controlInputs);
+	if (quadData.flightStatus.phase != FlightPhase::DISARMED) {
+		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs);
+	} else {
+		quadData.flightStatus.motorRates = Eigen::Vector4f::Zero();
+	}
 	// Convert angular rates to PWM commands
-	motors.ScaleCommand(motorRates);
-
-  // Throttle cut check
-  bool killThrottle = throttleCut(); // Directly sets motor commands to low based on state of ch5
-	
+	motors.ScaleCommand(quadData.flightStatus.motorRates);
 
 	motors.CommandMotor();
   // Get vehicle commands for next loop iteration
   getCommands(); // Pulls current available radio commands
   failSafe();    // Prevent failures in event of bad receiver connection, defaults to failsafe values assigned in setup
 
-  if (killThrottle && (throttleCutCount > 100) && flightLoopStarted) {
-		datalogger::EndProcess();
-    while (1) {
-      getCommands();
-
-			motors.CommandMotor();
-      if (resetChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
-        CPU_RESTART;
-      }
-    }
-  } else if (killThrottle && flightLoopStarted) {
-    throttleCutCount++;
-  } else {
-    throttleCutCount = 0;
-  }
 
   // Regulate loop rate
   loopRate(2000); 

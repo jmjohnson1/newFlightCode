@@ -10,7 +10,7 @@ class AngleAttitudeController {
 public:
   AngleAttitudeController(const float (&Kp)[3], const float (&Ki)[3],
                           const float (&Kd)[3], float iLimit = 25.0f);
-  void Update(const float (&setpoints)[3], const AttitudeData_t &att,
+  void Update(const float setpoints[3], const AttitudeData_t &att,
               const float (&gyroRates)[3], float dt, bool noIntegral);
 
   void GetMotorCommands(float motorCommandsNormalized[4],

@@ -55,7 +55,7 @@ AngleAttitudeController::AngleAttitudeController(const float (&Kp)[3],
  * Should be set false when the throttle is very low.
 */
 
-void AngleAttitudeController::Update(const float (&setpoints)[3],
+void AngleAttitudeController::Update(const float setpoints[3],
                                      const AttitudeData_t &att,
                                      const float (&gyroRates)[3], float dt,
                                      bool noIntegral) {
@@ -251,10 +251,10 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   // frame. Need to add the amount of thrust required to hover with the
   // current attitude.
   desAcc_b3 = (desAcc_ned[2] - 9.81)/Cr/Cp;
-  desiredThrust_ = quadProps::QUAD_MASS * (desAcc_b3);
-  desiredThrust_ = constrain(desiredThrust_, -quadProps::MAX_THRUST, -quadProps::MIN_THRUST);
+  desiredThrust_ = quadProps::QUAD_MASS * (-desAcc_b3);
+  desiredThrust_ = constrain(desiredThrust_, quadProps::MIN_THRUST, quadProps::MAX_THRUST);
   desAcc_b3 =
-      desiredThrust_ / quadProps::QUAD_MASS; // It's easier to constrain the thrust. maybe
+      -desiredThrust_ / quadProps::QUAD_MASS; // It's easier to constrain the thrust. maybe
   
   // Calculate a new desired attitude based on the amount of thrust available
   // and the desired accelerations in n1 and n2;
