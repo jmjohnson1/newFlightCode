@@ -4,12 +4,12 @@
 #include "eigen.h"
 #include "UserDefines.h"
 #include "ArduinoLibs/BFSMavlink/mavlink.h"  // BFS Mavlink implementation
+#include "defaultParams.h"
 
 // Define some constants for mission parameters
 constexpr std::size_t MAX_WAYPOINTS = 200;
 constexpr std::size_t MAX_FENCEPOINTS = 10;
 constexpr std::size_t MAX_RALLYPOINTS = 5;
-constexpr std::size_t NUM_PARAMS = 20;
 constexpr std::size_t NUM_UTM = 0;
 
 // Minimum distance from waypoint for it to be considered "arrived"
@@ -98,6 +98,8 @@ typedef struct FlightStatus_s {
 
 typedef struct TelemData_s {
   bfs::MavLink<NUM_PARAMS, NUM_UTM> *mavlink = nullptr;
+  std::array<float, NUM_PARAMS> paramValues;
+  std::array<char*, NUM_PARAMS> paramIDs;
 } TelemData_t;
 
 typedef struct Quadcopter_s {
