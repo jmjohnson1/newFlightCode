@@ -97,11 +97,17 @@ void telem::Run(Quadcopter_t &quadData) {
   
 
 uint32_t telem::CheckForNewPosition(Quadcopter_t &quadData) {
-  quadData.navData.mocapPosition_NED[0] = quadData.telemData.mavlink->viconX();
-  quadData.navData.mocapPosition_NED[1] = quadData.telemData.mavlink->viconY();
-  quadData.navData.mocapPosition_NED[2] = quadData.telemData.mavlink->viconZ();
-  quadData.navData.mocapUpdate_mocapTime = quadData.telemData.mavlink->viconTime();
-  quadData.navData.mocapUpdate_quadTime = micros();
+  if (isfinite(quadData.telemData.mavlink->viconX())
+      &&isfinite(quadData.telemData.mavlink->viconY())
+      &&isfinite(quadData.telemData.mavlink->viconZ())
+      && quadData.telemData.mavlink->numViconRX() > quadData.navData.numMocapUpdates) {
 
-  return quadData.telemData.mavlink->numViconRX();
+    quadData.navData.mocapPosition_NED[0] = quadData.telemData.mavlink->viconX();
+    quadData.navData.mocapPosition_NED[1] = quadData.telemData.mavlink->viconY();
+    quadData.navData.mocapPosition_NED[2] = quadData.telemData.mavlink->viconZ();
+    quadData.navData.mocapUpdate_mocapTime = quadData.telemData.mavlink->viconTime();
+    quadData.navData.mocapUpdate_quadTime = micros();
+    return quadData.telemData.mavlink->numViconRX();
+  }
+  return quadData.navData.numMocapUpdates;
 }

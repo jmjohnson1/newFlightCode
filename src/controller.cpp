@@ -15,6 +15,11 @@
 */
 Eigen::Vector4f ControlAllocator(Eigen::Vector4f &inputs) {
   Eigen::Vector4f w = (quadProps::ALLOCATION_MATRIX_INV*inputs).cwiseSqrt().real();
+  for (int i = 1; i < 4; i++) {
+    if (isnan(w[i])) {
+      w[i] = 0.0f;
+    }
+  }
   return w;
 }
 

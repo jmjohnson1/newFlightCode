@@ -105,22 +105,22 @@ float allScale_att = 1.0f;
 // float Ki_yaw = 0.06;
 // float Kd_yaw = 0.00015;
 
-float Kp_roll_angle = 0.007f*1.5;
-float Ki_roll_angle = 0.001645f*1.5;
-float Kd_roll_angle = 0.001305f*1.5;
-float Kp_pitch_angle = 0.007f*1.5;
-float Ki_pitch_angle = 0.001645f*1.5;
-float Kd_pitch_angle = 0.001305f*1.5;
+float Kp_roll_angle = 0.029f;
+float Ki_roll_angle = 0.084f;
+float Kd_roll_angle = 0.006f;
+float Kp_pitch_angle = 0.029f;
+float Ki_pitch_angle = 0.084f;
+float Kd_pitch_angle = 0.006f;
 
 // YAW PID GAINS //
 float Kp_yaw = 0.002f;
-float Ki_yaw = 0.0f;
-float Kd_yaw = 0.0f;
+float Ki_yaw = 0.0000f;
+float Kd_yaw = 0.0000f;
 
 // POSITION PID GAINS //
-float Kp_pos[3] = {5.0f, 5.0f, 29.0f};
+float Kp_pos[3] = {8.0f, 8.0f, 29.0f};
 float Ki_pos[3] = {3.0f, 3.0f, 8.0f};
-float Kd_pos[3] = {8.0f, 8.0f, 16.0f};
+float Kd_pos[3] = {12.0f, 12.0f, 16.0f};
 
 //================================================================================================//
 //                                      DECLARE PINS                                              //
@@ -168,8 +168,8 @@ MissionHandler mission;
 float Kp_array[3] = {Kp_roll_angle, Kp_pitch_angle, Kp_yaw};
 float Ki_array[3] = {Ki_roll_angle, Ki_pitch_angle, Ki_yaw};
 float Kd_array[3] = {Kd_roll_angle, Kd_pitch_angle, Kd_yaw};
-AngleAttitudeController controller = AngleAttitudeController(Kp_array, Ki_array, Kd_array);
-PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos);
+AngleAttitudeController controller = AngleAttitudeController(Kp_array, Ki_array, Kd_array, 50.0f);
+PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos, 1.0f);
 
 // Motor object
 #ifdef USE_ONESHOT
@@ -365,6 +365,13 @@ void calibrateESCs() {
 		quadData.flightStatus.controlInputs << quadData.flightStatus.thrustSetpoint, 0, 0, 0;
 		// Convert thrust and moments from controller to angular rates
 		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs);
+		Serial.print(quadData.flightStatus.motorRates[0]);
+		Serial.print(",");
+		Serial.print(quadData.flightStatus.motorRates[0]);
+		Serial.print(",");
+		Serial.print(quadData.flightStatus.motorRates[0]);
+		Serial.print(",");
+		Serial.println(quadData.flightStatus.motorRates[0]);
 		// Convert angular rates to PWM commands
 		motors.ScaleCommand(quadData.flightStatus.motorRates);
 		motors.CommandMotor();
@@ -469,6 +476,9 @@ void LoggingSetup() {
 	logging.AddItem(quadData.navData.velocitySetpoint_NED, "velocitySetpointNED_", 6);
 	logging.AddItem(quadData.navData.mocapPosition_NED, "mocapPositionNED_", 6);
 	logging.AddItem(&(quadData.navData.numMocapUpdates), "numMocapUpdates", 10);
+	logging.AddItem(&pScale_att, "pScale_att", 4);
+	logging.AddItem(&iScale_att, "iScale_att", 4);
+	logging.AddItem(&dScale_att, "dScale_att", 4);
 }
 
 //===========================//
@@ -632,12 +642,12 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
 }
 
-quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
 telem::Run(quadData);
 
 #ifdef USE_EKF
 	if (EKFUpdateTimer > EKFPeriod) {
 		EKFUpdateTimer = 0;
+		quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
   	ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, quadData.navData.mocapPosition_NED.cast<double>());
 		quadData.navData.position_NED = ins.Get_PosEst().cast<float>();
 		quadData.navData.velocity_NED = ins.Get_VelEst();
@@ -658,8 +668,10 @@ telem::Run(quadData);
 			currentPosCovariance[1] < positionCovarianceLimit &&
 			currentPosCovariance[2] < positionCovarianceLimit) {
 		positionFix = true;
+		quadData.att.eulerAngles_active = &(quadData.att.eulerAngles_ekf);
 	} else {
 		positionFix = false;
+		quadData.att.eulerAngles_active = &(quadData.att.eulerAngles_madgwick);
 	}
 	if (positionCtrlTimer >= positionCtrlPeriod) {
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits

@@ -26,7 +26,7 @@ void TakeoffSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
     // Set all setpoints to the current position
     navdata->takeoffPosition = navdata->position_NED;
     // Set the third component to the desired altitude (remember Z down)
-    navdata->takeoffPosition[2] = -0.75 * 0;
+    navdata->takeoffPosition[2] = -0.75;
   }
   navdata->positionSetpoint_NED = navdata->takeoffPosition;
   navdata->velocitySetpoint_NED.setZero();
@@ -87,7 +87,7 @@ void MissionSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
   tRight = quadData->missionData.waypoints[curIdx].param4;
 
   // Interpolate between points
-  float frac = (t - tLeft)/(tLeft - tRight);
+  float frac = (t - tLeft)/(tRight - tLeft);
   navdata->positionSetpoint_NED = posLeft + (posRight - posLeft)*frac;
   navdata->velocitySetpoint_NED = velLeft + (velRight - velLeft)*frac;
 }
@@ -97,9 +97,10 @@ void LandingSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
     // Set all setpoints to the current position
     navdata->landingPosition = navdata->position_NED;
     // Set the third component to the desired altitude (remember Z down)
-    navdata->landingPosition[2] = 0.0f;
+    navdata->landingPosition[2] = -0.2f;
+    navdata->waypointArrivedTimer = 0;
   }
-  navdata->positionSetpoint_NED = navdata->takeoffPosition;
+  navdata->positionSetpoint_NED = navdata->landingPosition;
   navdata->velocitySetpoint_NED.setZero();
 
   //Check if we're close. Start timer
