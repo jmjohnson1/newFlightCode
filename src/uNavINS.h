@@ -101,6 +101,8 @@ class uNavINS {
     Vector3f wMarkovSigma_rps = {2.56E-05*10, 3.76E-05*10, 1.40E-05*10}; // Std dev of correlated rotation rate bias
     Vector3f wMarkovTau_s = {100, 100, 201}; // Correlation time or time constant
 
+
+
     float pNoiseSigma_NE_m = 0.0095*2; // GPS measurement noise std dev (m)
     float pNoiseSigma_D_m = 0.0095*2; // GPS measurement noise std dev (m)
 	

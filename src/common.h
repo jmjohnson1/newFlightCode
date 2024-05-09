@@ -13,7 +13,7 @@ constexpr std::size_t NUM_PARAMS = 20;
 constexpr std::size_t NUM_UTM = 0;
 
 // Minimum distance from waypoint for it to be considered "arrived"
-constexpr float waypointArrivedThresh = 0.05;
+constexpr float waypointArrivedThresh = 0.12;
 constexpr uint64_t waypointArrivedTime = 3000000;
 
 typedef struct AttitudeData_s {

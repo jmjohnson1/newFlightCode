@@ -53,6 +53,7 @@
 #define PID_TUNING
 // The limits of the gain tuning knob are (1 +/- MAX_SCALE_FACTOR). Probably shouldn't be greater
 // than 1, but the output is not allowed to be negative in any case.
-#define MAX_SCALE_FACTOR 0.5
+// #define MAX_SCALE_FACTOR 9.0f;
+constexpr float MAX_SCALE_FACTOR = 0.5f;
 
 #endif
