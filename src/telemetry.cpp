@@ -31,9 +31,10 @@ bool telem::Begin(Quadcopter_t &quadData) {
   }
   /* Check whether the parameter store has been initialized */
   /* If it hasn't... */
-  if (param_buf[0] != PARAM_HEADER[0]) {
+  if (param_buf[0] != (int)PARAM_HEADER[0]) {
+    Serial.println("Parameters not initialized");
     // Populate param_buf with default values
-    GetDefaultParams(param_buf);
+    GetDefaultTelemParams(param_buf);
     /* Compute the checksum */
     chk_computed = param_checksum.Compute(param_buf,
                                           sizeof(PARAM_HEADER) +
@@ -59,7 +60,7 @@ bool telem::Begin(Quadcopter_t &quadData) {
     if (chk_computed != chk_read) {
       /* Parameter store corrupted, reset and warn */
       // Populate param_buf with default values
-      GetDefaultParams(param_buf);
+      GetDefaultTelemParams(param_buf);
       /* Compute the checksum */
       chk_computed = param_checksum.Compute(param_buf,
                                             sizeof(PARAM_HEADER) +
@@ -73,18 +74,17 @@ bool telem::Begin(Quadcopter_t &quadData) {
         EEPROM.write(i, param_buf[i]);
       }
     }
-
-    /* Copy parameter data*/
-    memcpy(quadData.telemData.paramValues.data(), &(param_buf[1]),
-            NUM_PARAMS * sizeof(float));
-    memcpy(quadData.telemData.paramIDs.data(), &(param_buf[1 + NUM_PARAMS*sizeof(float)]), NUM_PARAMS*sizeof(char[16]));
-    /* Update the parameter values in MAV Link */
-    quadData.telemData.mavlink->params(quadData.telemData.paramValues);
-    for (int32_t i = 0; i < NUM_PARAMS; i++) {
-      char name[16];
-      memcpy(&name, quadData.telemData.paramIDs[i], sizeof(char[16]));
-      quadData.telemData.mavlink->param_id(i, name);
-    }
+  }
+  /* Copy parameter data*/
+  memcpy(quadData.telemData.paramValues.data(), &(param_buf[1]),
+          NUM_PARAMS * sizeof(float));
+  memcpy(quadData.telemData.paramIDs.data(), &(param_buf[1 + NUM_PARAMS*sizeof(float)]), NUM_PARAMS*sizeof(char[16]));
+  /* Update the parameter values in MAV Link */
+  quadData.telemData.mavlink->params(quadData.telemData.paramValues);
+  for (int32_t i = 0; i < NUM_PARAMS; i++) {
+    char name[16];
+    memcpy(&name, &(quadData.telemData.paramIDs[i*16]), sizeof(char[16]));
+    quadData.telemData.mavlink->param_id(i, name);
   }
 
   // fix this
@@ -93,6 +93,32 @@ bool telem::Begin(Quadcopter_t &quadData) {
 
 void telem::Run(Quadcopter_t &quadData) {
   quadData.telemData.mavlink->Update();
+
+  int32_t param_idx_ = mavlink.updated_param();
+  if (param_idx_ >= 0) {
+    // Update the value in common data struct
+    quadData.telemData.paramValues[param_idx_] = mavlink.param(param_idx_);
+    /* Update the parameter buffer value */
+    memcpy(param_buf + sizeof(PARAM_HEADER) + param_idx_*sizeof(float),
+           &(quadData.telemData.paramValues[param_idx_]), sizeof(float));
+    /* Compute a new checksum */
+    chk_computed = param_checksum.Compute(param_buf,
+                                          sizeof(PARAM_HEADER) +
+                                          NUM_PARAMS*sizeof(float));
+    chk_buf[0] = static_cast<uint8_t>(chk_computed >> 8);
+    chk_buf[1] = static_cast<uint8_t>(chk_computed);
+    param_buf[PARAM_SIZE - 2] = chk_buf[0];
+    param_buf[PARAM_SIZE - 1] = chk_buf[1];
+    /* Write to EEPROM */
+    for (std::size_t i = 0; i < sizeof(float); i++) {
+      std::size_t addr = i + sizeof(PARAM_HEADER) +
+                         param_idx_*sizeof(float);
+      EEPROM.write(addr, param_buf[addr]);
+    }
+    // Save the checksum
+    EEPROM.write(PARAM_SIZE - 2, param_buf[PARAM_SIZE - 2]);
+    EEPROM.write(PARAM_SIZE - 1, param_buf[PARAM_SIZE - 1]);
+  }
 }
   
 

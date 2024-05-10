@@ -1,13 +1,14 @@
-#ifndef DEFAULT_PARAMS_H
-#define DEFAULT_PARAMS_H
+#ifndef TELEM_DEFAULT_PARAMS_H
+#define TELEM_DEFAULT_PARAMS_H
 
 #include <stdint.h>
 #include <string.h>
 
+
 // Given the size of Teensy 4.0 EEPROM, I think we're limited to 50 parameters
 // if we store them with IDs and a checksum at the end and a header at the
 // beginning.
-constexpr char PARAM_HEADER[1] = {'P'};
+constexpr uint8_t PARAM_HEADER[1] = {'P'};
 constexpr std::size_t NUM_PARAMS = 18;
 constexpr std::size_t PARAM_SIZE = sizeof(char[1]) + NUM_PARAMS*(sizeof(float) + sizeof(char[16])) + sizeof(uint16_t);
 
@@ -49,11 +50,11 @@ constexpr float PARAM_DEFAULT_KP_Z     = 29.0f;
 constexpr float PARAM_DEFAULT_KI_Z     = 8.0f;
 constexpr float PARAM_DEFAULT_KD_Z     = 16.0f;
 
-void GetDefaultParams(uint8_t paramBuf[PARAM_SIZE]) {
+inline void GetDefaultTelemParams(uint8_t paramBuf[PARAM_SIZE]) {
   float paramDefaultVals[NUM_PARAMS];
   const char * paramDefaultIDs[NUM_PARAMS];
   // Set the header
-  paramBuf[0] = PARAM_HEADER;
+  paramBuf[0] = PARAM_HEADER[0];
   // This is stupid
   paramDefaultVals[0]  = PARAM_DEFAULT_KP_ROLL ;
   paramDefaultVals[1]  = PARAM_DEFAULT_KI_ROLL ;
@@ -95,6 +96,10 @@ void GetDefaultParams(uint8_t paramBuf[PARAM_SIZE]) {
 
   // Copy these to the buffer
   std::memcpy(&(paramBuf[1]), &(paramDefaultVals[0]), NUM_PARAMS*sizeof(float));
-  std::memcpy(&(paramBuf[1 + NUM_PARAMS*sizeof(float)]), paramDefaultIDs[0], NUM_PARAMS*sizeof(char[16]));
+
+  // This is also stupid
+  for (int i = 0; i < NUM_PARAMS; i++) {
+    std::memcpy(&(paramBuf[1 + NUM_PARAMS*sizeof(float) + i*sizeof(char[16])]), paramDefaultIDs[i], sizeof(char[16]));
+  }
 }
 #endif
