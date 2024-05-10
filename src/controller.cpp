@@ -15,7 +15,7 @@
 */
 Eigen::Vector4f ControlAllocator(Eigen::Vector4f &inputs) {
   Eigen::Vector4f w = (quadProps::ALLOCATION_MATRIX_INV*inputs).cwiseSqrt().real();
-  for (int i = 1; i < 4; i++) {
+  for (int i = 0; i < 4; i++) {
     if (isnan(w[i])) {
       w[i] = 0.0f;
     }
@@ -225,10 +225,10 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   Eigen::Vector3f posError_ned, integral, derivative, desAcc_ned;
   float desAcc_b3; // Desired thrust resolved in the 3 axis of the body frame
   Eigen::Vector3f eulerAngles = *(att.eulerAngles_active);
-  float Cy = cos(eulerAngles[2] * DEG_TO_RAD);
-  float Sy = sin(eulerAngles[2] * DEG_TO_RAD);
-  float Cr = cos(eulerAngles[0] * DEG_TO_RAD);
-  float Cp = cos(eulerAngles[1] * DEG_TO_RAD);
+  float Cy = cos(eulerAngles[2]);
+  float Sy = sin(eulerAngles[2]);
+  float Cr = cos(eulerAngles[0]);
+  float Cp = cos(eulerAngles[1]);
   float sinRoll, sinPitch; // Sin of the roll and pitch angles
   float maxAngle_sinArg = sin(quadProps::MAX_ANGLE * DEG_TO_RAD);
 
@@ -274,8 +274,6 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
     sinPitch = constrain(sinPitch, -maxAngle_sinArg, maxAngle_sinArg);
     desiredPitch_ = asin(sinPitch);
 
-		desiredRoll_ *= RAD_TO_DEG;
-		desiredPitch_ *= RAD_TO_DEG;
   } else {
     // If the thrust is small, please don't try to use it.
     desiredRoll_ = 0.0f;

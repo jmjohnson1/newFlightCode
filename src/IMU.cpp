@@ -52,15 +52,14 @@ bool IMU::Init(TwoWire *bus) {
  * Updates the accelerometer and gyro values with new measurements taken via the MPU6050 library. Note that the
  * sensor is mounted with the y-axis facing left and z-axis facing up. For consistency with other algorithms, those
  * two axes are rotated (the sign is flipped) in order to use the conventional front, starboard, down body frame.
- * Also note that the units for the accelerometer readings are in G's, and the gyro readings are in deg/sec.
 */
 void IMU::Update() {
 	int16_t accX_raw, accY_raw, accZ_raw, gyroX_raw, gyroY_raw, gyroZ_raw;
 	mpu6050_->getMotion6(&accX_raw, &accY_raw, &accZ_raw, &gyroX_raw, &gyroY_raw, &gyroZ_raw);
 	// Accelerometer
-	accX_ = accX_raw / ACCEL_SCALE_FACTOR; // G's
-	accY_ = -accY_raw / ACCEL_SCALE_FACTOR; // G's. See description for why negative
-	accZ_ = -accZ_raw / ACCEL_SCALE_FACTOR; // G's
+	accX_ = accX_raw / ACCEL_SCALE_FACTOR * 9.80665; // m/s^2
+	accY_ = -accY_raw / ACCEL_SCALE_FACTOR * 9.80665; // See description for why negative
+	accZ_ = -accZ_raw / ACCEL_SCALE_FACTOR * 9.80665;
 	// Remove the supplied null shift bias
 	accX_ -= accNullShiftX_;
 	accY_ -= accNullShiftY_;
@@ -71,9 +70,9 @@ void IMU::Update() {
 	accZ_ = butterworth2_apply(&accelFilter_3, accZ_);
 
 	// Gyro
-	gyroX_ = gyroX_raw / GYRO_SCALE_FACTOR;
-	gyroY_ = -gyroY_raw / GYRO_SCALE_FACTOR;
-	gyroZ_ = -gyroZ_raw / GYRO_SCALE_FACTOR;
+	gyroX_ = gyroX_raw / GYRO_SCALE_FACTOR * 0.01745329252f; // rad/s
+	gyroY_ = -gyroY_raw / GYRO_SCALE_FACTOR * 0.01745329252f;
+	gyroZ_ = -gyroZ_raw / GYRO_SCALE_FACTOR * 0.01745329252f;
 	// Remove the null shift bias
 	gyroX_ -= gyroNullShiftX_;
 	gyroY_ -= gyroNullShiftY_;
@@ -82,4 +81,5 @@ void IMU::Update() {
 	gyroX_ = butterworth2_apply(&gyroFilter_1, gyroX_);
 	gyroY_ = butterworth2_apply(&gyroFilter_2, gyroY_);
 	gyroZ_ = butterworth2_apply(&gyroFilter_3, gyroZ_);
+
 }

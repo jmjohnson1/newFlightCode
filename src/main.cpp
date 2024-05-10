@@ -81,8 +81,8 @@ RadioChannel *radioChannels[numChannels] = {&throttleChannel,
 											};
 
 // Max roll/pitch angles in degrees for angle mode
-float maxRoll = quadProps::MAX_ANGLE;
-float maxPitch = quadProps::MAX_ANGLE;
+float maxRoll = quadProps::MAX_ANGLE*DEG_2_RAD;
+float maxPitch = quadProps::MAX_ANGLE*DEG_2_RAD;
 // Max yaw rate in deg/sec
 float maxYaw = 160.0;
 
@@ -92,30 +92,18 @@ float pScale_att = 1.0f;
 float iScale_att = 1.0f;
 float dScale_att = 1.0f;
 float allScale_att = 1.0f;
-// DIVIDE BY 100 IF USING AGAIN
-// float Kp_roll_angle = 0.7f;
-// float Ki_roll_angle = 0.47f;
-// float Kd_roll_angle = 0.12f;
-// float Kp_pitch_angle = 0.7f;
-// float Ki_pitch_angle = 0.47f;
-// float Kd_pitch_angle = 0.12f;
 
-// // YAW PID GAINS //
-// float Kp_yaw = 0.3;
-// float Ki_yaw = 0.06;
-// float Kd_yaw = 0.00015;
-
-float Kp_roll_angle = 0.029f;
-float Ki_roll_angle = 0.084f;
-float Kd_roll_angle = 0.006f;
-float Kp_pitch_angle = 0.029f;
-float Ki_pitch_angle = 0.084f;
-float Kd_pitch_angle = 0.006f;
+float Kp_roll_angle = 1.66f;
+float Ki_roll_angle = 4.81f;
+float Kd_roll_angle = 0.34f;
+float Kp_pitch_angle = 1.66f;
+float Ki_pitch_angle = 4.81f;
+float Kd_pitch_angle = 0.34f;
 
 // YAW PID GAINS //
-float Kp_yaw = 0.002f;
-float Ki_yaw = 0.0000f;
-float Kd_yaw = 0.0000f;
+float Kp_yaw = 0.11f;
+float Ki_yaw = 0.00f;
+float Kd_yaw = 0.00f;
 
 // POSITION PID GAINS //
 float Kp_pos[3] = {8.0f, 8.0f, 29.0f};
@@ -160,7 +148,7 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-IMU quadIMU = IMU(0.00f, 0.00f, 0.09f, 0.04f, 2.78f, 0.35f);
+IMU quadIMU = IMU(0.00f, 0.00f, 0.8826f, 6.981E-4f, 4.852E-2f, 6.109E-3f);
 
 MissionHandler mission;
 
@@ -200,8 +188,6 @@ Datalogger logging;
 bool wasTrueLastLoop = false; // This will be renamed at some point
 
 // Constants for unit conversion
-const float DEG_2_RAD = PI/180.0f;
-const float RAD_2_DEG = 1.0f/DEG_2_RAD;
 const float G = 9.81f;  // m/s/s
 
 // Various timers
@@ -511,7 +497,7 @@ void setup() {
 
 #ifdef USE_EKF
   ins.Configure();
-	ins.Initialize(quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, quadData.navData.mocapPosition_NED.cast<double>());
+	ins.Initialize(quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
 #endif
 
   // Initialize the SD card, returns 1 if no sd card is detected or it can't be
@@ -648,15 +634,15 @@ telem::Run(quadData);
 	if (EKFUpdateTimer > EKFPeriod) {
 		EKFUpdateTimer = 0;
 		quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
-  	ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro()*DEG_2_RAD, quadIMU.GetAcc()*G, quadData.navData.mocapPosition_NED.cast<double>());
+  	ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
 		quadData.navData.position_NED = ins.Get_PosEst().cast<float>();
 		quadData.navData.velocity_NED = ins.Get_VelEst();
-  	quadData.att.eulerAngles_ekf = ins.Get_OrientEst()*RAD_2_DEG;
+  	quadData.att.eulerAngles_ekf = ins.Get_OrientEst();
 	}
-	Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
+	Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates
 #else
 	if (EKFUpdateTimer > EKFPeriod) {
-		Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
+		Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates
 	}
 #endif
 

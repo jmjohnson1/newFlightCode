@@ -100,6 +100,7 @@ typedef struct TelemData_s {
   bfs::MavLink<NUM_PARAMS, NUM_UTM> *mavlink = nullptr;
   std::array<float, NUM_PARAMS> paramValues;
   std::array<char, NUM_PARAMS> paramIDs;
+  bool paramsUpdated = false;
 } TelemData_t;
 
 typedef struct Quadcopter_s {
@@ -188,6 +189,8 @@ namespace quadProps {
                                -K_M, K_M, -K_M, K_M).finished());
   
   static const Eigen::Matrix4f ALLOCATION_MATRIX_INV = ALLOCATION_MATRIX.inverse();
+
+  constexpr float G = 9.8065;  // Gravity acceleration m/s^2
 }
 
 #endif

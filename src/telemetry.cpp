@@ -87,15 +87,32 @@ bool telem::Begin(Quadcopter_t &quadData) {
     quadData.telemData.mavlink->param_id(i, name);
   }
 
+  // Set data stream rates
+  quadData.telemData.mavlink->raw_sens_stream_period_ms(RAW_SENS_STREAM_PERIOD);
+  quadData.telemData.mavlink->ext_status_stream_period_ms(EXT_STATUS_STREAM_PERIOD);
+  quadData.telemData.mavlink->rc_chan_stream_period_ms(RC_CHAN_STREAM_PERIOD);
+  quadData.telemData.mavlink->extra1_stream_period_ms(EXTRA1_STREAM_PERIOD);
+  quadData.telemData.mavlink->extra2_stream_period_ms(EXTRA2_STREAM_PERIOD);
+  quadData.telemData.mavlink->extra3_stream_period_ms(EXTRA3_STREAM_PERIOD);
+
   // fix this
   return true;
 }
 
 void telem::Run(Quadcopter_t &quadData) {
+  // For better readability
+  bfs::MavLink<NUM_PARAMS, NUM_UTM> *mavptr = quadData.telemData.mavlink;
+
+  // Update values
+
+
   quadData.telemData.mavlink->Update();
 
+  // Handle any parameter updates
   int32_t param_idx_ = mavlink.updated_param();
   if (param_idx_ >= 0) {
+    // Let other places in the program know parameters have changed
+    quadData.telemData.paramsUpdated = true;
     // Update the value in common data struct
     quadData.telemData.paramValues[param_idx_] = mavlink.param(param_idx_);
     /* Update the parameter buffer value */
