@@ -143,7 +143,7 @@ void MavLinkTelemetry::SRx_ALL() {
   SRx_EXT_STAT();
   SRx_RC_CHAN();
   SRx_RAW_CTRL();
-  SRx_POSITION();
+  SRx_POS_VEL();
   SRx_EXTRA1();
   SRx_EXTRA2();
   SRx_EXTRA3();
@@ -287,6 +287,7 @@ void MavLinkTelemetry::SendGpsRawInt() {
 }
 void MavLinkTelemetry::SRx_EXTRA1() {
   SendAttitude();
+  SendAttitudeSetpoint();
 }
 void MavLinkTelemetry::SendAttitude() {
   sys_time_ms_ = static_cast<uint32_t>(sys_time_us_ / 1000);
@@ -301,6 +302,15 @@ void MavLinkTelemetry::SendAttitude() {
   mavlink_msg_to_send_buffer(msg_buf_, &msg_);
   bus_->write(msg_buf_, msg_len_);
 }
+void MavLinkTelemetry::SendAttitudeSetpoint() {
+  sys_time_ms_ = static_cast<uint32_t>(sys_time_us_ / 1000);
+  msg_len_ = mavlink_msg_attitude_target_pack(sys_id_, comp_id_, &msg_,
+                                              sys_time_ms_, 0, quaternionSetpoint_,
+                                              0.0f, 0.0f, 0.0f, 0.0f);
+  mavlink_msg_to_send_buffer(msg_buf_, &msg_);
+  bus_->write(msg_buf_, msg_len_);
+}
+
 void MavLinkTelemetry::SRx_EXTRA2() {
   SendVfrHud();
 }
@@ -373,9 +383,10 @@ void MavLinkTelemetry::SendBatteryStatus() {
   mavlink_msg_to_send_buffer(msg_buf_, &msg_);
   bus_->write(msg_buf_, msg_len_);
 }
-void MavLinkTelemetry::SRx_POSITION() {
+void MavLinkTelemetry::SRx_POS_VEL() {
   SendLocalPositionNed();
-  SendGlobalPositionInt();
+  SendLocalPositionSetpointNED();
+
 }
 void MavLinkTelemetry::SendLocalPositionNed() {
   sys_time_ms_ = static_cast<uint32_t>(sys_time_us_ / 1000);
@@ -390,6 +401,24 @@ void MavLinkTelemetry::SendLocalPositionNed() {
   mavlink_msg_to_send_buffer(msg_buf_, &msg_);
   bus_->write(msg_buf_, msg_len_);
 }
+
+void MavLinkTelemetry::SendLocalPositionSetpointNED() {
+  sys_time_ms_ = static_cast<uint32_t>(sys_time_us_ / 1000);
+  msg_len_ = mavlink_msg_position_target_local_ned_pack(sys_id_, comp_id_, &msg_,
+                                                        sys_time_ms_, MAV_FRAME_LOCAL_NED,
+                                                        0,
+                                                        north_pos_setpoint_m_,
+                                                        east_pos_setpoint_m_,
+                                                        down_pos_setpoint_m_,
+                                                        north_vel_setpoint_m_,
+                                                        east_vel_setpoint_m_,
+                                                        down_vel_setpoint_m_,
+                                                        0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+  mavlink_msg_to_send_buffer(msg_buf_, &msg_);
+  bus_->write(msg_buf_, msg_len_);
+}
+
+
 void MavLinkTelemetry::SendGlobalPositionInt() {
   sys_time_ms_ = static_cast<uint32_t>(sys_time_us_ / 1000);
   lat_dege7_ = static_cast<int32_t>(rad2deg(nav_lat_rad_) * 1e7);

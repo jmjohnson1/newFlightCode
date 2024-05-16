@@ -87,13 +87,23 @@ class MavLinkTelemetry {
     return data_stream_period_ms_[SRx_RC_CHAN_STREAM];
   }
   inline void pos_stream_period_ms(const int32_t val) {
-    data_stream_period_ms_[SRx_POSITION_STREAM] = val;
+    if (val == 0 ) {
+      data_stream_period_ms_[SRx_POSITION_STREAM] = 
+      data_stream_period_ms_default_[SRx_POSITION_STREAM];
+    } else {
+      data_stream_period_ms_[SRx_POSITION_STREAM] = val;
+    }
   }
   inline int32_t pos_stream_period_ms() const {
     return data_stream_period_ms_[SRx_POSITION_STREAM];
   }
   inline void extra1_stream_period_ms(const int32_t val) {
-    data_stream_period_ms_[SRx_EXTRA1_STREAM] = val;
+    if (val == 0) {
+      data_stream_period_ms_[SRx_EXTRA1_STREAM] = 
+      data_stream_period_ms_default_[SRx_EXTRA1_STREAM];
+    } else {
+      data_stream_period_ms_[SRx_EXTRA1_STREAM] = val;
+    }
   }
   inline int32_t extra1_stream_period_ms() const {
     return data_stream_period_ms_[SRx_EXTRA1_STREAM];
@@ -226,6 +236,19 @@ class MavLinkTelemetry {
   inline void nav_hdg_rad(const float val) {
     nav_hdg_rad_.set = true;
     nav_hdg_rad_.val = val;
+  }
+  inline void north_pos_setpoint_m(const float val) {north_pos_setpoint_m_ = val;}
+  inline void east_pos_setpoint_m(const float val) {east_pos_setpoint_m_ = val;}
+  inline void down_pos_setpoint_m(const float val) {down_pos_setpoint_m_ = val;}
+  inline void north_vel_setpoint_m(const float val) {north_vel_setpoint_m_ = val;}
+  inline void east_vel_setpoint_m(const float val) {east_vel_setpoint_m_ = val;}
+  inline void down_vel_setpoint_m(const float val) {down_vel_setpoint_m_ = val;}
+
+
+  inline void quaternionSetpoint(const float val[4]) {
+    for (int i = 0; i < 4; i++) {
+      quaternionSetpoint_[i] = val[i];
+    }
   }
   inline void nav_gyro_x_radps(const float val) {nav_gyro_x_radps_ = val;}
   inline void nav_gyro_y_radps(const float val) {nav_gyro_y_radps_ = val;}
@@ -629,6 +652,12 @@ class MavLinkTelemetry {
   float nav_gyro_x_radps_ = 0.0f;
   float nav_gyro_y_radps_ = 0.0f;
   float nav_gyro_z_radps_ = 0.0f;
+  float north_pos_setpoint_m_ = 0.0f;
+  float east_pos_setpoint_m_ = 0.0f;
+  float down_pos_setpoint_m_ = 0.0f;
+  float north_vel_setpoint_m_ = 0.0f;
+  float east_vel_setpoint_m_ = 0.0f;
+  float down_vel_setpoint_m_ = 0.0f;
   CondData<float> nav_hdg_rad_;
   /* Effector */
   std::array<float, 16> effector_;
@@ -730,17 +759,19 @@ class MavLinkTelemetry {
   /* SRx_EXTRA1 */
   void SRx_EXTRA1();
   void SendAttitude();
+  void SendAttitudeSetpoint();
   /* SRx_EXTRA2 */
   void SRx_EXTRA2();
+  void SendGlobalPositionInt();
   void SendVfrHud();
   /* SRx_EXTRA3 */
   void SRx_EXTRA3();
   void SendWindCov();
   void SendSystemTime();
   /* SRx_POSITION */
-  void SRx_POSITION();
+  void SRx_POS_VEL();
   void SendLocalPositionNed();
-  void SendGlobalPositionInt();
+  void SendLocalPositionSetpointNED();
   /* SRx_RAW_SENS */
   void SRx_RAW_SENS();
   void SendScaledImu();
@@ -759,6 +790,8 @@ class MavLinkTelemetry {
   int16_t data_stream_period_ms_[NUM_DATA_STREAMS_] = {-1, -1, -1, -1, -1, -1,
                                                        -1, -1, -1, -1, -1, -1,
                                                        -1};
+  int16_t data_stream_period_ms_default_[NUM_DATA_STREAMS_] = {-1, 1000, 1000, 1000, -1, -1,
+                                                       100, -1, -1, -1, 100, -1, -1};
   elapsedMillis data_stream_timer_ms_[NUM_DATA_STREAMS_];
   /* Data streams */
   static constexpr int8_t SRx_RAW_SENS_STREAM = 1;
@@ -777,7 +810,7 @@ class MavLinkTelemetry {
     &MavLinkTelemetry::SRx_RC_CHAN,
     &MavLinkTelemetry::SRx_RAW_CTRL,
     &MavLinkTelemetry::SRx_EMPTY,
-    &MavLinkTelemetry::SRx_POSITION,
+    &MavLinkTelemetry::SRx_POS_VEL,
     &MavLinkTelemetry::SRx_EMPTY,
     &MavLinkTelemetry::SRx_EMPTY,
     &MavLinkTelemetry::SRx_EMPTY,
@@ -818,6 +851,8 @@ class MavLinkTelemetry {
   uint32_t hdg_acc_dege5_;
   /* Attitude */
   float yaw_rad_ = 0;
+  float quaternion_[4] = {1, 0, 0, 0};
+  float quaternionSetpoint_[4] = {1, 0, 0, 0};
   /* VFR HUD */
   int16_t hdg_deg_ = 0;
   uint16_t throttle_;

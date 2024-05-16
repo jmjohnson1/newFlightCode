@@ -674,6 +674,9 @@ class MavLink {
           HandleSetMode(cmd_long_.param1, cmd_long_.param2);
           break;
         }
+        case MAV_CMD_SET_MESSAGE_INTERVAL:
+          SendCmdAck(MAV_RESULT_ACCEPTED, 255);
+          HandleSetMsgInterval(cmd_long_.param1, cmd_long_.param2);
       }
     }
   }
@@ -723,6 +726,19 @@ class MavLink {
     SendCmdAck(MAV_RESULT_ACCEPTED, 255);
   }
 
+  HandleSetMsgInterval(uint32_t msgid, int32_t period_us) {
+    int32_t period_ms = period_us*1E-3;
+    switch(msgid) {
+      case MAVLINK_MSG_ID_ATTITUDE_QUATERNION:
+      case MAVLINK_MSG_ID_ATTITUDE_TARGET:
+        telem_.extra1_stream_period_ms(period_ms);
+        break;
+      case MAVLINK_MSG_ID_LOCAL_POSITION_NED:
+      case MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED:
+        telem_.pos_stream_period_ms(period_ms);
+        break;
+    }
+  }
 
   /* Emitters */
   void SendProtocolVersion() {
