@@ -211,6 +211,23 @@ Matrix3f Skew(Vector3f w) {
   return C;
 }
 
+Vector3d SkewInverse(const Matrix3d &m) {
+  Vector3d v;
+  v[0] = m(2, 1);
+  v[1] = -m(2, 0);
+  v[2] = m(1, 0);
+  return v;
+}
+
+Vector3f SkewInverse(const Matrix3f &m) {
+  Vector3f v;
+  v[0] = m(2, 1);
+  v[1] = -m(2, 0);
+  v[2] = m(1, 0);
+  return v;
+}
+
+
 // Quaternion to Euler angles (3-2-1)
 Vector3d Quat2Euler(Quaterniond quat) {
   double m11 = 2*(quat.w()*quat.w() + quat.x()*quat.x()) - 1;
@@ -299,6 +316,37 @@ Quaternionf Euler2Quat(Vector3f euler) {
   quat.z() = sinf(euler(2) / 2.0f) * cosf(euler(1) / 2.0f) * cosf(euler(0) / 2.0f) - cosf(euler(2) / 2.0f) * sinf(euler(1) / 2.0f) * sinf(euler(0) / 2.0f);
 
   return quat;
+}
+
+Matrix3f Euler2DCM(const Vector3f &euler) {
+  Matrix3f dcm;
+  // sines and cosines of roll, pitch, yaw
+  float cr = cos(euler[0]);
+  float sr = sin(euler[0]);  
+  float cp = cos(euler[1]);
+  float sp = sin(euler[1]);  
+  float cy = cos(euler[2]);
+  float sy = sin(euler[2]);  
+  // row 1
+  dcm(0, 0) = cp*cy;
+  dcm(0, 1) = cp*sy;
+  dcm(0, 2) = -sp;
+  // row 2
+  dcm(1, 0) = cy*sp*sr - cr*sy;
+  dcm(1, 1) = cr*cy + sp*sr*sy;
+  dcm(1, 2) = cp*sr;
+  // row 3
+  dcm(2, 0) = sr*sy + cr*cy*sp;
+  dcm(2, 1) = cr*sp*sy - cy*sr;
+  dcm(2, 2) = cp*cr;
+  return dcm;
+}
+Vector3f DCM2Euler(const Matrix3f &dcm) {
+  Vector3f euler;
+  euler[0] = atan2(dcm(1,2), dcm(2,2));
+  euler[1] = -asin(dcm(0,2));
+  euler[2] = atan2(dcm(0,1), dcm(0,0));
+  return euler;
 }
 
 // Earth Radius Updates

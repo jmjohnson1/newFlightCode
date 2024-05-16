@@ -114,6 +114,7 @@ class MavLink {
         /* Items handled by this class */
         rx_sys_id_ = msg_.sysid;
         rx_comp_id_ = msg_.compid;
+        Serial.println(msg_.msgid);
         switch (msg_.msgid) {
           case MAVLINK_MSG_ID_HEARTBEAT: {
             mavlink_msg_heartbeat_decode(&msg_, &heartbeat_msg_);
@@ -123,6 +124,10 @@ class MavLink {
             mavlink_msg_command_long_decode(&msg_, &cmd_long_);
             CommandLongHandler(cmd_long_);
             break;
+          }
+          case MAVLINK_MSG_ID_COMMAND_INT: {
+            mavlink_msg_command_int_decode(&msg_, &cmd_int_);
+            CommandIntHandler(cmd_int_);
           }
           case MAVLINK_MSG_ID_AUTOPILOT_VERSION_REQUEST: {
             mission_.use_mission_planner(true);
@@ -169,8 +174,20 @@ class MavLink {
   inline void throttle_enabled(const bool val) {
     heartbeat_.throttle_enabled(val);
   }
+  inline bool throttle_enabled() {
+    return heartbeat_.throttle_enabled();
+  }
   inline void aircraft_mode(const int8_t val) {
     heartbeat_.aircraft_mode(val);
+  }
+  inline int8_t aircraft_mode() {
+    return heartbeat_.aircraft_mode();
+  }
+  inline void custom_mode(const uint32_t val) {
+    heartbeat_.custom_mode(val);
+  }
+  inline uint32_t custom_mode() {
+    return heartbeat_.custom_mode();
   }
   inline void aircraft_state(const int8_t val) {
     heartbeat_.aircraft_state(val);
@@ -592,6 +609,7 @@ class MavLink {
   uint16_t cmd_;
   /* Message data */
   mavlink_command_long_t cmd_long_;
+  mavlink_command_int_t cmd_int_;
   uint32_t flight_sw_version_ = 0;
   uint32_t middleware_sw_version_ = 0;
   uint32_t os_sw_version_ = 0;
@@ -647,10 +665,65 @@ class MavLink {
             SendAutopilotVersion();
           }
           break;
+        case MAV_CMD_COMPONENT_ARM_DISARM:
+          SendCmdAck(MAV_RESULT_ACCEPTED, 255);
+          HandleComponentArmDisarm(cmd_long_.param1);
+          break;
+        case MAV_CMD_DO_SET_MODE:
+          // Ack in handler
+          HandleSetMode(cmd_long_.param1, cmd_long_.param2);
+          break;
         }
       }
     }
   }
+  void CommandIntHandler(const mavlink_command_int_t &ref) {
+    if ((cmd_int_.target_system == sys_id_) &&
+        (cmd_int_.target_component == comp_id_)) {
+      cmd_ = cmd_int_.command;
+      switch (cmd_int_.command) {
+        case MAV_CMD_NAV_TAKEOFF_LOCAL:
+          if (throttle_enabled() && heartbeat_.custom_mode() != MANUAL) {
+            SendCmdAck(MAV_RESULT_ACCEPTED, 255);
+            heartbeat_.custom_mode(TAKEOFF);
+          } else {
+            SendCmdAck(MAV_RESULT_DENIED, 255);
+          }
+          break;
+        case MAV_CMD_COMPONENT_ARM_DISARM:
+          SendCmdAck(MAV_RESULT_ACCEPTED, 255);
+          HandleComponentArmDisarm(cmd_int_.param1);
+          break;
+        case MAV_CMD_DO_SET_MODE:
+          // Ack in handler
+          HandleSetMode(cmd_int_.param1, cmd_int_.param2);
+          break;
+      }
+    }
+  }
+
+  void HandleComponentArmDisarm(float arm) {
+    if (arm > 0.5f) {
+      throttle_enabled(true);
+    } else {
+      throttle_enabled(false);
+    }
+  }
+
+  void HandleSetMode(uint8_t base, uint32_t custom) {
+    Serial.print("Base: ");
+    Serial.println(base);
+    Serial.print("Custom: ");
+    Serial.println(custom);
+    if (base != MAV_MODE_FLAG_CUSTOM_MODE_ENABLED) {
+      SendCmdAck(MAV_RESULT_DENIED, 255);
+      return;
+    }
+    heartbeat_.custom_mode(custom);
+    SendCmdAck(MAV_RESULT_ACCEPTED, 255);
+  }
+
+
   /* Emitters */
   void SendProtocolVersion() {
     msg_len_ = mavlink_msg_protocol_version_pack(sys_id_, comp_id_, &msg_,

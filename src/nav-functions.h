@@ -31,16 +31,6 @@ using namespace Eigen;
 const double EarthRadius = 6378137.0;        // earth semi-major axis radius (m)
 const double ECC2 = 0.0066943799901;         // major eccentricity squared
 
-// Constants that are no longer used
-// const double EarthRate = 0.00007292115;      // rotation rate of earth (rad/sec)
-// const double Eccentricity = 0.0818191908426; // major eccentricity of earth ellipsoid
-// const double Flattening = 0.0033528106650;   // flattening of the ellipsoid
-// const double Gravity0 = 9.7803730;           // zeroth coefficient for gravity model
-// const double Gravity1 = 0.0052891;           // first coefficient for the gravity model
-// const double Gravity2 = 0.0000059;           // second coefficient for the gravity model
-// const double GravityNom = 9.81;              // nominal gravity
-// const double Schuler2 = 1.533421593170545E-06; // Schuler Frequency (rad/sec) Squared
-
 Vector3d NED2D_Rate(Vector3d v_NED, Vector3d pRef_D);
 Vector3f NED2D_Rate(Vector3f v_NED, Vector3d pRef_D);
 
@@ -58,6 +48,9 @@ Quaterniond TransE2NED_Quat(Vector3d pRef_D);
 Matrix3d Skew(Vector3d w);
 Matrix3f Skew(Vector3f w);
 
+Vector3f SkewInverse(const Matrix3f &m);
+Vector3d SkewInverse(const Matrix3d &m);
+
 Vector3d Quat2Euler(Quaterniond quat);
 Vector3f Quat2Euler(Quaternionf quat);
 
@@ -66,6 +59,9 @@ Quaternionf Euler2Quat(Vector3f euler);
 
 Matrix3d Quat2DCM(Quaterniond quat);
 Matrix3f Quat2DCM(Quaternionf quat);
+
+Matrix3f Euler2DCM(const Vector3f &euler);
+Vector3f DCM2Euler(const Matrix3f &dcm);
 
 void EarthRad(double lat, double *Rew, double *Rns);
 

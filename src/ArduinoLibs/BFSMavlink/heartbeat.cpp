@@ -56,33 +56,9 @@ void MavLinkHeartbeat::SendHeartbeat() {
       break;
     }
   }
-  mode_ = 0;
-  if (throttle_enabled_) {
-    mode_ |= MAV_MODE_FLAG_SAFETY_ARMED;
-  }
-  switch (aircraft_mode_) {
-    case AircraftMode::MANUAL: {
-      mode_ |= MAV_MODE_FLAG_MANUAL_INPUT_ENABLED;
-      break;
-    }
-    case AircraftMode::STABALIZED: {
-      mode_ |= MAV_MODE_FLAG_STABILIZE_ENABLED;
-      break;
-    }
-    case AircraftMode::ATTITUDE: {
-      mode_ |= MAV_MODE_FLAG_STABILIZE_ENABLED;
-      break;
-    }
-    case AircraftMode::AUTO: {
-      mode_ |= MAV_MODE_FLAG_STABILIZE_ENABLED;
-      mode_ |= MAV_MODE_FLAG_GUIDED_ENABLED;
-      break;
-    }
-    case AircraftMode::TEST: {
-      mode_ |= MAV_MODE_FLAG_TEST_ENABLED;
-      break;
-    }
-  }
+
+  mode_ = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+
   switch (aircraft_state_) {
     case AircraftState::INIT: {
       state_ = MAV_STATE_BOOT;

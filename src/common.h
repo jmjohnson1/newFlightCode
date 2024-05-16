@@ -24,6 +24,8 @@ typedef struct AttitudeData_s {
   Eigen::Vector3f * eulerAngles_active = &eulerAngles_madgwick;
   // Setpoints: [roll angle, pitch angle, yaw rate]
   Eigen::Vector3f eulerAngleSetpoint = Eigen::Vector3f::Zero();
+  Eigen::Matrix3f currentDCM = Eigen::Matrix3f::Identity();
+  Eigen::Matrix3f desiredDCM = Eigen::Matrix3f::Identity();
 } AttitudeData_t;
 
 typedef struct MissionData_s {
@@ -68,25 +70,8 @@ typedef struct FilterData_s {
   Eigen::Vector3f innovationVel;
 } FilterData_t;
 
-enum FlightPhase {
-  DISARMED,
-  ARMED,
-  TAKEOFF,
-  LANDING,
-  INFLIGHT
-};
-
-enum AutopilotMode {
-  MANUAL,
-  ALTITUDE,
-  POSITION
-};
 
 typedef struct FlightStatus_s {
-  FlightPhase phase = FlightPhase::DISARMED;
-  AutopilotMode apMode = AutopilotMode::MANUAL;
-  bfs::AircraftMode mavMode = bfs::AircraftMode::MANUAL;
-  bfs::AircraftState mavState = bfs::AircraftState::INIT;
   bool missionStarted = false;
   bool inputOverride = false;
 
@@ -112,45 +97,6 @@ typedef struct Quadcopter_s {
   TelemData_t telemData;
   FilterData_t filterData;
 
-  void UpdatePhase(FlightPhase phase) {
-    flightStatus.phase = phase;
-    // For armed/disarmed, will set mavState as well
-    switch(phase) {
-      case FlightPhase::ARMED:
-        telemData.mavlink->aircraft_state(bfs::AircraftState::ACTIVE);
-        flightStatus.mavState = bfs::AircraftState::ACTIVE;
-        break;
-      case FlightPhase::DISARMED:
-        telemData.mavlink->aircraft_state(bfs::AircraftState::STANDBY);
-        flightStatus.mavState = bfs::AircraftState::STANDBY;
-        break;
-      default:
-        break;
-    }
-  }
-
-  void UpdateMode(AutopilotMode mode) {
-    flightStatus.apMode = mode;
-    // Set the mavmode as well
-    switch(mode) {
-      case AutopilotMode::MANUAL:
-        telemData.mavlink->aircraft_mode(bfs::AircraftMode::MANUAL);
-        flightStatus.mavMode = bfs::AircraftMode::MANUAL;
-        break;
-      case AutopilotMode::ALTITUDE:
-        telemData.mavlink->aircraft_mode(bfs::AircraftMode::STABALIZED);
-        flightStatus.mavMode = bfs::AircraftMode::STABALIZED;
-        break;
-      case AutopilotMode::POSITION:
-        telemData.mavlink->aircraft_mode(bfs::AircraftMode::AUTO);
-        flightStatus.mavMode = bfs::AircraftMode::AUTO;
-        break;
-      default:
-        telemData.mavlink->aircraft_mode(bfs::AircraftMode::TEST);
-        flightStatus.mavMode = bfs::AircraftMode::TEST;
-        break;
-    }
-  }
 } Quadcopter_t;
 
 

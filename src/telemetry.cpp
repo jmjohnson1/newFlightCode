@@ -32,7 +32,6 @@ bool telem::Begin(Quadcopter_t &quadData) {
   /* Check whether the parameter store has been initialized */
   /* If it hasn't... */
   if (param_buf[0] != (int)PARAM_HEADER[0]) {
-    Serial.println("Parameters not initialized");
     // Populate param_buf with default values
     GetDefaultTelemParams(param_buf);
     /* Compute the checksum */
@@ -75,6 +74,7 @@ bool telem::Begin(Quadcopter_t &quadData) {
       }
     }
   }
+  EEPROM.write(0, 'f');
   /* Copy parameter data*/
   memcpy(quadData.telemData.paramValues.data(), &(param_buf[1]),
           NUM_PARAMS * sizeof(float));
@@ -86,6 +86,7 @@ bool telem::Begin(Quadcopter_t &quadData) {
     memcpy(&name, &(quadData.telemData.paramIDs[i*16]), sizeof(char[16]));
     quadData.telemData.mavlink->param_id(i, name);
   }
+  quadData.telemData.paramsUpdated = true;
 
   // Set data stream rates
   quadData.telemData.mavlink->raw_sens_stream_period_ms(RAW_SENS_STREAM_PERIOD);
@@ -95,33 +96,51 @@ bool telem::Begin(Quadcopter_t &quadData) {
   quadData.telemData.mavlink->extra2_stream_period_ms(EXTRA2_STREAM_PERIOD);
   quadData.telemData.mavlink->extra3_stream_period_ms(EXTRA3_STREAM_PERIOD);
 
+
   // fix this
   return true;
 }
 
-void telem::Run(Quadcopter_t &quadData) {
+void telem::Run(Quadcopter_t &quadData, IMU &quadIMU) {
   // For better readability
   bfs::MavLink<NUM_PARAMS, NUM_UTM> *mavptr = quadData.telemData.mavlink;
 
   // Update values
-
+  // Raw IMU
+  mavptr->imu_accel_x_mps2(quadIMU.GetAccX());
+  mavptr->imu_accel_y_mps2(quadIMU.GetAccY());
+  mavptr->imu_accel_z_mps2(quadIMU.GetAccZ());
+  mavptr->imu_gyro_x_radps(quadIMU.GetGyroX());
+  mavptr->imu_gyro_y_radps(quadIMU.GetGyroY());
+  mavptr->imu_gyro_z_radps(quadIMU.GetGyroZ());
+  // Attitude
+  mavptr->nav_roll_rad(quadData.att.eulerAngles_active->coeff(0));
+  mavptr->nav_pitch_rad(quadData.att.eulerAngles_active->coeff(1));
+  mavptr->nav_hdg_rad(quadData.att.eulerAngles_active->coeff(2));
+  // Position & velocity
+  mavptr->nav_north_pos_m(quadData.navData.position_NED[0]);
+  mavptr->nav_east_pos_m(quadData.navData.position_NED[1]);
+  mavptr->nav_down_pos_m(quadData.navData.position_NED[2]);
+  mavptr->nav_north_vel_mps(quadData.navData.velocity_NED[0]);
+  mavptr->nav_east_vel_mps(quadData.navData.velocity_NED[1]);
+  mavptr->nav_down_vel_mps(quadData.navData.velocity_NED[2]);
 
   quadData.telemData.mavlink->Update();
 
   // Handle any parameter updates
-  int32_t param_idx_ = mavlink.updated_param();
+  int32_t param_idx_ = mavptr->updated_param();
   if (param_idx_ >= 0) {
     // Let other places in the program know parameters have changed
     quadData.telemData.paramsUpdated = true;
     // Update the value in common data struct
-    quadData.telemData.paramValues[param_idx_] = mavlink.param(param_idx_);
+    quadData.telemData.paramValues[param_idx_] = mavptr->param(param_idx_);
     /* Update the parameter buffer value */
     memcpy(param_buf + sizeof(PARAM_HEADER) + param_idx_*sizeof(float),
            &(quadData.telemData.paramValues[param_idx_]), sizeof(float));
     /* Compute a new checksum */
     chk_computed = param_checksum.Compute(param_buf,
                                           sizeof(PARAM_HEADER) +
-                                          NUM_PARAMS*sizeof(float));
+                                          NUM_PARAMS*(sizeof(float) + sizeof(char[16])));
     chk_buf[0] = static_cast<uint8_t>(chk_computed >> 8);
     chk_buf[1] = static_cast<uint8_t>(chk_computed);
     param_buf[PARAM_SIZE - 2] = chk_buf[0];

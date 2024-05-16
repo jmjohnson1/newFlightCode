@@ -81,10 +81,10 @@ RadioChannel *radioChannels[numChannels] = {&throttleChannel,
 											};
 
 // Max roll/pitch angles in degrees for angle mode
-float maxRoll = quadProps::MAX_ANGLE*DEG_2_RAD;
-float maxPitch = quadProps::MAX_ANGLE*DEG_2_RAD;
+float maxRoll = quadProps::MAX_ANGLE*DEG_TO_RAD;
+float maxPitch = quadProps::MAX_ANGLE*DEG_TO_RAD;
 // Max yaw rate in deg/sec
-float maxYaw = 160.0;
+float maxYaw = 160.0*DEG_TO_RAD;
 
 // ANGLE MODE PID GAINS //
 // SCALE FACTORS FOR PID //
@@ -93,7 +93,7 @@ float iScale_att = 1.0f;
 float dScale_att = 1.0f;
 float allScale_att = 1.0f;
 
-float Kp_roll_angle = 1.66f;
+float Kp_roll_angle = 0.0f;
 float Ki_roll_angle = 4.81f;
 float Kd_roll_angle = 0.34f;
 float Kp_pitch_angle = 1.66f;
@@ -106,9 +106,9 @@ float Ki_yaw = 0.00f;
 float Kd_yaw = 0.00f;
 
 // POSITION PID GAINS //
-float Kp_pos[3] = {8.0f, 8.0f, 29.0f};
-float Ki_pos[3] = {3.0f, 3.0f, 8.0f};
-float Kd_pos[3] = {12.0f, 12.0f, 16.0f};
+float Kp_pos[3] = {0.0f, 0.0f, 0.0f};
+float Ki_pos[3] = {0.0f, 0.0f, 0.0f};
+float Kd_pos[3] = {0.0f, 0.0f, 0.0f};
 
 //================================================================================================//
 //                                      DECLARE PINS                                              //
@@ -153,11 +153,12 @@ IMU quadIMU = IMU(0.00f, 0.00f, 0.8826f, 6.981E-4f, 4.852E-2f, 6.109E-3f);
 MissionHandler mission;
 
 // Controller:
-float Kp_array[3] = {Kp_roll_angle, Kp_pitch_angle, Kp_yaw};
-float Ki_array[3] = {Ki_roll_angle, Ki_pitch_angle, Ki_yaw};
-float Kd_array[3] = {Kd_roll_angle, Kd_pitch_angle, Kd_yaw};
-AngleAttitudeController controller = AngleAttitudeController(Kp_array, Ki_array, Kd_array, 50.0f);
+float Kp_array[3] = {0.0f, 0.0f, 0.0f};
+float Ki_array[3] = {0.0f, 0.0f, 0.0f};
+float Kd_array[3] = {0.0f, 0.0f, 0.0f};
+AngleAttitudeController angleController = AngleAttitudeController(Kp_array, Ki_array, Kd_array, 50.0f);
 PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos, 1.0f);
+PositionController2 posControl2 = PositionController2(Kp_pos, Ki_pos, Kd_pos, 1.0f, 3.6f);
 
 // Motor object
 #ifdef USE_ONESHOT
@@ -171,9 +172,9 @@ bool doneWithSetup = 0;
 uint16_t failureFlag = 0;
 int throttleCutCount = 0;
 // Flag to check if the flight loop has started yet, prevents lock in main loop when throttle killed
-bool flightLoopStarted = 0;
+bool logRunning = 0;
 int loopCount = 0;
-bool killThrottle = true;
+bool throttleEnabled = true;
 
 // Position vector taken from mocap
 bool positionFix = false;  // Set true if the position covariance from the EKF is less than a certain value.
@@ -186,9 +187,6 @@ uNavINS ins;
 Datalogger logging;
 
 bool wasTrueLastLoop = false; // This will be renamed at some point
-
-// Constants for unit conversion
-const float G = 9.81f;  // m/s/s
 
 // Various timers
 elapsedMillis heartbeatTimer;
@@ -546,7 +544,7 @@ void loop() {
 		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
 		//serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());
 		//serialDebug::PrintRollPitchYaw(quadIMU_info.roll, quadIMU_info.pitch, quadIMU_info.yaw);
-		//serialDebug::PrintPIDOutput(controller.GetRollPID(), controller.GetPitchPID(), controller.GetYawPID());
+		//serialDebug::PrintPIDOutput(angleController.GetRollPID(), angleController.GetPitchPID(), angleController.GetYawPID());
 		// float motorCommands[4] = {0, 0, 0, 0};
 		// motors.GetMotorCommands(motorCommands);
 		// serialDebug::PrintMotorCommands(motorCommands[0], motorCommands[1], motorCommands[2], motorCommands[3]);
@@ -557,58 +555,55 @@ void loop() {
 	}
 
 	// Mode checking
-  // Check if rotors should be armed
-  if (!flightLoopStarted && (throCutChannel.SwitchPosition() == SwPos::SWITCH_LOW)) {
-  }
 	// Check the status of the armed switch
 	switch(throCutChannel.SwitchPosition()) {
 		case SwPos::SWITCH_LOW:
-			if (!flightLoopStarted) {
-				flightLoopStarted = true;
-				quadData.UpdatePhase(FlightPhase::ARMED);
+      if (quadData.flightStatus.inputOverride == false) {
+        quadData.telemData.mavlink->throttle_enabled(true);
+        throttleEnabled = true;
+      }
+			if (!logRunning) {
+				logRunning = true;
   			SD_is_present = !(logging.Setup());
-			}
-			if (quadData.flightStatus.inputOverride==false) {
-				killThrottle = false;
-			} else {
-				killThrottle = true;
 			}
 			break;
 		case SwPos::SWITCH_HIGH:
-			killThrottle = true;
-			quadData.UpdatePhase(FlightPhase::DISARMED);
-			if (flightLoopStarted==true) {
-				flightLoopStarted = false;
+      quadData.telemData.mavlink->throttle_enabled(false);
+      throttleEnabled = false;
+			if (logRunning==true) {
+				logRunning = false;
 				logging.End();
 				SD_is_present = false;
 			}
-			quadData.flightStatus.inputOverride = false;
 			break;
 		default:
 			break;
 	}
+
+  // Check autopilot mode
+
 
 	// Check autopilot switch
-	switch(aux0.SwitchPosition()) {
-		case SwPos::SWITCH_HIGH:
-			// Full autopilot
-			quadData.UpdateMode(AutopilotMode::POSITION);
-			break;
-		case SwPos::SWITCH_MID:
-			// Altitude assistance
-			quadData.UpdateMode(AutopilotMode::ALTITUDE);
-			break;
-		case SwPos::SWITCH_LOW:
-			// Manual flight
-			quadData.UpdateMode(AutopilotMode::MANUAL);
-			break;
-		default:
-			break;
+	// switch(aux0.SwitchPosition()) {
+	// 	case SwPos::SWITCH_HIGH:
+	// 		// 
+	// 		quadData.UpdateMode(bfs::CustomMode::POSITION);
+	// 		break;
+	// 	case SwPos::SWITCH_MID:
+	// 		// Altitude assistance
+	// 		quadData.UpdateMode(bfs::CustomMode::ALTITUDE);
+	// 		break;
+	// 	case SwPos::SWITCH_LOW:
+	// 		// Manual flight
+	// 		quadData.UpdateMode(bfs::CustomMode::MANUAL);
+	// 		break;
+	// 	default:
+	// 		break;
 
-	}
+	// }
 
 	// Handle restart request
-  if (killThrottle) {
+  if (throttleEnabled == true) {
 		if (resetChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
 			CPU_RESTART;
 		}
@@ -628,7 +623,45 @@ if (IMUUpdateTimer >= imuUpdatePeriod) {
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
 }
 
-telem::Run(quadData);
+telem::Run(quadData, quadIMU);
+// Check if parameters have updated
+if(quadData.telemData.paramsUpdated == true) {
+  quadData.telemData.paramsUpdated = false;
+  // Attitude PID gains
+  Kp_array[0] = quadData.telemData.paramValues[0]; 
+  Ki_array[0] = quadData.telemData.paramValues[1];
+  Kd_array[0] = quadData.telemData.paramValues[2];
+  Kp_array[1] = quadData.telemData.paramValues[3]; 
+  Ki_array[1] = quadData.telemData.paramValues[4];
+  Kd_array[1] = quadData.telemData.paramValues[5];
+  Kp_array[2] = quadData.telemData.paramValues[6]; 
+  Ki_array[2] = quadData.telemData.paramValues[7];
+  Kd_array[2] = quadData.telemData.paramValues[8];
+  // Position PID gains
+  Kp_pos[0] = quadData.telemData.paramValues[9];
+  Ki_pos[0] = quadData.telemData.paramValues[10];
+  Kd_pos[0] = quadData.telemData.paramValues[11];
+  Kp_pos[1] = quadData.telemData.paramValues[12];
+  Ki_pos[1] = quadData.telemData.paramValues[13];
+  Kd_pos[1] = quadData.telemData.paramValues[14];
+  Kp_pos[2] = quadData.telemData.paramValues[15];
+  Ki_pos[2] = quadData.telemData.paramValues[16];
+  Kd_pos[2] = quadData.telemData.paramValues[17];
+
+  angleController.SetKp(Kp_array);
+  angleController.SetKi(Ki_array);
+  angleController.SetKd(Kd_array);
+  posControl.SetKp(Kp_pos);
+  posControl.SetKi(Ki_pos);
+  posControl.SetKd(Kd_pos);
+
+  ins.Set_AccelSigma(quadData.telemData.paramValues[18]*Eigen::Vector3f::Ones());
+  ins.Set_AccelMarkov(quadData.telemData.paramValues[19]*Eigen::Vector3f::Ones());
+  ins.Set_AccelTau(quadData.telemData.paramValues[20]*Eigen::Vector3f::Ones());
+  ins.Set_RotRateSigma(quadData.telemData.paramValues[21]*Eigen::Vector3f::Ones());
+  ins.Set_RotRateMarkov(quadData.telemData.paramValues[22]*Eigen::Vector3f::Ones());
+  ins.Set_RotRateTau(quadData.telemData.paramValues[23]*Eigen::Vector3f::Ones());
+}
 
 #ifdef USE_EKF
 	if (EKFUpdateTimer > EKFPeriod) {
@@ -638,6 +671,7 @@ telem::Run(quadData);
 		quadData.navData.position_NED = ins.Get_PosEst().cast<float>();
 		quadData.navData.velocity_NED = ins.Get_VelEst();
   	quadData.att.eulerAngles_ekf = ins.Get_OrientEst();
+    quadData.att.currentDCM = Euler2DCM(quadData.att.eulerAngles_ekf);
 	}
 	Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates
 #else
@@ -663,27 +697,29 @@ telem::Run(quadData);
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
 		positionCtrlTimer = 0;
 		if (positionFix == true) {
-			switch(quadData.flightStatus.apMode) {
-				case AutopilotMode::POSITION:
-					mission.Run();
-					posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
-					quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
-					quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
-					quadData.att.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
-					break;
-				case AutopilotMode::ALTITUDE:
-					// Throttle stick input controls altitude between 0 and 1.5 m
-					quadData.navData.positionSetpoint_NED[2] = -throttleChannel.NormalizedValue()*1.5f;
-					posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
-					quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
-					break;
-				case AutopilotMode::MANUAL:
+      uint32_t customMode = quadData.telemData.mavlink->custom_mode();
+      if (quadData.telemData.mavlink->throttle_enabled()) {
+        if (customMode == bfs::CustomMode::MANUAL) {
 					posControl.Reset();
-					break;
-		}
+        } else {
+          SetpointHandler(&(quadData.navData), &quadData);
+          posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), 
+                            quadData.navData.velocitySetpoint_NED,
+                            ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
+          if (customMode == bfs::CustomMode::MISSION ||
+              customMode == bfs::CustomMode::POSITION) {
+            quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+            quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
+            quadData.att.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
+          } else if (customMode == bfs::CustomMode::ALTITUDE) {
+            quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+          }
+        }
+      }
 		} else {
 			posControl.Reset();
 		}
+    // We can set the thrust input now
 		quadData.flightStatus.controlInputs[0] = quadData.flightStatus.thrustSetpoint;
 	}
 	# else
@@ -731,9 +767,9 @@ telem::Run(quadData);
 	float KpScaled[3] = {Kp_roll_angle*pScale_att, Kp_pitch_angle*pScale_att, Kp_yaw};
 	float KiScaled[3] = {Ki_roll_angle*iScale_att, Ki_pitch_angle*iScale_att, Ki_yaw};
 	float KdScaled[3] = {Kd_roll_angle*dScale_att, Kd_pitch_angle*dScale_att, Kd_yaw};
-	controller.SetKp(KpScaled);
-	controller.SetKi(KiScaled);
-	controller.SetKd(KdScaled);
+	angleController.SetKp(KpScaled);
+	angleController.SetKi(KiScaled);
+	angleController.SetKd(KdScaled);
 #endif
 
 	// TODO: be better
@@ -746,11 +782,11 @@ telem::Run(quadData);
 		attitudeCtrlTimer = 0;
 		// FIXME: Make the function take Eigen::Vector or give up on it
 		float gyroRates[3] = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
-		controller.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, dt, noIntegral);
-		quadData.flightStatus.controlInputs(lastN(3)) = controller.GetMoments();
+		angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, dt, noIntegral);
+		quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
 	}
 	// Convert thrust and moments from controller to angular rates
-	if (quadData.flightStatus.phase != FlightPhase::DISARMED) {
+	if (quadData.telemData.mavlink->throttle_enabled()) {
 		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs);
 	} else {
 		quadData.flightStatus.motorRates = Eigen::Vector4f::Zero();

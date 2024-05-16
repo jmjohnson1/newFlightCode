@@ -2,21 +2,16 @@
 
 void SetpointHandler(NavData_t *navdata, Quadcopter_t *quadData) {
   // Flight mode check
-  switch (quadData->flightStatus.phase)
-  {
-  case TAKEOFF:
+  uint32_t mode = quadData->telemData.mavlink->custom_mode();
+  if (mode == bfs::CustomMode::TAKEOFF) {
     TakeoffSetpoints(navdata, quadData);
-    break;
-  case INFLIGHT:
-    MissionSetpoints(navdata, quadData);
-    break;
-  case LANDING:
+  } else if (mode == bfs::CustomMode::LANDING) {
     LandingSetpoints(navdata, quadData);
-    break;
-  
-  default:
-    break;
+  } else if (mode == bfs::CustomMode::MISSION) {
+    MissionSetpoints(navdata, quadData);
   }
+  // For POSITION/ALTITUDE, we just use the setpoint is set when the telemetry
+  // command is received.
 }
 
 
@@ -39,7 +34,7 @@ void TakeoffSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
     navdata->waypointArrivedTimer = 0;
   }
   if (navdata->waypointArrivedTimer > waypointArrivedTime) {
-      quadData->flightStatus.phase = FlightPhase::INFLIGHT;
+      quadData->telemData.mavlink->custom_mode(bfs::CustomMode::POSITION);
   }
 }
 void MissionSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
@@ -67,7 +62,7 @@ void MissionSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
     curIdx = quadData->telemData.mavlink->active_mission_item();
   }
   if (curIdx == quadData->telemData.mavlink->num_mission_items() - 1) {
-    quadData->flightStatus.phase = FlightPhase::LANDING;
+    quadData->telemData.mavlink->custom_mode(bfs::CustomMode::LANDING);
   }
   // Extract data
   posLeft[0] = static_cast<float>(quadData->missionData.waypoints[curIdx - 1].x)*1e-4;  
@@ -91,6 +86,7 @@ void MissionSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
   navdata->positionSetpoint_NED = posLeft + (posRight - posLeft)*frac;
   navdata->velocitySetpoint_NED = velLeft + (velRight - velLeft)*frac;
 }
+
 void LandingSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
   if (navdata->landingFlag == false) {
     navdata->landingFlag = true;
@@ -112,7 +108,8 @@ void LandingSetpoints(NavData_t *navdata, Quadcopter_t *quadData) {
   }
   if (navdata->waypointArrivedTimer > waypointArrivedTime) {
       // Set status to disarm regardless of switch position
-      quadData->UpdatePhase(FlightPhase::DISARMED);
       quadData->flightStatus.inputOverride = true;
+      quadData->telemData.mavlink->throttle_enabled(false);
+      quadData->telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
   }
 }

@@ -53,11 +53,15 @@ enum AircraftState : int8_t {
 };
 
 enum AircraftMode : int8_t {
-  MANUAL = 0,
-  STABALIZED = 1,
-  ATTITUDE = 2,
-  AUTO = 3,
-  TEST = 4
+};
+
+enum CustomMode : uint32_t {
+  MANUAL,
+  ALTITUDE,
+  POSITION,
+  MISSION,
+  TAKEOFF, 
+  LANDING,
 };
 
 class MavLinkHeartbeat {
@@ -71,12 +75,16 @@ class MavLinkHeartbeat {
   inline int8_t aircraft_type() const {return aircraft_type_;}
   inline uint8_t sys_id() const {return sys_id_;}
   inline uint8_t comp_id() const {return comp_id_;}
+  inline uint32_t custom_mode() const {return custom_mode_;}
+  inline bool throttle_enabled() {return throttle_enabled_;}
   /* 
   * Setters for the throttle enabled flag, aircraft mode, and aircraft state
   */
   inline void throttle_enabled(const bool val) {throttle_enabled_ = val;}
   inline void aircraft_mode(const int8_t val) {aircraft_mode_ = val;}
+  inline int8_t aircraft_mode() { return aircraft_mode_; }
   inline void aircraft_state(const int8_t val) {aircraft_state_ = val;}
+  inline void custom_mode(const uint32_t val) {custom_mode_ = val;}
   /* Update method */
   void Update();
 
@@ -94,7 +102,7 @@ class MavLinkHeartbeat {
   uint8_t msg_buf_[MAVLINK_MAX_PACKET_LEN];
   /* Data */
   bool throttle_enabled_ = false;
-  int8_t aircraft_mode_ = MANUAL;
+  int8_t aircraft_mode_ = 0;
   int8_t aircraft_state_ = INIT;
   /* Timing */
   static constexpr uint16_t HEARTBEAT_PERIOD_MS_ = 1000;
@@ -102,7 +110,7 @@ class MavLinkHeartbeat {
   /* Heartbeat */
   void SendHeartbeat();
   /* Heartbeat variables */
-  static constexpr uint32_t custom_mode_ = 0;
+  uint32_t custom_mode_ = 0;
   uint8_t type_;
   uint8_t mode_;
   uint8_t state_;
