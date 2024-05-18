@@ -21,7 +21,7 @@
 #include "radio.h"
 #include "testing.h"
 #include "uNavINS.h"
-#include "missionHandler.h"
+#include "navHandler.h"
 #include "datalogger.h"
 
 //================================================================================================//
@@ -152,7 +152,7 @@ bool sbusLostFrame;
 
 IMU quadIMU = IMU(0.00f, 0.00f, 0.8826f, 6.981E-4f, 4.852E-2f, 6.109E-3f);
 
-MissionHandler mission;
+SetpointHandler spHandler(&quadData);
 
 // Controller:
 float Kp_array[3] = {0.0f, 0.0f, 0.0f};
@@ -489,7 +489,6 @@ void setup() {
 
   // Begin mavlink telemetry module
 	telem::Begin(quadData);
-	mission.Init(&quadData, &quadData.navData);
 
 
 	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
@@ -707,7 +706,7 @@ if(quadData.telemData.paramsUpdated == true) {
         if (customMode == bfs::CustomMode::MANUAL) {
 					posControl.Reset();
         } else {
-          SetpointHandler(&(quadData.navData), &quadData);
+          spHandler.UpdateSetpoint();
           posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), 
                             quadData.navData.velocitySetpoint_NED,
                             ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
