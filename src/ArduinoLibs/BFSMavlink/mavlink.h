@@ -114,7 +114,6 @@ class MavLink {
         /* Items handled by this class */
         rx_sys_id_ = msg_.sysid;
         rx_comp_id_ = msg_.compid;
-        Serial.println(msg_.msgid);
         switch (msg_.msgid) {
           case MAVLINK_MSG_ID_HEARTBEAT: {
             mavlink_msg_heartbeat_decode(&msg_, &heartbeat_msg_);
@@ -335,6 +334,13 @@ class MavLink {
   inline void nav_gyro_x_radps(const float val) {telem_.nav_gyro_x_radps(val);}
   inline void nav_gyro_y_radps(const float val) {telem_.nav_gyro_y_radps(val);}
   inline void nav_gyro_z_radps(const float val) {telem_.nav_gyro_z_radps(val);}
+  inline void north_pos_setpoint_m(const float val) {telem_.north_pos_setpoint_m(val);}
+  inline void east_pos_setpoint_m(const float val) {telem_.east_pos_setpoint_m(val);}
+  inline void down_pos_setpoint_m(const float val) {telem_.down_pos_setpoint_m(val);}
+  inline void north_vel_setpoint_m(const float val) {telem_.north_vel_setpoint_m(val);}
+  inline void east_vel_setpoint_m(const float val) {telem_.east_vel_setpoint_m(val);}
+  inline void down_vel_setpoint_m(const float val) {telem_.down_vel_setpoint_m(val);}
+  inline void quaternionSetpoint(const float val[4]) {telem_.quaternionSetpoint(val);}
   /* Effector */
   inline void effector(const std::array<float, 16> &ref) {
     telem_.effector(ref);
@@ -580,6 +586,8 @@ class MavLink {
     return utm_.get_utm_flight_state(idx);
   }
 
+  inline bool param_reset() { return param_reset_; }
+
  private:
   /* Serial bus */
   HardwareSerial *bus_;
@@ -633,6 +641,7 @@ class MavLink {
   bool gcs_link_established_ = false;
   elapsedMillis gcs_link_timer_ms_;
   int32_t gcs_lost_link_timeout_ms_ = 5000;
+  bool param_reset_ = false;
   void HeartbeatHandler(const mavlink_heartbeat_t &ref) {
     if (ref.type == MAV_TYPE_GCS) {
       /* Established contact with GCS */
@@ -677,6 +686,10 @@ class MavLink {
         case MAV_CMD_SET_MESSAGE_INTERVAL:
           SendCmdAck(MAV_RESULT_ACCEPTED, 255);
           HandleSetMsgInterval(cmd_long_.param1, cmd_long_.param2);
+          break;
+        case MAV_CMD_PREFLIGHT_STORAGE:
+          SendCmdAck(MAV_RESULT_ACCEPTED, 255);
+          HandleParamReset(cmd_long_.param1);
       }
     }
   }
@@ -714,10 +727,6 @@ class MavLink {
   }
 
   void HandleSetMode(uint8_t base, uint32_t custom) {
-    Serial.print("Base: ");
-    Serial.println(base);
-    Serial.print("Custom: ");
-    Serial.println(custom);
     if (base != MAV_MODE_FLAG_CUSTOM_MODE_ENABLED) {
       SendCmdAck(MAV_RESULT_DENIED, 255);
       return;
@@ -726,17 +735,26 @@ class MavLink {
     SendCmdAck(MAV_RESULT_ACCEPTED, 255);
   }
 
-  HandleSetMsgInterval(uint32_t msgid, int32_t period_us) {
+  void HandleSetMsgInterval(uint32_t msgid, int32_t period_us) {
     int32_t period_ms = period_us*1E-3;
     switch(msgid) {
       case MAVLINK_MSG_ID_ATTITUDE_QUATERNION:
       case MAVLINK_MSG_ID_ATTITUDE_TARGET:
         telem_.extra1_stream_period_ms(period_ms);
+        Serial.print("Set period to: ");
+        Serial.println(period_ms);
         break;
       case MAVLINK_MSG_ID_LOCAL_POSITION_NED:
       case MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED:
         telem_.pos_stream_period_ms(period_ms);
         break;
+    }
+  }
+
+  void HandleParamReset(uint32_t action) {
+    if (action == 2 && 
+        param_reset_ == false) {
+      param_reset_ = true;
     }
   }
 

@@ -9,7 +9,7 @@ uint16_t chk_computed, chk_read;
 uint8_t chk_buf[2];
 
 bool telem::Begin(Quadcopter_t &quadData) {
-  static unsigned char biggerWriteBuffer[256*2];
+  static unsigned char biggerWriteBuffer[256*10];
 	static unsigned char biggerReadBuffer[256];
   size_t biggerWriteBuffer_size = sizeof(biggerWriteBuffer);
 	size_t biggerReadBuffer_size = sizeof(biggerReadBuffer);
@@ -22,7 +22,7 @@ bool telem::Begin(Quadcopter_t &quadData) {
   quadData.telemData.mavlink->mission(quadData.missionData.waypoints.data(), quadData.missionData.waypoints.size(), quadData.missionData.temp.data());
   quadData.telemData.mavlink->fence(quadData.missionData.fencePoints.data(), quadData.missionData.fencePoints.size());
   quadData.telemData.mavlink->rally(quadData.missionData.rallyPoints.data(), quadData.missionData.rallyPoints.size());
-  quadData.telemData.mavlink->Begin(57600);
+  quadData.telemData.mavlink->Begin(115200);
 
   // Parameter handling. Mostly from BFS SPAARO
   /* Load the telemetry parameters from EEPROM */
@@ -31,7 +31,7 @@ bool telem::Begin(Quadcopter_t &quadData) {
   }
   /* Check whether the parameter store has been initialized */
   /* If it hasn't... */
-  if (param_buf[0] != (int)PARAM_HEADER[0]) {
+  if (param_buf[0] != (int)PARAM_HEADER[0] || param_buf[0] == (int)'R') {
     // Populate param_buf with default values
     GetDefaultTelemParams(param_buf);
     /* Compute the checksum */
@@ -74,7 +74,6 @@ bool telem::Begin(Quadcopter_t &quadData) {
       }
     }
   }
-  EEPROM.write(0, 'f');
   /* Copy parameter data*/
   memcpy(quadData.telemData.paramValues.data(), &(param_buf[1]),
           NUM_PARAMS * sizeof(float));
@@ -117,6 +116,11 @@ void telem::Run(Quadcopter_t &quadData, IMU &quadIMU) {
   mavptr->nav_roll_rad(quadData.att.eulerAngles_active->coeff(0));
   mavptr->nav_pitch_rad(quadData.att.eulerAngles_active->coeff(1));
   mavptr->nav_hdg_rad(quadData.att.eulerAngles_active->coeff(2));
+  float quatSp[4] = {quadData.att.quatSetpoint.w(),
+                     quadData.att.quatSetpoint.x(),
+                     quadData.att.quatSetpoint.y(),
+                     quadData.att.quatSetpoint.z()};
+  mavptr->quaternionSetpoint(quatSp);
   // Position & velocity
   mavptr->nav_north_pos_m(quadData.navData.position_NED[0]);
   mavptr->nav_east_pos_m(quadData.navData.position_NED[1]);
@@ -124,10 +128,19 @@ void telem::Run(Quadcopter_t &quadData, IMU &quadIMU) {
   mavptr->nav_north_vel_mps(quadData.navData.velocity_NED[0]);
   mavptr->nav_east_vel_mps(quadData.navData.velocity_NED[1]);
   mavptr->nav_down_vel_mps(quadData.navData.velocity_NED[2]);
+  mavptr->north_pos_setpoint_m(quadData.navData.positionSetpoint_NED[0]);
+  mavptr->east_pos_setpoint_m(quadData.navData.positionSetpoint_NED[1]);
+  mavptr->down_pos_setpoint_m(quadData.navData.positionSetpoint_NED[2]);
+  mavptr->north_vel_setpoint_m(quadData.navData.velocitySetpoint_NED[0]);
+  mavptr->east_vel_setpoint_m(quadData.navData.velocitySetpoint_NED[1]);
+  mavptr->down_vel_setpoint_m(quadData.navData.velocitySetpoint_NED[2]);
 
   quadData.telemData.mavlink->Update();
 
   // Handle any parameter updates
+  if (mavptr->param_reset() == true) {
+    EEPROM.write(0, 'R');
+  }
   int32_t param_idx_ = mavptr->updated_param();
   if (param_idx_ >= 0) {
     // Let other places in the program know parameters have changed

@@ -24,6 +24,7 @@ typedef struct AttitudeData_s {
   Eigen::Vector3f * eulerAngles_active = &eulerAngles_madgwick;
   // Setpoints: [roll angle, pitch angle, yaw rate]
   Eigen::Vector3f eulerAngleSetpoint = Eigen::Vector3f::Zero();
+  Eigen::Quaternionf quatSetpoint = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
   Eigen::Matrix3f currentDCM = Eigen::Matrix3f::Identity();
   Eigen::Matrix3f desiredDCM = Eigen::Matrix3f::Identity();
 } AttitudeData_t;

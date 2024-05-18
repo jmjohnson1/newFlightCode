@@ -120,6 +120,8 @@ float Kd_pos[3] = {0.0f, 0.0f, 0.0f};
 // Motor pin outputs:
 const uint8_t motorPins[4] = {0, 1, 2, 3};
 
+// Can write high or low to check conditions when debugging.
+const uint8_t debugPin = 5;
 
 //================================================================================================//
 
@@ -159,6 +161,7 @@ float Kd_array[3] = {0.0f, 0.0f, 0.0f};
 AngleAttitudeController angleController = AngleAttitudeController(Kp_array, Ki_array, Kd_array, 50.0f);
 PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos, 1.0f);
 PositionController2 posControl2 = PositionController2(Kp_pos, Ki_pos, Kd_pos, 1.0f, 3.6f);
+DCMAttitudeControl dcmAttControl = DCMAttitudeControl(Kp_array, Ki_array, Kd_array, 1.0f, 0.8f);
 
 // Motor object
 #ifdef USE_ONESHOT
@@ -474,6 +477,7 @@ void setup() {
 
   // Initialize all pins
   pinMode(13, OUTPUT); // Pin 13 LED blinker on board, do not modify
+  pinMode(5, OUTPUT);
 
   // Set built in LED to turn on to signal startup
   digitalWrite(13, HIGH);
@@ -528,6 +532,7 @@ void setup() {
 //========== Loop ==========//
 //==========================//
 void loop() {
+  // digitalWriteFast(5, HIGH);
   // Keep track of what time it is and how much time has elapsed since the last loop
   prev_time = current_time;
   current_time = micros();
@@ -641,12 +646,12 @@ if(quadData.telemData.paramsUpdated == true) {
   Kp_pos[0] = quadData.telemData.paramValues[9];
   Ki_pos[0] = quadData.telemData.paramValues[10];
   Kd_pos[0] = quadData.telemData.paramValues[11];
-  Kp_pos[1] = quadData.telemData.paramValues[12];
-  Ki_pos[1] = quadData.telemData.paramValues[13];
-  Kd_pos[1] = quadData.telemData.paramValues[14];
-  Kp_pos[2] = quadData.telemData.paramValues[15];
-  Ki_pos[2] = quadData.telemData.paramValues[16];
-  Kd_pos[2] = quadData.telemData.paramValues[17];
+  Kp_pos[1] = quadData.telemData.paramValues[9];
+  Ki_pos[1] = quadData.telemData.paramValues[10];
+  Kd_pos[1] = quadData.telemData.paramValues[11];
+  Kp_pos[2] = quadData.telemData.paramValues[12];
+  Ki_pos[2] = quadData.telemData.paramValues[13];
+  Kd_pos[2] = quadData.telemData.paramValues[14];
 
   angleController.SetKp(Kp_array);
   angleController.SetKi(Ki_array);
@@ -655,12 +660,12 @@ if(quadData.telemData.paramsUpdated == true) {
   posControl.SetKi(Ki_pos);
   posControl.SetKd(Kd_pos);
 
-  ins.Set_AccelSigma(quadData.telemData.paramValues[18]*Eigen::Vector3f::Ones());
-  ins.Set_AccelMarkov(quadData.telemData.paramValues[19]*Eigen::Vector3f::Ones());
-  ins.Set_AccelTau(quadData.telemData.paramValues[20]*Eigen::Vector3f::Ones());
-  ins.Set_RotRateSigma(quadData.telemData.paramValues[21]*Eigen::Vector3f::Ones());
-  ins.Set_RotRateMarkov(quadData.telemData.paramValues[22]*Eigen::Vector3f::Ones());
-  ins.Set_RotRateTau(quadData.telemData.paramValues[23]*Eigen::Vector3f::Ones());
+  ins.Set_AccelSigma(quadData.telemData.paramValues[15]*Eigen::Vector3f::Ones());
+  ins.Set_AccelMarkov(quadData.telemData.paramValues[16]*Eigen::Vector3f::Ones());
+  ins.Set_AccelTau(quadData.telemData.paramValues[17]*Eigen::Vector3f::Ones());
+  ins.Set_RotRateSigma(quadData.telemData.paramValues[18]*Eigen::Vector3f::Ones());
+  ins.Set_RotRateMarkov(quadData.telemData.paramValues[19]*Eigen::Vector3f::Ones());
+  ins.Set_RotRateTau(quadData.telemData.paramValues[20]*Eigen::Vector3f::Ones());
 }
 
 #ifdef USE_EKF
@@ -721,11 +726,14 @@ if(quadData.telemData.paramsUpdated == true) {
 		}
     // We can set the thrust input now
 		quadData.flightStatus.controlInputs[0] = quadData.flightStatus.thrustSetpoint;
+    // Save the setpoint as a quaternion too
+    quadData.att.quatSetpoint = Euler2Quat(quadData.att.eulerAngleSetpoint);
 	}
 	# else
 		// Compute desired state based on radio inputs
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
 		quadData.flightStatus.controlInputs[0] = quadData.flightStatus.thrustSetpoint;
+    quadData.att.quatSetpoint = Euler2Quat(quadData.att.eulerAngleSetpoint);
 #endif
 	
 #ifdef TEST_STAND
@@ -802,6 +810,7 @@ if(quadData.telemData.paramsUpdated == true) {
 
   // Regulate loop rate
   loopRate(2000); 
+  // digitalWriteFast(5, LOW);
 }
 
 //========== MAIN FUNCTION ==========//

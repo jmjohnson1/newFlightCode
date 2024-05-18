@@ -301,6 +301,7 @@ void MavLinkTelemetry::SendAttitude() {
                                        nav_gyro_z_radps_);
   mavlink_msg_to_send_buffer(msg_buf_, &msg_);
   bus_->write(msg_buf_, msg_len_);
+  digitalToggleFast(5);
 }
 void MavLinkTelemetry::SendAttitudeSetpoint() {
   sys_time_ms_ = static_cast<uint32_t>(sys_time_us_ / 1000);

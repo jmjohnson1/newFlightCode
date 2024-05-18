@@ -791,7 +791,7 @@ class MavLinkTelemetry {
                                                        -1, -1, -1, -1, -1, -1,
                                                        -1};
   int16_t data_stream_period_ms_default_[NUM_DATA_STREAMS_] = {-1, 1000, 1000, 1000, -1, -1,
-                                                       100, -1, -1, -1, 100, -1, -1};
+                                                       10, -1, -1, -1, 100, -1, -1};
   elapsedMillis data_stream_timer_ms_[NUM_DATA_STREAMS_];
   /* Data streams */
   static constexpr int8_t SRx_RAW_SENS_STREAM = 1;
