@@ -10,9 +10,9 @@ uint8_t chk_buf[2];
 
 bool telem::Begin(Quadcopter_t &quadData) {
   static unsigned char biggerWriteBuffer[256*10];
-	static unsigned char biggerReadBuffer[256];
+	// static unsigned char biggerReadBuffer[256];
   size_t biggerWriteBuffer_size = sizeof(biggerWriteBuffer);
-	size_t biggerReadBuffer_size = sizeof(biggerReadBuffer);
+	// size_t biggerReadBuffer_size = sizeof(biggerReadBuffer);
    Serial2.addMemoryForWrite(biggerWriteBuffer, biggerWriteBuffer_size);
   // Serial2.addMemoryForRead(biggerReadBuffer, biggerReadBuffer_size);
 
@@ -88,12 +88,18 @@ bool telem::Begin(Quadcopter_t &quadData) {
   quadData.telemData.paramsUpdated = true;
 
   // Set data stream rates
-  quadData.telemData.mavlink->raw_sens_stream_period_ms(RAW_SENS_STREAM_PERIOD);
-  quadData.telemData.mavlink->ext_status_stream_period_ms(EXT_STATUS_STREAM_PERIOD);
-  quadData.telemData.mavlink->rc_chan_stream_period_ms(RC_CHAN_STREAM_PERIOD);
-  quadData.telemData.mavlink->extra1_stream_period_ms(EXTRA1_STREAM_PERIOD);
-  quadData.telemData.mavlink->extra2_stream_period_ms(EXTRA2_STREAM_PERIOD);
-  quadData.telemData.mavlink->extra3_stream_period_ms(EXTRA3_STREAM_PERIOD);
+  quadData.telemData.mavlink->raw_sens_stream_period_default_ms(RAW_SENS_STREAM_PERIOD);
+  quadData.telemData.mavlink->ext_status_stream_period_default_ms(EXT_STATUS_STREAM_PERIOD);
+  quadData.telemData.mavlink->rc_chan_stream_period_default_ms(RC_CHAN_STREAM_PERIOD);
+  quadData.telemData.mavlink->extra1_stream_period_default_ms(EXTRA1_STREAM_PERIOD);
+  quadData.telemData.mavlink->extra2_stream_period_default_ms(EXTRA2_STREAM_PERIOD);
+  quadData.telemData.mavlink->extra3_stream_period_default_ms(EXTRA3_STREAM_PERIOD);
+  quadData.telemData.mavlink->raw_sens_stream_period_ms(0);
+  quadData.telemData.mavlink->ext_status_stream_period_ms(0);
+  quadData.telemData.mavlink->rc_chan_stream_period_ms(0);
+  quadData.telemData.mavlink->extra1_stream_period_ms(0);
+  quadData.telemData.mavlink->extra2_stream_period_ms(0);
+  quadData.telemData.mavlink->extra3_stream_period_ms(0);
 
 
   // fix this

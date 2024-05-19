@@ -68,23 +68,63 @@ class MavLinkTelemetry {
   inline uint8_t sys_id() const {return sys_id_;}
   inline uint8_t comp_id() const {return comp_id_;}
   /* Config data stream rates */
+  // This hurts my eyes, so I'm just going to add comments to break things up
+  //---------------------
+  // RAW SENSOR STREAM PERIOD
+  //---------------------
+  inline void raw_sens_stream_period_default_ms(const int32_t val) {
+    data_stream_period_ms_default_[SRx_RAW_SENS_STREAM] = val;
+  } 
   inline void raw_sens_stream_period_ms(const int32_t val) {
-    data_stream_period_ms_[SRx_RAW_SENS_STREAM] = val;
+    if (val == 0) {
+      data_stream_period_ms_[SRx_RAW_SENS_STREAM] = 
+      data_stream_period_ms_default_[SRx_RAW_SENS_STREAM];
+    } else {
+      data_stream_period_ms_[SRx_RAW_SENS_STREAM] = val;
+    }
   }
   inline int32_t raw_sens_stream_period_ms() const {
     return data_stream_period_ms_[SRx_RAW_SENS_STREAM];
   }
+  //---------------------
+  // EXT STATUS STREAM PERIOD
+  //---------------------
+  inline void ext_status_stream_period_default_ms(const int32_t val) {
+    data_stream_period_ms_default_[SRx_EXT_STAT_STREAM] = val;
+  }
   inline void ext_status_stream_period_ms(const int32_t val) {
-    data_stream_period_ms_[SRx_EXT_STAT_STREAM] = val;
+    if (val == 0) {
+      data_stream_period_ms_[SRx_EXT_STAT_STREAM] = 
+      data_stream_period_ms_default_[SRx_EXT_STAT_STREAM];
+    } else {
+      data_stream_period_ms_[SRx_EXT_STAT_STREAM] = val;
+    }
   }
   inline int32_t ext_status_stream_period_ms() const {
     return data_stream_period_ms_[SRx_EXT_STAT_STREAM];
   }
+  //---------------------
+  // RC CHANNEL STREAM PERIOD
+  //---------------------
+  inline void rc_chan_stream_period_default_ms(const int32_t val) {
+    data_stream_period_ms_default_[SRx_RC_CHAN_STREAM] = val;
+  }
   inline void rc_chan_stream_period_ms(const int32_t val) {
-    data_stream_period_ms_[SRx_RC_CHAN_STREAM] = val;
+    if (val == 0) {
+      data_stream_period_ms_[SRx_RC_CHAN_STREAM] = 
+      data_stream_period_ms_default_[SRx_RC_CHAN_STREAM];
+    } else {
+      data_stream_period_ms_[SRx_RC_CHAN_STREAM] = val;
+    }
   }
   inline int32_t rc_chan_stream_period_ms() const {
     return data_stream_period_ms_[SRx_RC_CHAN_STREAM];
+  }
+  //---------------------
+  // POSITION STREAM PERIOD
+  //---------------------
+  inline void pos_stream_period_default_ms(const int32_t val) {
+    data_stream_period_ms_default_[SRx_POSITION_STREAM] = val;
   }
   inline void pos_stream_period_ms(const int32_t val) {
     if (val == 0 ) {
@@ -97,6 +137,12 @@ class MavLinkTelemetry {
   inline int32_t pos_stream_period_ms() const {
     return data_stream_period_ms_[SRx_POSITION_STREAM];
   }
+  //---------------------
+  // EXTRA1 STREAM PERIOD
+  //---------------------
+  inline void extra1_stream_period_default_ms(const int32_t val) {
+    data_stream_period_ms_default_[SRx_EXTRA1_STREAM] = val;
+  }
   inline void extra1_stream_period_ms(const int32_t val) {
     if (val == 0) {
       data_stream_period_ms_[SRx_EXTRA1_STREAM] = 
@@ -108,18 +154,41 @@ class MavLinkTelemetry {
   inline int32_t extra1_stream_period_ms() const {
     return data_stream_period_ms_[SRx_EXTRA1_STREAM];
   }
+  //---------------------
+  // EXTRA2 STREAM PERIOD
+  //---------------------
+  inline void extra2_stream_period_default_ms(const int32_t val) {
+    data_stream_period_ms_default_[SRx_EXTRA2_STREAM] = val;
+  }
   inline void extra2_stream_period_ms(const int32_t val) {
-    data_stream_period_ms_[SRx_EXTRA2_STREAM] = val;
+    if (val == 0) {
+      data_stream_period_ms_[SRx_EXTRA2_STREAM] = 
+      data_stream_period_ms_default_[SRx_EXTRA2_STREAM];
+    } else {
+      data_stream_period_ms_[SRx_EXTRA2_STREAM] = val;
+    }
   }
   inline int32_t extra2_stream_period_ms() const {
     return data_stream_period_ms_[SRx_EXTRA2_STREAM];
   }
+  //---------------------
+  // EXTRA3 STREAM PERIOD
+  //---------------------
+  inline void extra3_stream_period_default_ms(const int32_t val) {
+    data_stream_period_ms_default_[SRx_EXTRA3_STREAM] = val;
+  }
   inline void extra3_stream_period_ms(const int32_t val) {
-    data_stream_period_ms_[SRx_EXTRA3_STREAM] = val;
+    if (val == 0) {
+      data_stream_period_ms_[SRx_EXTRA3_STREAM] = 
+      data_stream_period_ms_default_[SRx_EXTRA3_STREAM];
+    } else {
+      data_stream_period_ms_[SRx_EXTRA3_STREAM] = val;
+    }
   }
   inline int32_t extra3_stream_period_ms() const {
     return data_stream_period_ms_[SRx_EXTRA3_STREAM];
   }
+
   /* System */
   inline void sys_time_us(const uint64_t val) {sys_time_us_ = val;}
   inline void cpu_load(uint32_t frame_time_us, uint32_t frame_period_us) {
