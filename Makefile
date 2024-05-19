@@ -104,14 +104,6 @@ COREPATH = teensy4
 ARDUINOLIBPATH = src/ArduinoLibs
 INCLUDEPATH = include
 
-# path location for the arm-none-eabi compiler #FIXME
-ifeq ($(OS_NAME), linux)
-	COMPILERPATH = /opt/gcc-arm-none-eabi-10-2020-q4-major/bin
-endif
-ifeq ($(OS_NAME), darwin)
-	COMPILERPATH = /Applications/ARM/bin
-endif
-
 
 #************************************************************************
 # Settings below this point usually do not need to be edited
@@ -138,10 +130,11 @@ LIBS = -lm -lstdc++
 
 
 # names for the compiler programs
-CC = $(COMPILERPATH)/arm-none-eabi-gcc
-CXX = $(COMPILERPATH)/arm-none-eabi-g++
-OBJCOPY = $(COMPILERPATH)/arm-none-eabi-objcopy
-SIZE = $(COMPILERPATH)/arm-none-eabi-size
+# MAKE SURE THESE ARE IN YOUR PATH
+CC = arm-none-eabi-gcc
+CXX = arm-none-eabi-g++
+OBJCOPY = arm-none-eabi-objcopy
+SIZE = arm-none-eabi-size
 
 ## automatically create lists of the sources and objects
 ## TODO: this does not handle Arduino libraries yet...

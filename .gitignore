@@ -4,6 +4,7 @@ bin/*
 
 # ignore compile_commands
 compile_commands.json
+.clangd
 
 # ignore macOS file
 .DS_Store
