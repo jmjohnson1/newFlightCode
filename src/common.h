@@ -13,8 +13,8 @@ constexpr std::size_t MAX_RALLYPOINTS = 5;
 constexpr std::size_t NUM_UTM = 0;
 
 // Minimum distance from waypoint for it to be considered "arrived"
-constexpr float waypointArrivedThresh = 0.12;
-constexpr uint64_t waypointArrivedTime = 3000000;
+constexpr float WP_ARRIVED_THRESH = 0.12;
+constexpr uint64_t WP_ARRIVED_TIME = 3000000;
 
 typedef struct AttitudeData_s {
   Eigen::Vector3f eulerAngles_madgwick = Eigen::Vector3f::Zero();
@@ -50,15 +50,6 @@ typedef struct NavData_s {
   uint32_t numMocapUpdates = 0;
   uint32_t mocapUpdate_mocapTime = 0;
   uint32_t mocapUpdate_quadTime = 0;
-  // Timers for getting the time since the start of a flight phase
-  elapsedMicros missionTime;
-  elapsedMicros waypointArrivedTimer;
-  bool takeoffFlag = false;
-  bool landingFlag = false;
-  Eigen::Vector3f takeoffPosition;
-  Eigen::Vector3f landingPosition;
-
-  bool waypointArrived = false;
 } NavData_t;
 
 typedef struct FilterData_s {
@@ -73,9 +64,7 @@ typedef struct FilterData_s {
 
 
 typedef struct FlightStatus_s {
-  bool missionStarted = false;
   bool inputOverride = false;
-
   float thrustSetpoint = 0.0f;
   Eigen::Vector4f controlInputs = Eigen::Vector4f::Zero();
   Eigen::Vector4f motorRates = Eigen::Vector4f::Zero();
