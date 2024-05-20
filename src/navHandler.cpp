@@ -17,8 +17,11 @@ void SetpointHandler::UpdateSetpoint() {
     LandingSetpoint();
   } else if (mode == bfs::CustomMode::MISSION) {
     MissionSetpoint();
+  } else if (mode == bfs::CustomMode::POSITION) {
+    PositionSetpoint();
   }
-  // For POSITION/ALTITUDE, we just use the setpoint is set when the telemetry
+
+  // For ALTITUDE, we just use the setpoint is set when the telemetry
   // command is received.
 }
 
@@ -35,13 +38,13 @@ void SetpointHandler::TakeoffSetpoint() {
   velSetpoint_->setZero();
 
   //Check if we're close. Start timer
-  if (abs(quadPos_->coeff(2) - posSetpoint_->coeff(2)) < waypointArrivedThresh) {
+  if (abs(quadPos_->coeff(2) - posSetpoint_->coeff(2)) < WP_ARRIVED_THRESH) {
     waypointArrived_ = true;
   } else {
     waypointArrived_ = false;
     waypointArrivedTimer_ = 0;
   }
-  if (waypointArrivedTimer_ > waypointArrivedTime) {
+  if (waypointArrivedTimer_ > WP_ARRIVED_TIME) {
       quadData_->telemData.mavlink->custom_mode(bfs::CustomMode::POSITION);
   }
 }
@@ -57,10 +60,23 @@ void SetpointHandler::MissionSetpoint() {
   float tLeft;
   float tRight;
   int curIdx = quadData_->telemData.mavlink->active_mission_item();
+  // If we're not at the first waypoint, go there and come back to this function
+  // later.
   if (curIdx == 0) {
+    posSetpoint_->data()[0] = static_cast<float>(quadData_->missionData.waypoints[curIdx].x)*1e-4;
+    posSetpoint_->data()[1] = static_cast<float>(quadData_->missionData.waypoints[curIdx].y)*1e-4;
+    posSetpoint_->data()[2] = quadData_->missionData.waypoints[curIdx].z;
+    velSetpoint_->setZero();
+    if ((*quadPos_ - *posSetpoint_).norm() < WP_ARRIVED_THRESH) {
+      returnToMissionMode_ = true;
+      quadData_->telemData.mavlink->custom_mode(bfs::CustomMode::POSITION);
+      return;
+    }
+
     missionTime_ = 0;
     quadData_->telemData.mavlink->AdvanceMissionItem();
   }
+
   float t = static_cast<float>(missionTime_)*1e-6;
   curIdx = quadData_->telemData.mavlink->active_mission_item();
   // Take care of the case where we have moved on to the next waypoint. Includes
@@ -110,16 +126,34 @@ void SetpointHandler::LandingSetpoint() {
   velSetpoint_->setZero();
 
   //Check if we're close. Start timer
-  if (abs(quadPos_->coeff(2) - posSetpoint_->coeff(2)) < waypointArrivedThresh) {
+  if (abs(quadPos_->coeff(2) - posSetpoint_->coeff(2)) < WP_ARRIVED_THRESH) {
     waypointArrived_ = true;
   } else {
     waypointArrived_ = false;
     waypointArrivedTimer_ = 0;
   }
-  if (waypointArrivedTimer_ > waypointArrivedTime) {
+  if (waypointArrivedTimer_ > WP_ARRIVED_TIME) {
       // Set status to disarm regardless of switch position
       *inputOverride_ = true;
       quadData_->telemData.mavlink->throttle_enabled(false);
       quadData_->telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
+  }
+}
+
+void SetpointHandler::PositionSetpoint() {
+  // posSetpoint is already set. We use this function to see if we've arrived,
+  // then hold or switch to another flight mode. We also keep the velocity
+  // setpoint at zero.
+  if ((*quadPos_ - *posSetpoint_).norm() < WP_ARRIVED_THRESH) {
+    waypointArrived_ = true;
+  } else {
+    waypointArrived_ = false;
+    waypointArrivedTimer_ = 0;
+  }
+
+  if ((waypointArrivedTimer_ > WP_ARRIVED_TIME)
+      && returnToMissionMode_ == true) {
+    quadData_->telemData.mavlink->custom_mode(bfs::CustomMode::MISSION); 
+    returnToMissionMode_ = false;
   }
 }

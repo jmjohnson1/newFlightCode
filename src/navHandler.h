@@ -15,7 +15,6 @@ private:
   void PositionSetpoint();
   
 
-
   // Keep a constant pointer to the global variables
   const Quadcopter_t *quadData_;
   // Because these are used a lot, pointers to these can be pulled out of
@@ -38,6 +37,8 @@ private:
   Eigen::Vector3f takeoffSetpoint_;
   // Store the landing position setpoint
   Eigen::Vector3f landingSetpoint_;
+  // Used when we leave MISSION and want to return
+  bool returnToMissionMode_ = false;
 };
 
 #endif
