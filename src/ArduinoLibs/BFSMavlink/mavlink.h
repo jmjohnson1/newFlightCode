@@ -255,6 +255,9 @@ class MavLink {
   inline int16_t extra3_stream_period_ms() const {
     return telem_.extra3_stream_period_ms();
   }
+  inline void setMinStreamPeriod_ms(const int16_t val) {
+    telem_.setMinStreamPeriod(val);
+  }
   /* System */
   inline void sys_time_us(const uint64_t val) {telem_.sys_time_us(val);}
   inline void cpu_load(uint32_t frame_time_us, uint32_t frame_period_us) {

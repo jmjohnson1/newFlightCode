@@ -62,7 +62,7 @@ AngleAttitudeController::AngleAttitudeController(const float (&Kp)[3],
 
 void AngleAttitudeController::Update(const float setpoints[3],
                                      const AttitudeData_t &att,
-                                     const float (&gyroRates)[3], float dt,
+                                     const Eigen::Vector3f &gyroRates, float dt,
                                      bool noIntegral) {
   Eigen::Vector3f eulerAngles = *(att.eulerAngles_active);
   rollPID_ =

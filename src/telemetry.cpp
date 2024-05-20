@@ -87,13 +87,15 @@ bool telem::Begin(Quadcopter_t &quadData) {
   }
   quadData.telemData.paramsUpdated = true;
 
-  // Set data stream rates
+  // Set data stream rate defaults
+  quadData.telemData.mavlink->setMinStreamPeriod_ms(MIN_STREAM_PERIOD);
   quadData.telemData.mavlink->raw_sens_stream_period_default_ms(RAW_SENS_STREAM_PERIOD);
   quadData.telemData.mavlink->ext_status_stream_period_default_ms(EXT_STATUS_STREAM_PERIOD);
   quadData.telemData.mavlink->rc_chan_stream_period_default_ms(RC_CHAN_STREAM_PERIOD);
   quadData.telemData.mavlink->extra1_stream_period_default_ms(EXTRA1_STREAM_PERIOD);
   quadData.telemData.mavlink->extra2_stream_period_default_ms(EXTRA2_STREAM_PERIOD);
   quadData.telemData.mavlink->extra3_stream_period_default_ms(EXTRA3_STREAM_PERIOD);
+  // Set all data streams to their default rates
   quadData.telemData.mavlink->raw_sens_stream_period_ms(0);
   quadData.telemData.mavlink->ext_status_stream_period_ms(0);
   quadData.telemData.mavlink->rc_chan_stream_period_ms(0);

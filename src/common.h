@@ -14,6 +14,7 @@ constexpr std::size_t NUM_UTM = 0;
 
 // Minimum distance from waypoint for it to be considered "arrived"
 constexpr float WP_ARRIVED_THRESH = 0.12;
+// How long the quad needs to be close to the waypoint for it to count [ms]
 constexpr uint64_t WP_ARRIVED_TIME = 3000000;
 
 typedef struct AttitudeData_s {

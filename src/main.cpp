@@ -4,14 +4,11 @@
 
 #include <stdint.h>
 
-#include "TeensyTimerTool.h"  // Oneshot timer
-#include "PWMServo.h" // Commanding any extra actuators, installed with teensyduino installer
-#include "SPI.h"      // SPI communication
-#include "Wire.h"     // I2c communication
 #include "eigen.h"  	// Linear algebra
 #include "SBUS.h"     //sBus interface
 
 #include "common.h"
+#include "heartbeat.h"
 #include "serialDebug.h"
 #include "telemetry.h"
 #include "IMU.h"
@@ -162,6 +159,8 @@ AngleAttitudeController angleController = AngleAttitudeController(Kp_array, Ki_a
 PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos, 1.0f);
 PositionController2 posControl2 = PositionController2(Kp_pos, Ki_pos, Kd_pos, 1.0f, 3.6f);
 DCMAttitudeControl dcmAttControl = DCMAttitudeControl(Kp_array, Ki_array, Kd_array, 1.0f, 0.8f);
+Eigen::Vector3f b1d = {-1.0f, 0.0f, 0.0f};
+uint32_t customMode = bfs::CustomMode::MANUAL;
 
 // Motor object
 #ifdef USE_ONESHOT
@@ -701,20 +700,26 @@ if(quadData.telemData.paramsUpdated == true) {
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
 		positionCtrlTimer = 0;
 		if (positionFix == true) {
-      uint32_t customMode = quadData.telemData.mavlink->custom_mode();
+      customMode = quadData.telemData.mavlink->custom_mode();
       if (quadData.telemData.mavlink->throttle_enabled()) {
         if (customMode == bfs::CustomMode::MANUAL) {
 					posControl.Reset();
         } else {
           spHandler.UpdateSetpoint();
-          posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), 
-                            quadData.navData.velocitySetpoint_NED,
-                            ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
+          // posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), 
+          //                   quadData.navData.velocitySetpoint_NED,
+          //                   ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
+          posControl2.Update(quadData.navData.positionSetpoint_NED, quadData.navData.velocitySetpoint_NED, 
+                             ins.Get_PosEst().cast<float>(), ins.Get_VelEst(), b1d, quadData.att, dt);
           if (customMode == bfs::CustomMode::MISSION ||
-              customMode == bfs::CustomMode::POSITION) {
-            quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
-            quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
-            quadData.att.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
+              customMode == bfs::CustomMode::POSITION ||
+              customMode == bfs::CustomMode::TAKEOFF ||
+              customMode == bfs::CustomMode::LANDING) {
+            // quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+            // quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
+            // quadData.att.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
+            quadData.flightStatus.thrustSetpoint = posControl2.GetDesiredThrust();
+            quadData.att.desiredDCM = posControl2.GetDesiredDCM();
           } else if (customMode == bfs::CustomMode::ALTITUDE) {
             quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
           }
@@ -787,11 +792,18 @@ if(quadData.telemData.paramsUpdated == true) {
 	
 	if (attitudeCtrlTimer >= attitudeCtrlPeriod) {
 		attitudeCtrlTimer = 0;
-		// FIXME: Make the function take Eigen::Vector or give up on it
-		float gyroRates[3] = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
-		angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, dt, noIntegral);
-		quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
+    Eigen::Vector3f gyroRates = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
+    if (customMode == bfs::CustomMode::MANUAL ||
+        customMode == bfs::CustomMode::ALTITUDE) {
+      // FIXME: Make the function take Eigen::Vector or give up on it
+      angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, dt, noIntegral);
+      quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
+    } else {
+      dcmAttControl.Update(quadData.att, gyroRates, dt);
+      quadData.flightStatus.controlInputs(lastN(3)) = dcmAttControl.GetControlTorque();
+    }
 	}
+
 	// Convert thrust and moments from controller to angular rates
 	if (quadData.telemData.mavlink->throttle_enabled()) {
 		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs);

@@ -67,6 +67,10 @@ class MavLinkTelemetry {
   /* System and component ID getters */
   inline uint8_t sys_id() const {return sys_id_;}
   inline uint8_t comp_id() const {return comp_id_;}
+
+  inline void setMinStreamPeriod(int16_t val) {
+    minStreamPeriod_ms_ = val;
+  }
   /* Config data stream rates */
   // This hurts my eyes, so I'm just going to add comments to break things up
   //---------------------
@@ -79,6 +83,8 @@ class MavLinkTelemetry {
     if (val == 0) {
       data_stream_period_ms_[SRx_RAW_SENS_STREAM] = 
       data_stream_period_ms_default_[SRx_RAW_SENS_STREAM];
+    } else if (val > 0 && val < minStreamPeriod_ms_) {
+      data_stream_period_ms_[SRx_RAW_SENS_STREAM] = minStreamPeriod_ms_;
     } else {
       data_stream_period_ms_[SRx_RAW_SENS_STREAM] = val;
     }
@@ -96,6 +102,8 @@ class MavLinkTelemetry {
     if (val == 0) {
       data_stream_period_ms_[SRx_EXT_STAT_STREAM] = 
       data_stream_period_ms_default_[SRx_EXT_STAT_STREAM];
+    } else if (val > 0 && val < minStreamPeriod_ms_) {
+      data_stream_period_ms_[SRx_EXT_STAT_STREAM] = minStreamPeriod_ms_;
     } else {
       data_stream_period_ms_[SRx_EXT_STAT_STREAM] = val;
     }
@@ -113,6 +121,8 @@ class MavLinkTelemetry {
     if (val == 0) {
       data_stream_period_ms_[SRx_RC_CHAN_STREAM] = 
       data_stream_period_ms_default_[SRx_RC_CHAN_STREAM];
+    } else if (val > 0 && val < minStreamPeriod_ms_) {
+      data_stream_period_ms_[SRx_RC_CHAN_STREAM] = minStreamPeriod_ms_;
     } else {
       data_stream_period_ms_[SRx_RC_CHAN_STREAM] = val;
     }
@@ -130,6 +140,8 @@ class MavLinkTelemetry {
     if (val == 0 ) {
       data_stream_period_ms_[SRx_POSITION_STREAM] = 
       data_stream_period_ms_default_[SRx_POSITION_STREAM];
+    } else if (val > 0 && val < minStreamPeriod_ms_) {
+      data_stream_period_ms_[SRx_POSITION_STREAM] = minStreamPeriod_ms_;
     } else {
       data_stream_period_ms_[SRx_POSITION_STREAM] = val;
     }
@@ -147,6 +159,8 @@ class MavLinkTelemetry {
     if (val == 0) {
       data_stream_period_ms_[SRx_EXTRA1_STREAM] = 
       data_stream_period_ms_default_[SRx_EXTRA1_STREAM];
+    } else if (val > 0 && val < minStreamPeriod_ms_) {
+      data_stream_period_ms_[SRx_EXTRA1_STREAM] = minStreamPeriod_ms_;
     } else {
       data_stream_period_ms_[SRx_EXTRA1_STREAM] = val;
     }
@@ -164,6 +178,8 @@ class MavLinkTelemetry {
     if (val == 0) {
       data_stream_period_ms_[SRx_EXTRA2_STREAM] = 
       data_stream_period_ms_default_[SRx_EXTRA2_STREAM];
+    } else if (val > 0 && val < minStreamPeriod_ms_) {
+      data_stream_period_ms_[SRx_EXTRA2_STREAM] = minStreamPeriod_ms_;
     } else {
       data_stream_period_ms_[SRx_EXTRA2_STREAM] = val;
     }
@@ -181,6 +197,8 @@ class MavLinkTelemetry {
     if (val == 0) {
       data_stream_period_ms_[SRx_EXTRA3_STREAM] = 
       data_stream_period_ms_default_[SRx_EXTRA3_STREAM];
+    } else if (val > 0 && val < minStreamPeriod_ms_) {
+      data_stream_period_ms_[SRx_EXTRA3_STREAM] = minStreamPeriod_ms_;
     } else {
       data_stream_period_ms_[SRx_EXTRA3_STREAM] = val;
     }
@@ -978,6 +996,8 @@ class MavLinkTelemetry {
   float viconZ_ = 0.0f;
   uint32_t viconTime_ = 0.0f;
   uint32_t numViconRX_ = 0;
+
+  int16_t minStreamPeriod_ms_ = 33;
 };
 
 }  // namespace bfs
