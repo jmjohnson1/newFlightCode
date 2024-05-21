@@ -10,7 +10,7 @@ namespace telem {
   constexpr int16_t EXT_STATUS_STREAM_PERIOD = 1000;
   constexpr int16_t RC_CHAN_STREAM_PERIOD = 1000;
   constexpr int16_t POS_STREAM_PERIOD = 100; // position
-  constexpr int16_t EXTRA1_STREAM_PERIOD = 100; // attitude
+  constexpr int16_t EXTRA1_STREAM_PERIOD = 10; // attitude
   constexpr int16_t EXTRA2_STREAM_PERIOD = 1000;
   constexpr int16_t EXTRA3_STREAM_PERIOD = 1000;
   // By default, the minimum stream period is 33 ms. The bandwidth available is

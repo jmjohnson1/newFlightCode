@@ -43,7 +43,11 @@ BUILDDIR = build
 TARGET = bin/main
 DIR_GUARD = @mkdir -p $(@D)
 
-OS_NAME := $(shell uname -s | tr A-Z a-z)
+ifeq($(OS),Windows_NT)
+	OS_NAME := Windows_NT
+else
+	OS_NAME := $(shell uname -s | tr A-Z a-z)
+endif
 
 # configurable options
 OPTIONS = -DF_CPU=600000000 -DUSB_SERIAL -DLAYOUT_US_ENGLISH -DUSING_MAKEFILE
@@ -174,6 +178,7 @@ reboot:
 upload: post_compile reboot
 
 os: 
+	@echo $(OS)
 	@echo $(OS_NAME)
 
 $(BUILDDIR)/%.o: %.c
