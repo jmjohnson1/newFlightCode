@@ -1,2 +1,3 @@
-This is a modified version of the dRehmflight code to run without the Arduino IDE or cli. It allows
-for more flexibility in folder structure.
+There will be a super informative readme here at some point. For now, admire this art.
+
+![image](https://ichef.bbci.co.uk/news/976/cpsprodpb/DCFB/production/_90617565_cat.jpg.webp)
