@@ -43,7 +43,7 @@ BUILDDIR = build
 TARGET = bin/main
 DIR_GUARD = @mkdir -p $(@D)
 
-ifeq($(OS),Windows_NT)
+ifeq ($(OS),Windows_NT)
 	OS_NAME := Windows_NT
 else
 	OS_NAME := $(shell uname -s | tr A-Z a-z)
