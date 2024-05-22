@@ -19,10 +19,10 @@ All units meters and radians
 "Acceleration" is actually "specific gravity", ie. gravity is removed.
 */
 
-#include "uNavINS.h"
+#include "EKF.h"
 
 
-void uNavINS::Configure() {
+void EKF::Configure() {
   // Observation matrix (H)
   H_.setZero();
   H_.block(0,0,3,3) = I3;
@@ -63,7 +63,7 @@ void uNavINS::Configure() {
   S2_.setZero();
 }
 
-void uNavINS::Initialize(Vector3f wMeas_B_rps, Vector3f aMeas_B_mps2, Vector3d pMeas_NED_m) {
+void EKF::Initialize(Vector3f wMeas_B_rps, Vector3f aMeas_B_mps2, Vector3d pMeas_NED_m) {
   // Initialize Position and Velocity
   pEst_NED_m_ = pMeas_NED_m; // Position in NED
   vEst_NED_mps_.setZero(); // Velocity in NED
@@ -95,7 +95,7 @@ void uNavINS::Initialize(Vector3f wMeas_B_rps, Vector3f aMeas_B_mps2, Vector3d p
   initialized_ = true;
 }
 
-void uNavINS::UpdateStateVector() {
+void EKF::UpdateStateVector() {
   state_(seq(0,2)) = pEst_NED_m_.cast <float> ();
   state_(seq(3, 5)) = vEst_NED_mps_;
   state_(seq(6, 8)) = euler_BL_rad_;
@@ -104,7 +104,7 @@ void uNavINS::UpdateStateVector() {
 }
 
 
-void uNavINS::Update(uint64_t t_us, unsigned long timeWeek, Vector3f wMeas_B_rps, Vector3f aMeas_B_mps2, Vector3d pMeas_NED_m) {
+void EKF::Update(uint64_t t_us, unsigned long timeWeek, Vector3f wMeas_B_rps, Vector3f aMeas_B_mps2, Vector3d pMeas_NED_m) {
   // change in time
   dt_s_ = ((float)(t_us - tPrev_us_)) / 1e6;
   tPrev_us_ = t_us;
@@ -137,7 +137,7 @@ void uNavINS::Update(uint64_t t_us, unsigned long timeWeek, Vector3f wMeas_B_rps
   UpdateStateVector();
 }
 
-void uNavINS::Update(uint64_t t_us, unsigned long timeWeek, Vector3f wMeas_B_rps, Vector3f aMeas_B_mps2, Vector3d pMeas_NED_m, Vector3f vMeas_NED_mps) {
+void EKF::Update(uint64_t t_us, unsigned long timeWeek, Vector3f wMeas_B_rps, Vector3f aMeas_B_mps2, Vector3d pMeas_NED_m, Vector3f vMeas_NED_mps) {
   // change in time
   dt_s_ = ((float)(t_us - tPrev_us_)) / 1e6;
   tPrev_us_ = t_us;
@@ -170,7 +170,7 @@ void uNavINS::Update(uint64_t t_us, unsigned long timeWeek, Vector3f wMeas_B_rps
   UpdateStateVector();
 }
 
-void uNavINS::TimeUpdate() {
+void EKF::TimeUpdate() {
   // Attitude Update
   Quaternionf dQuat_BL = Quaternionf(1.0, 0.5f*wEst_B_rps_(0)*dt_s_, 0.5f*wEst_B_rps_(1)*dt_s_, 0.5f*wEst_B_rps_(2)*dt_s_);
   quat_BL_ = (quat_BL_ * dQuat_BL).normalized();
@@ -225,7 +225,7 @@ void uNavINS::TimeUpdate() {
 }
 
 // Measurement Update
-void uNavINS::MeasUpdate(Vector3d pMeas_NED_m) {
+void EKF::MeasUpdate(Vector3d pMeas_NED_m) {
   // Position Error, converted to NED
   //Matrix3f T_E2NED = TransE2NED(pEst_NED_m_).cast <float> (); // Compute ECEF to NED with double precision, cast to float
   //Vector3f pErr_NED_m = T_E2NED * (D2E(pMeas_D_rrm) - D2E(pEst_D_rrm_)).cast <float> ();// Compute position error double precision, cast to float, apply transformation
@@ -271,7 +271,7 @@ void uNavINS::MeasUpdate(Vector3d pMeas_NED_m) {
   wBias_rps_ += wBiasDelta;
 }
 
-void uNavINS::MeasUpdate(Vector3d pMeas_NED_m, Vector3f vMeas_NED_mps) {
+void EKF::MeasUpdate(Vector3d pMeas_NED_m, Vector3f vMeas_NED_mps) {
   Vector3f pErr_NED_m = (pMeas_NED_m - pEst_NED_m_).cast<float>();
 	Vector3f vErr_NED_mps = vMeas_NED_mps - vEst_NED_mps_;
 

@@ -28,9 +28,9 @@ using namespace Eigen;
 
 #include "nav-functions.h"
 
-class uNavINS {
+class EKF {
   public:
-    uNavINS() {};
+    EKF() {};
     void Configure();
     void Initialize(Vector3f wMeas_B_rps, Vector3f aMeas_B_mps2, Vector3d pMeas_NED_m);
     bool Initialized() { return initialized_; } // returns whether the INS has been initialized

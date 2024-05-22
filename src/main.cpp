@@ -17,7 +17,7 @@
 #include "motors.h"
 #include "radio.h"
 #include "testing.h"
-#include "uNavINS.h"
+#include "EKF.h"
 #include "navHandler.h"
 #include "datalogger.h"
 
@@ -183,7 +183,7 @@ bool positionFix = false;  // Set true if the position covariance from the EKF i
 const float positionCovarianceLimit = 1.0f;	// Maximum allowable position covariance from EKF. [m^2]
 
 // EKF
-uNavINS ins;
+EKF ins;
 
 // Datalogging
 Datalogger logging;
