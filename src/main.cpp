@@ -209,13 +209,13 @@ const unsigned long imuUpdatePeriod = 0; // microseconds (1000 Hz)
 bool restartSineSweep = true;
 #endif
 
-// Defining the flight area (Shepherd Drone Lab)
-const float FLIGHT_AREA_X_MAX;
-const float FLIGHT_AREA_X_MIN;
-const float FLIGHT_AREA_Y_MAX;
-const float FLIGHT_AREA_Y_MIN;
-const float FLIGHT_AREA_Z_MAX;
-const float FLIGHT_AREA_Z_MIN;
+// Defining the flight area (Shepherd Drone Lab) // These values were taken from the MATLab file "animateQuad.m"
+const float FLIGHT_AREA_X_MAX = 2.165;
+const float FLIGHT_AREA_X_MIN = -6.2197;
+const float FLIGHT_AREA_Y_MAX = 2.6975;
+const float FLIGHT_AREA_Y_MIN = -0.8;
+const float FLIGHT_AREA_Z_MAX = 0.2;
+const float FLIGHT_AREA_Z_MIN = -2.5;
 
 //========================================================================================================================//
 //                                                      FUNCTIONS //
