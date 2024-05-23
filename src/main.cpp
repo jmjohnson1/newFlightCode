@@ -209,6 +209,14 @@ const unsigned long imuUpdatePeriod = 0; // microseconds (1000 Hz)
 bool restartSineSweep = true;
 #endif
 
+// Defining the flight area (Shepherd Drone Lab)
+const float FLIGHT_AREA_X_MAX;
+const float FLIGHT_AREA_X_MIN;
+const float FLIGHT_AREA_Y_MAX;
+const float FLIGHT_AREA_Y_MIN;
+const float FLIGHT_AREA_Z_MAX;
+const float FLIGHT_AREA_Z_MIN;
+
 //========================================================================================================================//
 //                                                      FUNCTIONS //
 //========================================================================================================================//
@@ -683,7 +691,17 @@ if(quadData.telemData.paramsUpdated == true) {
 	}
 #endif
 
-	
+if (quadData.navData.position_NED[0] > FLIGHT_AREA_X_MAX ||
+	quadData.navData.position_NED[0] < FLIGHT_AREA_X_MIN ||
+	quadData.navData.position_NED[1] > FLIGHT_AREA_Y_MAX ||
+	quadData.navData.position_NED[1] < FLIGHT_AREA_Y_MIN ||
+	quadData.navData.position_NED[2] > FLIGHT_AREA_Z_MAX ||
+	quadData.navData.position_NED[2] < FLIGHT_AREA_Z_MIN) {
+		quadData.flightStatus.inputOverride = true;
+		quadData.telemData.mavlink->throttle_enabled(false);
+		throttleEnabled = false;
+	}
+
 #ifdef USE_POSITION_CONTROLLER
 	// Check if position Controller enabled
 	Eigen::Vector3f currentPosCovariance = ins.Get_CovPos();
