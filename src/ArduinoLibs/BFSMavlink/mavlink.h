@@ -751,7 +751,7 @@ class MavLink {
           HandleSetMode(cmd_int_.param1, cmd_int_.param2);
           break;
         case MAV_CMD_DO_CHANGE_ALTITUDE:
-          HandleChangeAltitude(cmd_int_.param1, cmd_int_.param2);
+          HandleChangeAltitude(cmd_int_.param1, (MAV_FRAME)cmd_int_.param2);
           break;
       }
     }
