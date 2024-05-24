@@ -178,16 +178,19 @@ void telem::Run(Quadcopter_t &quadData, IMU &quadIMU) {
   }
 }
   
+// TEMPORARY HACK!! FIX ME!
+const float MAX_POS_CHG = 10;
 
 uint32_t telem::CheckForNewPosition(Quadcopter_t &quadData) {
-  if (isfinite(quadData.telemData.mavlink->viconX())
-      &&isfinite(quadData.telemData.mavlink->viconY())
-      &&isfinite(quadData.telemData.mavlink->viconZ())
-      && quadData.telemData.mavlink->numViconRX() > quadData.navData.numMocapUpdates) {
-
-    quadData.navData.mocapPosition_NED[0] = quadData.telemData.mavlink->viconX();
-    quadData.navData.mocapPosition_NED[1] = quadData.telemData.mavlink->viconY();
-    quadData.navData.mocapPosition_NED[2] = quadData.telemData.mavlink->viconZ();
+  float viconX = quadData.telemData.mavlink->viconX();
+  float viconY = quadData.telemData.mavlink->viconY();
+  float viconZ = quadData.telemData.mavlink->viconZ();
+  if (abs(quadData.navData.position_NED[0] - viconX) < MAX_POS_CHG &&
+      abs(quadData.navData.position_NED[1] - viconY) < MAX_POS_CHG &&
+      abs(quadData.navData.position_NED[2] - viconZ) < MAX_POS_CHG) {
+    quadData.navData.mocapPosition_NED[0] = viconX;
+    quadData.navData.mocapPosition_NED[1] = viconY;
+    quadData.navData.mocapPosition_NED[2] = viconZ;
     quadData.navData.mocapUpdate_mocapTime = quadData.telemData.mavlink->viconTime();
     quadData.navData.mocapUpdate_quadTime = micros();
     return quadData.telemData.mavlink->numViconRX();

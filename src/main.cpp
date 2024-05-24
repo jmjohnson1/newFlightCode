@@ -1,7 +1,6 @@
 //================================================================================================//
 
 #include "UserDefines.h"
-
 #include <stdint.h>
 
 #include "eigen.h"  	// Linear algebra
@@ -129,7 +128,7 @@ const uint8_t debugPin = 5;
 
 // SD card setup
 // Interval between points (usec) for 100 samples/sec
-#define LOG_INTERVAL_USEC 10000
+#define LOG_INTERVAL_USEC 1000
 
 // DECLARE GLOBAL VARIABLES
 // General stuff
@@ -538,6 +537,11 @@ void loop() {
 	quadData.flightStatus.timeSinceBoot = micros();
 
   loopBlink(); // Indicate we are in main loop with short blink every 1.5 seconds
+  //
+  //
+  if (isnan(quadData.navData.position_NED[0])) {
+    ins.Initialize(quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
+  }
 
   //  Print data at 100hz (uncomment one at a time for troubleshooting)
 	if (current_time - print_counter > 100000) {
@@ -606,7 +610,7 @@ void loop() {
 	// }
 
 	// Handle restart request
-  if (throttleEnabled == true) {
+  if (throttleEnabled == false) {
 		if (resetChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
 			CPU_RESTART;
 		}
@@ -614,8 +618,8 @@ void loop() {
 
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
   	// Write to SD card buffer
-		print_counterSD = micros();
-		logging.Write();
+		// print_counterSD = micros();
+		// logging.Write();
   }
 
 	// TODO: Be better
@@ -658,17 +662,18 @@ if(quadData.telemData.paramsUpdated == true) {
   posControl.SetKi(Ki_pos);
   posControl.SetKd(Kd_pos);
 
-  ins.Set_AccelSigma(quadData.telemData.paramValues[15]*Eigen::Vector3f::Ones());
-  ins.Set_AccelMarkov(quadData.telemData.paramValues[16]*Eigen::Vector3f::Ones());
-  ins.Set_AccelTau(quadData.telemData.paramValues[17]*Eigen::Vector3f::Ones());
-  ins.Set_RotRateSigma(quadData.telemData.paramValues[18]*Eigen::Vector3f::Ones());
-  ins.Set_RotRateMarkov(quadData.telemData.paramValues[19]*Eigen::Vector3f::Ones());
-  ins.Set_RotRateTau(quadData.telemData.paramValues[20]*Eigen::Vector3f::Ones());
+  // ins.Set_AccelSigma(quadData.telemData.paramValues[15]*Eigen::Vector3f::Ones());
+  // ins.Set_AccelMarkov(quadData.telemData.paramValues[16]*Eigen::Vector3f::Ones());
+  // ins.Set_AccelTau(quadData.telemData.paramValues[17]*Eigen::Vector3f::Ones());
+  // ins.Set_RotRateSigma(quadData.telemData.paramValues[18]*Eigen::Vector3f::Ones());
+  // ins.Set_RotRateMarkov(quadData.telemData.paramValues[19]*Eigen::Vector3f::Ones());
+  // ins.Set_RotRateTau(quadData.telemData.paramValues[20]*Eigen::Vector3f::Ones());
 }
 
 #ifdef USE_EKF
 	if (EKFUpdateTimer > EKFPeriod) {
 		EKFUpdateTimer = 0;
+		logging.Write();
 		quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
   	ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
 		quadData.navData.position_NED = ins.Get_PosEst().cast<float>();
@@ -691,14 +696,17 @@ if(quadData.telemData.paramsUpdated == true) {
 			currentPosCovariance[1] < positionCovarianceLimit &&
 			currentPosCovariance[2] < positionCovarianceLimit) {
 		positionFix = true;
+    Serial.println(currentPosCovariance[0]);
 		quadData.att.eulerAngles_active = &(quadData.att.eulerAngles_ekf);
 	} else {
 		positionFix = false;
+    // positionFix = true;
 		quadData.att.eulerAngles_active = &(quadData.att.eulerAngles_madgwick);
 	}
 	if (positionCtrlTimer >= positionCtrlPeriod) {
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
 		positionCtrlTimer = 0;
+    Serial.println(positionFix);
 		if (positionFix == true) {
       customMode = quadData.telemData.mavlink->custom_mode();
       if (quadData.telemData.mavlink->throttle_enabled()) {
@@ -706,20 +714,20 @@ if(quadData.telemData.paramsUpdated == true) {
 					posControl.Reset();
         } else {
           spHandler.UpdateSetpoint();
-          // posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), 
-          //                   quadData.navData.velocitySetpoint_NED,
-          //                   ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
-          posControl2.Update(quadData.navData.positionSetpoint_NED, quadData.navData.velocitySetpoint_NED, 
-                             ins.Get_PosEst().cast<float>(), ins.Get_VelEst(), b1d, quadData.att, dt);
+          posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), 
+                            quadData.navData.velocitySetpoint_NED,
+                            ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
+          // posControl2.Update(quadData.navData.positionSetpoint_NED, quadData.navData.velocitySetpoint_NED, 
+                             // ins.Get_PosEst().cast<float>(), ins.Get_VelEst(), b1d, quadData.att, dt);
           if (customMode == bfs::CustomMode::MISSION ||
               customMode == bfs::CustomMode::POSITION ||
               customMode == bfs::CustomMode::TAKEOFF ||
               customMode == bfs::CustomMode::LANDING) {
-            // quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
-            // quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
-            // quadData.att.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
-            quadData.flightStatus.thrustSetpoint = posControl2.GetDesiredThrust();
-            quadData.att.desiredDCM = posControl2.GetDesiredDCM();
+            quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+            quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
+            quadData.att.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
+            // quadData.flightStatus.thrustSetpoint = posControl2.GetDesiredThrust();
+            // quadData.att.desiredDCM = posControl2.GetDesiredDCM();
           } else if (customMode == bfs::CustomMode::ALTITUDE) {
             quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
           }
@@ -799,8 +807,10 @@ if(quadData.telemData.paramsUpdated == true) {
       angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, dt, noIntegral);
       quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
     } else {
-      dcmAttControl.Update(quadData.att, gyroRates, dt);
-      quadData.flightStatus.controlInputs(lastN(3)) = dcmAttControl.GetControlTorque();
+      angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, dt, noIntegral);
+      quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
+      // dcmAttControl.Update(quadData.att, gyroRates, dt);
+      // quadData.flightStatus.controlInputs(lastN(3)) = dcmAttControl.GetControlTorque();
     }
 	}
 
