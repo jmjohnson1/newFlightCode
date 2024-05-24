@@ -22,7 +22,7 @@ bool telem::Begin(Quadcopter_t &quadData) {
   quadData.telemData.mavlink->mission(quadData.missionData.waypoints.data(), quadData.missionData.waypoints.size(), quadData.missionData.temp.data());
   quadData.telemData.mavlink->fence(quadData.missionData.fencePoints.data(), quadData.missionData.fencePoints.size());
   quadData.telemData.mavlink->rally(quadData.missionData.rallyPoints.data(), quadData.missionData.rallyPoints.size());
-  quadData.telemData.mavlink->Begin(115200);
+  quadData.telemData.mavlink->Begin(57600);
 
   // Parameter handling. Mostly from BFS SPAARO
   /* Load the telemetry parameters from EEPROM */
@@ -187,14 +187,17 @@ void telem::Run(Quadcopter_t &quadData, IMU &quadIMU) {
   
 // TEMPORARY HACK!! FIX ME!
 const float MAX_POS_CHG = 10;
+bool firstUpdate = true;
 
 uint32_t telem::CheckForNewPosition(Quadcopter_t &quadData) {
   float viconX = quadData.telemData.mavlink->viconX();
   float viconY = quadData.telemData.mavlink->viconY();
   float viconZ = quadData.telemData.mavlink->viconZ();
-  if (abs(quadData.navData.position_NED[0] - viconX) < MAX_POS_CHG &&
-      abs(quadData.navData.position_NED[1] - viconY) < MAX_POS_CHG &&
-      abs(quadData.navData.position_NED[2] - viconZ) < MAX_POS_CHG) {
+  if ((abs(quadData.navData.mocapPosition_NED[0] - viconX) < MAX_POS_CHG &&
+      abs(quadData.navData.mocapPosition_NED[1] - viconY) < MAX_POS_CHG &&
+      abs(quadData.navData.mocapPosition_NED[2] - viconZ) < MAX_POS_CHG) ||
+      firstUpdate == true) {
+    firstUpdate = false;
     quadData.navData.mocapPosition_NED[0] = viconX;
     quadData.navData.mocapPosition_NED[1] = viconY;
     quadData.navData.mocapPosition_NED[2] = viconZ;
