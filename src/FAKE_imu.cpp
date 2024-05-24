@@ -104,6 +104,7 @@ bmi088::~bmi088() {
 }
 
 bool bmi088::Init() {
+	Generic_IMU::Init();
 	bmi088_->begin();
 	bmi088_->setRange(accRange, gyroRange);
 	return true;
