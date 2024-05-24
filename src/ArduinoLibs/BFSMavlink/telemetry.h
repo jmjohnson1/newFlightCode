@@ -324,12 +324,20 @@ class MavLinkTelemetry {
     nav_hdg_rad_.set = true;
     nav_hdg_rad_.val = val;
   }
+  // Setpoint setters
   inline void north_pos_setpoint_m(const float val) {north_pos_setpoint_m_ = val;}
   inline void east_pos_setpoint_m(const float val) {east_pos_setpoint_m_ = val;}
   inline void down_pos_setpoint_m(const float val) {down_pos_setpoint_m_ = val;}
   inline void north_vel_setpoint_m(const float val) {north_vel_setpoint_m_ = val;}
   inline void east_vel_setpoint_m(const float val) {east_vel_setpoint_m_ = val;}
   inline void down_vel_setpoint_m(const float val) {down_vel_setpoint_m_ = val;}
+  // Setpoint getters
+  inline float north_pos_setpoint_m() {return north_pos_setpoint_m_;}
+  inline float east_pos_setpoint_m()  {return east_pos_setpoint_m_;}
+  inline float down_pos_setpoint_m()  {return down_pos_setpoint_m_;}
+  inline float north_vel_setpoint_m() {return north_vel_setpoint_m_;}
+  inline float east_vel_setpoint_m()  {return east_vel_setpoint_m_;}
+  inline float down_vel_setpoint_m()  {return down_vel_setpoint_m_;}
 
 
   inline void quaternionSetpoint(const float val[4]) {

@@ -42,8 +42,8 @@ typedef struct MissionData_s {
 } MissionData_t;
 
 typedef struct NavData_s {
-  Eigen::Vector3f position_NED;
-  Eigen::Vector3f velocity_NED;
+  Eigen::Vector3f position_NED = Eigen::Vector3f::Zero();
+  Eigen::Vector3f velocity_NED = Eigen::Vector3f::Zero();
   Eigen::Vector3f positionSetpoint_NED = Eigen::Vector3f::Zero();
   Eigen::Vector3f velocitySetpoint_NED = Eigen::Vector3f::Zero();
   Eigen::Vector3f homePosition_NED = Eigen::Vector3f::Zero();
