@@ -145,6 +145,13 @@ void telem::Run(Quadcopter_t &quadData, IMU &quadIMU) {
 
   quadData.telemData.mavlink->Update();
 
+  // Check if there is a new position setpoint requested by GCS
+  if (mavptr->new_setpoint_available() == true) {
+    quadData.navData.positionSetpoint_NED[0] = mavptr->new_setpoint_x();
+    quadData.navData.positionSetpoint_NED[1] = mavptr->new_setpoint_y();
+    quadData.navData.positionSetpoint_NED[2] = mavptr->new_setpoint_z();
+  }
+
   // Handle any parameter updates
   if (mavptr->param_reset() == true) {
     EEPROM.write(0, 'R');

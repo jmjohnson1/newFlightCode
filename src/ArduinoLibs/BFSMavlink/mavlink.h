@@ -611,6 +611,12 @@ class MavLink {
   }
 
   inline bool param_reset() { return param_reset_; }
+  // Use to return new setpoints from GCS
+  inline bool new_setpoint_available() {return newSetpointAvailable_; }
+  inline float new_setpoint_x() { return newPositionSetpointRequestX_; }
+  inline float new_setpoint_y() { return newPositionSetpointRequestY_; }
+  inline float new_setpoint_z() { return newPositionSetpointRequestZ_; }
+
 
  private:
   /* Serial bus */
@@ -677,6 +683,12 @@ class MavLink {
       gcs_link_timer_ms_ = 0;
     }
   }
+  // Used for storing setpoints from GCS
+  bool newSetpointAvailable_ = false;
+  float newPositionSetpointRequestX_ = 0.0f;
+  float newPositionSetpointRequestY_ = 0.0f;
+  float newPositionSetpointRequestZ_ = 0.0f;
+
   void CommandLongHandler(const mavlink_command_long_t &ref) {
     if ((cmd_long_.target_system == sys_id_) &&
         (cmd_long_.target_component == comp_id_)) {
@@ -738,6 +750,9 @@ class MavLink {
           // Ack in handler
           HandleSetMode(cmd_int_.param1, cmd_int_.param2);
           break;
+        case MAV_CMD_DO_CHANGE_ALTITUDE:
+          HandleChangeAltitude(cmd_int_.param1, cmd_int_.param2);
+          break;
       }
     }
   }
@@ -765,8 +780,6 @@ class MavLink {
       case MAVLINK_MSG_ID_ATTITUDE_QUATERNION:
       case MAVLINK_MSG_ID_ATTITUDE_TARGET:
         telem_.extra1_stream_period_ms(period_ms);
-        Serial.print("Set period to: ");
-        Serial.println(period_ms);
         break;
       case MAVLINK_MSG_ID_LOCAL_POSITION_NED:
       case MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED:
@@ -779,6 +792,15 @@ class MavLink {
     if (action == 2 && 
         param_reset_ == false) {
       param_reset_ = true;
+    }
+  }
+
+  void HandleChangeAltitude(float newAltitude, MAV_FRAME frame) {
+    if (frame == MAV_FRAME_LOCAL_NED) {
+      newPositionSetpointRequestX_ = telem_.north_pos_setpoint_m();
+      newPositionSetpointRequestY_ = telem_.east_pos_setpoint_m();
+      newPositionSetpointRequestZ_ = -newAltitude;
+      newSetpointAvailable_ = true;
     }
   }
 
