@@ -45,6 +45,7 @@ bool mpu6050::Init(TwoWire *i2c) {
 	i2c->begin();
 	i2c->setClock(1000000);
 
+	Generic_IMU::Init();
 	mpu6050_->initialize();
 
 	if (mpu6050_->testConnection() == false) {
