@@ -11,7 +11,7 @@
 #include "heartbeat.h"
 #include "serialDebug.h"
 #include "telemetry.h"
-#include "IMU.h"
+#include "FAKE_imu.h"
 #include "madgwick.h"
 #include "controller.h"
 #include "motors.h"
@@ -147,7 +147,7 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-IMU quadIMU = IMU(0.00f, 0.00f, 0.8826f, 6.981E-4f, 4.852E-2f, 6.109E-3f);
+mpu6050 quadIMU = mpu6050(0.00f, 0.00f, 0.8826f, 6.981E-4f, 4.852E-2f, 6.109E-3f);
 
 SetpointHandler spHandler(&quadData);
 
@@ -379,7 +379,7 @@ void calibrateESCs() {
  * @param imu Pointer to the imu object to get the error from
  * @param att Pointer to the structure that contains attitude info for the IMU
 */
-void calculate_IMU_error(IMU *imu) {
+void calculate_IMU_error(mpu6050 *imu) {
   int16_t AcX, AcY, AcZ, GyX, GyY, GyZ;
 	
 	float errorAcc[3] = {0, 0, 0};

@@ -2,7 +2,7 @@
 #define TELEM_H_
 
 #include "common.h"
-#include "IMU.h"
+#include "FAKE_imu.h"
 
 namespace telem {
   // Telemetry data stream periods (milliseconds)
@@ -20,7 +20,7 @@ namespace telem {
 
 
   bool Begin(Quadcopter_t &quadData);
-  void Run(Quadcopter_t &quadData, IMU &quadIMU);
+  void Run(Quadcopter_t &quadData, Generic_IMU &quadIMU);
   uint32_t CheckForNewPosition(Quadcopter_t &quadData); 
 }
 

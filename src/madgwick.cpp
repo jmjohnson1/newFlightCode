@@ -2,7 +2,7 @@
 
 const float B_madgwick = 0.04f; // Madgwick lowpass parameter
 
-void Madgwick6DOF(const IMU &imu, Quadcopter_t &quad, float dt) {
+void Madgwick6DOF(const Generic_IMU &imu, Quadcopter_t &quad, float dt) {
   float recipNorm;
   float s0, s1, s2, s3;
   float qDot1, qDot2, qDot3, qDot4;
