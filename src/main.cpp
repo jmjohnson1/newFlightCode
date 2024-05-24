@@ -146,7 +146,10 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-mpu6050 quadIMU = mpu6050(0.00f, 0.00f, 0.8826f, 6.981E-4f, 4.852E-2f, 6.109E-3f);
+Eigen::Vector3f mpu6050_accBIAS = {0.00f, 0.00f, 0.8826f};
+Eigen::Vector3f mpu6050_gyroBIAS = {6.981E-4f, 4.852E-2f, 6.109E-3f};
+
+mpu6050 quadIMU = mpu6050(mpu6050_accBIAS, mpu6050_gyroBIAS);
 
 SetpointHandler spHandler(&quadData);
 
