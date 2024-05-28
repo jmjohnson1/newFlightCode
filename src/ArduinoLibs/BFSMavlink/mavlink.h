@@ -735,7 +735,8 @@ class MavLink {
       cmd_ = cmd_int_.command;
       switch (cmd_int_.command) {
         case MAV_CMD_NAV_TAKEOFF_LOCAL:
-          if (throttle_enabled() && heartbeat_.custom_mode() != MANUAL) {
+          Serial.println(throttle_enabled());
+          if (throttle_enabled() == true) {
             SendCmdAck(MAV_RESULT_ACCEPTED, 255);
             heartbeat_.custom_mode(TAKEOFF);
           } else {
@@ -751,6 +752,7 @@ class MavLink {
           HandleSetMode(cmd_int_.param1, cmd_int_.param2);
           break;
         case MAV_CMD_DO_CHANGE_ALTITUDE:
+          SendCmdAck(MAV_RESULT_ACCEPTED, 255);
           HandleChangeAltitude(cmd_int_.param1, (MAV_FRAME)cmd_int_.param2);
           break;
       }

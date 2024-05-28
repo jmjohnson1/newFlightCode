@@ -9,7 +9,7 @@
 // if we store them with IDs and a checksum at the end and a header at the
 // beginning.
 constexpr uint8_t PARAM_HEADER[1] = {'P'};
-constexpr std::size_t NUM_PARAMS = 21;
+constexpr std::size_t NUM_PARAMS = 24;
 constexpr std::size_t PARAM_SIZE = sizeof(char[1]) + NUM_PARAMS*(sizeof(float) + sizeof(char[16])) + sizeof(uint16_t);
 
 constexpr char PARAM_ID_0[16]  = "CT_KP_ROLL";
@@ -34,6 +34,11 @@ constexpr char PARAM_ID_18[16] = "EKF_G_NOISE";
 constexpr char PARAM_ID_19[16] = "EKF_G_MKV";
 constexpr char PARAM_ID_20[16] = "EKF_G_TAU";
 
+constexpr char PARAM_ID_21[16] = "CT2_KR";
+constexpr char PARAM_ID_22[16] = "CT2_Kw";
+constexpr char PARAM_ID_23[16] = "CT2_KI";
+
+
 constexpr float PARAM_DEFAULT_0  = 1.66f;
 constexpr float PARAM_DEFAULT_1  = 4.81f;
 constexpr float PARAM_DEFAULT_2  = 0.34f;
@@ -55,6 +60,10 @@ constexpr float PARAM_DEFAULT_17 = 500.0f;
 constexpr float PARAM_DEFAULT_18 = 0.0375f;
 constexpr float PARAM_DEFAULT_19 = 0.00025f;
 constexpr float PARAM_DEFAULT_20 = 250.0f;
+
+constexpr float PARAM_DEFAULT_21 = 1.5f;
+constexpr float PARAM_DEFAULT_22 = 0.11f;
+constexpr float PARAM_DEFAULT_23 = 0.06f;
 
 inline void GetDefaultTelemParams(uint8_t paramBuf[PARAM_SIZE]) {
   float paramDefaultVals[NUM_PARAMS];
@@ -83,6 +92,10 @@ inline void GetDefaultTelemParams(uint8_t paramBuf[PARAM_SIZE]) {
   paramDefaultVals[18] = PARAM_DEFAULT_18;
   paramDefaultVals[19] = PARAM_DEFAULT_19;
   paramDefaultVals[20] = PARAM_DEFAULT_20;
+  paramDefaultVals[21] = PARAM_DEFAULT_21;
+  paramDefaultVals[22] = PARAM_DEFAULT_22;
+  paramDefaultVals[23] = PARAM_DEFAULT_23;
+
 
   paramDefaultIDs[0]  = PARAM_ID_0;
   paramDefaultIDs[1]  = PARAM_ID_1;
@@ -105,6 +118,9 @@ inline void GetDefaultTelemParams(uint8_t paramBuf[PARAM_SIZE]) {
   paramDefaultIDs[18] = PARAM_ID_18;
   paramDefaultIDs[19] = PARAM_ID_19;
   paramDefaultIDs[20] = PARAM_ID_20;
+  paramDefaultIDs[21] = PARAM_ID_21;
+  paramDefaultIDs[22] = PARAM_ID_22;
+  paramDefaultIDs[23] = PARAM_ID_23;
 
   // Copy these to the buffer
   std::memcpy(&(paramBuf[1]), &(paramDefaultVals[0]), NUM_PARAMS*sizeof(float));

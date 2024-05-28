@@ -128,7 +128,7 @@ const uint8_t debugPin = 5;
 
 // SD card setup
 // Interval between points (usec) for 100 samples/sec
-#define LOG_INTERVAL_USEC 1000
+#define LOG_INTERVAL_USEC 10000
 
 // DECLARE GLOBAL VARIABLES
 // General stuff
@@ -154,10 +154,13 @@ SetpointHandler spHandler(&quadData);
 float Kp_array[3] = {0.0f, 0.0f, 0.0f};
 float Ki_array[3] = {0.0f, 0.0f, 0.0f};
 float Kd_array[3] = {0.0f, 0.0f, 0.0f};
+float Kp2_array[3] = {0.0f, 0.0f, 0.0f};
+float Ki2_array[3] = {0.0f, 0.0f, 0.0f};
+float Kd2_array[3] = {0.0f, 0.0f, 0.0f};
 AngleAttitudeController angleController = AngleAttitudeController(Kp_array, Ki_array, Kd_array, 50.0f);
 PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos, 1.0f);
 PositionController2 posControl2 = PositionController2(Kp_pos, Ki_pos, Kd_pos, 1.0f, 3.6f);
-DCMAttitudeControl dcmAttControl = DCMAttitudeControl(Kp_array, Ki_array, Kd_array, 1.0f, 0.8f);
+DCMAttitudeControl dcmAttControl = DCMAttitudeControl(Kp2_array, Ki2_array, Kd2_array, 1.0f, 0.8f);
 Eigen::Vector3f b1d = {-1.0f, 0.0f, 0.0f};
 uint32_t customMode = bfs::CustomMode::MANUAL;
 
@@ -507,6 +510,7 @@ void setup() {
 	ins.Initialize(quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
 #endif
 
+
   // Initialize the SD card, returns 1 if no sd card is detected or it can't be
   // initialized. So it's negated to make SD_is_present true when everything is OK
 	LoggingSetup();
@@ -585,6 +589,7 @@ void loop() {
 		case SwPos::SWITCH_HIGH:
       quadData.telemData.mavlink->throttle_enabled(false);
       throttleEnabled = false;
+      quadData.flightStatus.inputOverride = false;
 			if (logRunning==true) {
 				logRunning = false;
 				logging.End();
@@ -626,8 +631,8 @@ void loop() {
 
   if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
   	// Write to SD card buffer
-		// print_counterSD = micros();
-		// logging.Write();
+		print_counterSD = micros();
+		logging.Write();
   }
 
 	// TODO: Be better
@@ -663,12 +668,28 @@ if(quadData.telemData.paramsUpdated == true) {
   Ki_pos[2] = quadData.telemData.paramValues[13];
   Kd_pos[2] = quadData.telemData.paramValues[14];
 
+  Kp2_array[0] = quadData.telemData.paramValues[21]; 
+  Ki2_array[0] = quadData.telemData.paramValues[23];
+  Kd2_array[0] = quadData.telemData.paramValues[22];
+  Kp2_array[1] = quadData.telemData.paramValues[21]; 
+  Ki2_array[1] = quadData.telemData.paramValues[23];
+  Kd2_array[1] = quadData.telemData.paramValues[22];
+  Kp2_array[2] = quadData.telemData.paramValues[21]; 
+  Ki2_array[2] = quadData.telemData.paramValues[23];
+  Kd2_array[2] = quadData.telemData.paramValues[22];
+
+
   angleController.SetKp(Kp_array);
   angleController.SetKi(Ki_array);
   angleController.SetKd(Kd_array);
   posControl.SetKp(Kp_pos);
   posControl.SetKi(Ki_pos);
   posControl.SetKd(Kd_pos);
+  dcmAttControl.SetKp(Kp2_array);
+  dcmAttControl.SetKi(Ki2_array);
+  dcmAttControl.SetKd(Kd2_array);
+
+
 
   // ins.Set_AccelSigma(quadData.telemData.paramValues[15]*Eigen::Vector3f::Ones());
   // ins.Set_AccelMarkov(quadData.telemData.paramValues[16]*Eigen::Vector3f::Ones());
@@ -681,7 +702,6 @@ if(quadData.telemData.paramsUpdated == true) {
 #ifdef USE_EKF
 	if (EKFUpdateTimer > EKFPeriod) {
 		EKFUpdateTimer = 0;
-		logging.Write();
 		quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
   	ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
 		quadData.navData.position_NED = ins.Get_PosEst().cast<float>();
@@ -696,16 +716,16 @@ if(quadData.telemData.paramsUpdated == true) {
 	}
 #endif
 
-if (quadData.navData.position_NED[0] > FLIGHT_AREA_X_MAX ||
-	quadData.navData.position_NED[0] < FLIGHT_AREA_X_MIN ||
-	quadData.navData.position_NED[1] > FLIGHT_AREA_Y_MAX ||
-	quadData.navData.position_NED[1] < FLIGHT_AREA_Y_MIN ||
-	quadData.navData.position_NED[2] > FLIGHT_AREA_Z_MAX ||
-	quadData.navData.position_NED[2] < FLIGHT_AREA_Z_MIN) {
-		quadData.flightStatus.inputOverride = true;
-		quadData.telemData.mavlink->throttle_enabled(false);
-		throttleEnabled = false;
-	}
+// if (quadData.navData.position_NED[0] > FLIGHT_AREA_X_MAX ||
+// 	quadData.navData.position_NED[0] < FLIGHT_AREA_X_MIN ||
+// 	quadData.navData.position_NED[1] > FLIGHT_AREA_Y_MAX ||
+// 	quadData.navData.position_NED[1] < FLIGHT_AREA_Y_MIN ||
+// 	quadData.navData.position_NED[2] > FLIGHT_AREA_Z_MAX ||
+// 	quadData.navData.position_NED[2] < FLIGHT_AREA_Z_MIN) {
+// 		quadData.flightStatus.inputOverride = true;
+// 		quadData.telemData.mavlink->throttle_enabled(false);
+// 		throttleEnabled = false;
+// 	}
 
 #ifdef USE_POSITION_CONTROLLER
 	// Check if position Controller enabled
@@ -714,7 +734,6 @@ if (quadData.navData.position_NED[0] > FLIGHT_AREA_X_MAX ||
 			currentPosCovariance[1] < positionCovarianceLimit &&
 			currentPosCovariance[2] < positionCovarianceLimit) {
 		positionFix = true;
-    Serial.println(currentPosCovariance[0]);
 		quadData.att.eulerAngles_active = &(quadData.att.eulerAngles_ekf);
 	} else {
 		positionFix = false;
@@ -724,7 +743,6 @@ if (quadData.navData.position_NED[0] > FLIGHT_AREA_X_MAX ||
 	if (positionCtrlTimer >= positionCtrlPeriod) {
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
 		positionCtrlTimer = 0;
-    Serial.println(positionFix);
 		if (positionFix == true) {
       customMode = quadData.telemData.mavlink->custom_mode();
       if (quadData.telemData.mavlink->throttle_enabled()) {
@@ -736,7 +754,7 @@ if (quadData.navData.position_NED[0] > FLIGHT_AREA_X_MAX ||
                             quadData.navData.velocitySetpoint_NED,
                             ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
           // posControl2.Update(quadData.navData.positionSetpoint_NED, quadData.navData.velocitySetpoint_NED, 
-                             // ins.Get_PosEst().cast<float>(), ins.Get_VelEst(), b1d, quadData.att, dt);
+          //                    ins.Get_PosEst().cast<float>(), ins.Get_VelEst(), b1d, quadData.att, dt);
           if (customMode == bfs::CustomMode::MISSION ||
               customMode == bfs::CustomMode::POSITION ||
               customMode == bfs::CustomMode::TAKEOFF ||
