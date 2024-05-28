@@ -44,6 +44,7 @@ void SetpointHandler::TakeoffSetpoint() {
     waypointArrived_ = false;
     waypointArrivedTimer_ = 0;
   }
+
   if (waypointArrivedTimer_ > WP_ARRIVED_TIME) {
       quadData_->telemData.mavlink->custom_mode(bfs::CustomMode::POSITION);
   }
@@ -67,7 +68,7 @@ void SetpointHandler::MissionSetpoint() {
     posSetpoint_->data()[1] = static_cast<float>(quadData_->missionData.waypoints[curIdx].y)*1e-4;
     posSetpoint_->data()[2] = quadData_->missionData.waypoints[curIdx].z;
     velSetpoint_->setZero();
-    if ((*quadPos_ - *posSetpoint_).norm() < WP_ARRIVED_THRESH) {
+    if ((*quadPos_ - *posSetpoint_).norm() > WP_ARRIVED_THRESH) {
       returnToMissionMode_ = true;
       quadData_->telemData.mavlink->custom_mode(bfs::CustomMode::POSITION);
       return;
