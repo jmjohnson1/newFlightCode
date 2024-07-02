@@ -115,9 +115,9 @@ float Kd_pos[3] = {0.0f, 0.0f, 0.0f};
 
 // Motor pin outputs:
 const uint8_t motorPins[4] = {0, 1, 2, 3};
-
+// 4 2 5 3 pin assignments for new drones, 0 1 2 3 for old drone
 // Can write high or low to check conditions when debugging.
-const uint8_t debugPin = 5;
+//* const uint8_t debugPin = 5; *//
 
 //================================================================================================//
 
@@ -314,7 +314,7 @@ void loopBlink() {
    */
   if (current_time - blink_counter > blink_delay) {
     blink_counter = micros();
-    digitalWrite(13, blinkAlternate); // Pin 13 is built in LED
+    digitalWrite(10, blinkAlternate); // Pin 13 is built in LED
 
     if (blinkAlternate == 1) {
       blinkAlternate = 0;
@@ -329,9 +329,9 @@ void loopBlink() {
 void setupBlink(int numBlinks, int upTime, int downTime) {
   // DESCRIPTION: Simple function to make LED on board blink as desired
   for (int j = 1; j <= numBlinks; j++) {
-    digitalWrite(13, LOW);
+    digitalWrite(10, LOW);
     delay(downTime);
-    digitalWrite(13, HIGH);
+    digitalWrite(10, HIGH);
     delay(upTime);
   }
 }
@@ -351,11 +351,11 @@ void calibrateESCs() {
     prev_time = current_time;
     current_time = micros();
     dt = (current_time - prev_time) / 1000000.0;
-    digitalWrite(13, HIGH); // LED on to indicate we are not in main loop
+    digitalWrite(10, HIGH); // LED on to indicate we are not in main loop
     getCommands();
     failSafe();  
     getDesState();
-		quadIMU.Update();
+	quadIMU.Update();
     Madgwick6DOF(quadIMU, quadData, dt);
     getDesState();
 		quadData.flightStatus.controlInputs << quadData.flightStatus.thrustSetpoint, 0, 0, 0;
@@ -475,6 +475,16 @@ void LoggingSetup() {
 	logging.AddItem(&pScale_att, "pScale_att", 4);
 	logging.AddItem(&iScale_att, "iScale_att", 4);
 	logging.AddItem(&dScale_att, "dScale_att", 4);
+	// PID values
+	logging.AddItem(Kp_array, "Kp_array", 3);
+	logging.AddItem(Ki_array, "Ki_array", 3);
+	logging.AddItem(Kd_array, "Kd_array", 3);
+	logging.AddItem(Kp_pos, "Kp_pos", 3);
+	logging.AddItem(Ki_pos, "Ki_pos", 3);
+	logging.AddItem(Kd_pos, "Kd_pos", 3);
+	logging.AddItem(Kp2_array, "Kp2_array", 3);
+	logging.AddItem(Ki2_array, "Ki2_array", 3);
+	logging.AddItem(Kd2_array, "Kd2_array", 3);
 }
 
 //===========================//
@@ -485,11 +495,11 @@ void setup() {
   delay(500); // Give Serial some time to initialize
 
   // Initialize all pins
-  pinMode(13, OUTPUT); // Pin 13 LED blinker on board, do not modify
-  pinMode(5, OUTPUT);
+  pinMode(10, OUTPUT); // Pin 13 LED blinker on board, do not modify
+  //*pinMode(5, OUTPUT);*//
 
   // Set built in LED to turn on to signal startup
-  digitalWrite(13, HIGH);
+  digitalWrite(10, HIGH);
 
   delay(5);
 
@@ -519,17 +529,17 @@ void setup() {
   // level when powered up Calibration parameters printed to serial monitor.
   // Paste these in the user specified variables section, then comment this out
   // forever.
-	//calculate_IMU_error(&quadIMU);
+	// calculate_IMU_error(&quadIMU);
 
 
   delay(5);
 
   // PROPS OFF. Uncomment this to calibrate your ESCs by setting throttle stick
   // to max, powering on, and lowering throttle to zero after the beeps
-  // calibrateESCs();
+  //calibrateESCs();
   // Code will not proceed past here if this function is uncommented!
 
-  motors.ArmMotors(); // Loop over commandMotors() until ESCs happily arm
+  //motors.ArmMotors(); // Loop over commandMotors() until ESCs happily arm
 
   // Indicate entering main loop with 3 quick blinks
   setupBlink(3, 160, 70); // numBlinks, upTime (ms), downTime (ms)
