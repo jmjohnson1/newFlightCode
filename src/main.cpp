@@ -838,9 +838,8 @@ if(quadData.telemData.paramsUpdated == true) {
 	angleController.SetKd(KdScaled);
 #endif
 
-	// TODO: be better
 	bool noIntegral = false;
-	if (throttleChannel.GetRawValue() < 1060) {
+	if (quadData.flightStatus.thrustSetpoint < 0.5f || throttleEnabled == false) {
 		noIntegral = true;
 	}
 	
