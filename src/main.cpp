@@ -838,9 +838,8 @@ if (quadData.navData.position_NED[0] > FLIGHT_AREA_X_MAX ||
 	angleController.SetKd(KdScaled);
 #endif
 
-	// TODO: be better
 	bool noIntegral = false;
-	if (throttleChannel.GetRawValue() < 1060) {
+	if (quadData.flightStatus.thrustSetpoint < 0.5f || throttleEnabled == false) {
 		noIntegral = true;
 	}
 	
