@@ -116,7 +116,8 @@ float Kd_pos[3] = {0.0f, 0.0f, 0.0f};
 // 			 MPU6050 IMU for default setup
 
 // Motor pin outputs:
-const uint8_t motorPins[4] = {0, 1, 2, 3};
+const uint8_t motorPins[4] = {2, 3, 4, 5};
+const uint8_t ledPin = 10;
 // 4 2 5 3 pin assignments for new drones, 0 1 2 3 for old drone
 // Can write high or low to check conditions when debugging.
 //* const uint8_t debugPin = 5; *//
@@ -317,7 +318,7 @@ void loopBlink() {
    */
   if (current_time - blink_counter > blink_delay) {
     blink_counter = micros();
-    digitalWrite(10, blinkAlternate); // Pin 13 is built in LED
+    digitalWrite(ledPin, blinkAlternate); // Pin 13 is built in LED
 
     if (blinkAlternate == 1) {
       blinkAlternate = 0;
@@ -332,9 +333,9 @@ void loopBlink() {
 void setupBlink(int numBlinks, int upTime, int downTime) {
   // DESCRIPTION: Simple function to make LED on board blink as desired
   for (int j = 1; j <= numBlinks; j++) {
-    digitalWrite(10, LOW);
+    digitalWrite(ledPin, LOW);
     delay(downTime);
-    digitalWrite(10, HIGH);
+    digitalWrite(ledPin, HIGH);
     delay(upTime);
   }
 }
@@ -354,7 +355,7 @@ void calibrateESCs() {
     prev_time = current_time;
     current_time = micros();
     dt = (current_time - prev_time) / 1000000.0;
-    digitalWrite(10, HIGH); // LED on to indicate we are not in main loop
+    digitalWrite(ledPin, HIGH); // LED on to indicate we are not in main loop
     getCommands();
     failSafe();  
     getDesState();
@@ -498,11 +499,11 @@ void setup() {
   delay(500); // Give Serial some time to initialize
 
   // Initialize all pins
-  pinMode(10, OUTPUT); // Pin 13 LED blinker on board, do not modify
+  pinMode(ledPin, OUTPUT); // Pin 13 LED blinker on board, do not modify
   //*pinMode(5, OUTPUT);*//
 
   // Set built in LED to turn on to signal startup
-  digitalWrite(10, HIGH);
+  digitalWrite(ledPin, HIGH);
 
   delay(5);
 
