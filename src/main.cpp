@@ -32,6 +32,7 @@ RadioChannel rollChannel("roll", 2, 1500, 1500, true);
 RadioChannel pitchChannel("pitch", 3, 1500, 1500, true);
 RadioChannel yawChannel("yaw", 4, 1500, 1500, true);
 RadioChannel throCutChannel("throttle_cut", 5, 1000, 2000);
+RadioChannel boundaryOnOff("boundary_sw", 6, 1000, 2000);
 
 #ifdef TEST_STAND
 RadioChannel aux0("none", 6, 1500, 1500);
@@ -59,13 +60,13 @@ RadioChannel resetChannel("reset", 14, 1000, 1000);
 
 // Array of pointers the the radio channels. This is useful for datalogging and updating the raw
 // values.
-const uint8_t numChannels = 14;
+const uint8_t numChannels = 15;
 RadioChannel *radioChannels[numChannels] = {&throttleChannel, 
 											&rollChannel, 
 											&pitchChannel, 
 											&yawChannel, 
-											&throCutChannel, 
-											&aux0,
+											&throCutChannel,
+											&boundaryOnOff, 											
 											&aux1,
 											&aux2,
 											&aux3,
@@ -73,7 +74,8 @@ RadioChannel *radioChannels[numChannels] = {&throttleChannel,
 											&KiScaleChannel,
 											&KdScaleChannel,
 											&scaleAllChannel,
-											&resetChannel
+											&resetChannel,
+											&aux0
 											};
 
 // Max roll/pitch angles in degrees for angle mode
@@ -212,12 +214,13 @@ bool restartSineSweep = true;
 #endif
 
 // Defining the flight area (Shepherd Drone Lab)
-const float FLIGHT_AREA_X_MAX;
-const float FLIGHT_AREA_X_MIN;
-const float FLIGHT_AREA_Y_MAX;
-const float FLIGHT_AREA_Y_MIN;
-const float FLIGHT_AREA_Z_MAX;
-const float FLIGHT_AREA_Z_MIN;
+const float FLIGHT_AREA_X_MAX = 1.5;
+const float FLIGHT_AREA_X_MIN = -6;
+const float FLIGHT_AREA_Y_MAX = 4;
+const float FLIGHT_AREA_Y_MIN = -1;
+const float FLIGHT_AREA_Z_MAX = 0;
+const float FLIGHT_AREA_Z_MIN = -2.5;
+int bndryOnOff;
 
 //========================================================================================================================//
 //                                                      FUNCTIONS //
@@ -610,6 +613,21 @@ void loop() {
 			break;
 	}
 
+  // Check boundary On-Off switch
+	switch(boundaryOnOff.SwitchPosition()) {
+		case SwPos::SWITCH_HIGH:
+	  if (1) {bndryOnOff = 1;}
+	  		break;
+		case SwPos::SWITCH_MID:
+	  if (1) {bndryOnOff = 1;}
+	  		break;
+		case SwPos::SWITCH_LOW:
+	  if (1) {bndryOnOff = 0;}
+	  		break;
+		default:
+			break;
+	}
+
   // Check autopilot mode
 
 
@@ -726,17 +744,19 @@ if(quadData.telemData.paramsUpdated == true) {
 	}
 #endif
 
-// if (quadData.navData.position_NED[0] > FLIGHT_AREA_X_MAX ||
-// 	quadData.navData.position_NED[0] < FLIGHT_AREA_X_MIN ||
-// 	quadData.navData.position_NED[1] > FLIGHT_AREA_Y_MAX ||
-// 	quadData.navData.position_NED[1] < FLIGHT_AREA_Y_MIN ||
-// 	quadData.navData.position_NED[2] > FLIGHT_AREA_Z_MAX ||
-// 	quadData.navData.position_NED[2] < FLIGHT_AREA_Z_MIN) {
-// 		quadData.flightStatus.inputOverride = true;
-// 		quadData.telemData.mavlink->throttle_enabled(false);
-// 		throttleEnabled = false;
-// 	}
-
+// Flight boundary limit
+if (bndryOnOff == 1) {
+	if (quadData.navData.position_NED[0] > FLIGHT_AREA_X_MAX ||
+		quadData.navData.position_NED[0] < FLIGHT_AREA_X_MIN ||
+		quadData.navData.position_NED[1] > FLIGHT_AREA_Y_MAX ||
+		quadData.navData.position_NED[1] < FLIGHT_AREA_Y_MIN ||
+		quadData.navData.position_NED[2] > FLIGHT_AREA_Z_MAX ||
+		quadData.navData.position_NED[2] < FLIGHT_AREA_Z_MIN) {
+			quadData.flightStatus.inputOverride = true;
+			quadData.telemData.mavlink->throttle_enabled(false);
+			throttleEnabled = false;
+		}
+}
 #ifdef USE_POSITION_CONTROLLER
 	// Check if position Controller enabled
 	Eigen::Vector3f currentPosCovariance = ins.Get_CovPos();
