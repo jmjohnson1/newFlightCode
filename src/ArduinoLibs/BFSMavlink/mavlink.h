@@ -118,6 +118,7 @@ class MavLink {
           case MAVLINK_MSG_ID_HEARTBEAT: {
             mavlink_msg_heartbeat_decode(&msg_, &heartbeat_msg_);
             HeartbeatHandler(heartbeat_msg_);
+            break;
           }
           case MAVLINK_MSG_ID_COMMAND_LONG: {
             mavlink_msg_command_long_decode(&msg_, &cmd_long_);
@@ -127,6 +128,7 @@ class MavLink {
           case MAVLINK_MSG_ID_COMMAND_INT: {
             mavlink_msg_command_int_decode(&msg_, &cmd_int_);
             CommandIntHandler(cmd_int_);
+            break;
           }
           case MAVLINK_MSG_ID_AUTOPILOT_VERSION_REQUEST: {
             mission_.use_mission_planner(true);
