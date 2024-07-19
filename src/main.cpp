@@ -1,6 +1,7 @@
 //================================================================================================//
 
 #include "UserDefines.h"
+#include <cstdio>
 #include <stdint.h>
 
 #include "eigen.h"  	// Linear algebra
@@ -108,6 +109,14 @@ float Kp_pos[3] = {0.0f, 0.0f, 0.0f};
 float Ki_pos[3] = {0.0f, 0.0f, 0.0f};
 float Kd_pos[3] = {0.0f, 0.0f, 0.0f};
 
+// MPU6050 Null shift //
+float mpuNS_ax = 0.38f;
+float mpuNS_ay = 0.50f;
+float mpuNS_az = -0.43f;
+float mpuNS_gx = -0.04f;
+float mpuNS_gy = 0.01f;
+float mpuNS_gz = 0.0f;
+
 //================================================================================================//
 //                                      DECLARE PINS                                              //
 //================================================================================================//
@@ -149,7 +158,7 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-IMU quadIMU = IMU(0.00f, 0.00f, 0.8826f, 6.981E-4f, 4.852E-2f, 6.109E-3f);
+IMU quadIMU = IMU(mpuNS_ax, mpuNS_ay, mpuNS_az, mpuNS_gx, mpuNS_gy, mpuNS_gz);
 
 SetpointHandler spHandler(&quadData);
 
@@ -403,7 +412,7 @@ void calculate_IMU_error(IMU *imu) {
 
 		errorAcc[0] += imu->GetAccX();
 		errorAcc[1] += imu->GetAccY();
-		errorAcc[2] += imu->GetAccZ() + 1.0f; // Need to subtract gravity
+		errorAcc[2] += imu->GetAccZ() + 9.80665f; // Need to subtract gravity
 
 		errorGyro[0] += imu->GetGyroX();
 		errorGyro[1] += imu->GetGyroY();
@@ -575,7 +584,7 @@ void loop() {
 		//serialDebug::PrintRadioData(); // Currently does nothing
 		// serialDebug::PrintDesiredState(thrust_des, roll_des, pitch_des, yaw_des);
 		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
-		//serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());
+		serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());
 		//serialDebug::PrintRollPitchYaw(quadIMU_info.roll, quadIMU_info.pitch, quadIMU_info.yaw);
 		//serialDebug::PrintPIDOutput(angleController.GetRollPID(), angleController.GetPitchPID(), angleController.GetYawPID());
 		// float motorCommands[4] = {0, 0, 0, 0};
