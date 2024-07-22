@@ -1,5 +1,6 @@
 //================================================================================================//
 
+#include "Eigen/src/Core/Matrix.h"
 #include "UserDefines.h"
 #include <cstdio>
 #include <stdint.h>
@@ -158,7 +159,9 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-IMU quadIMU = IMU(mpuNS_ax, mpuNS_ay, mpuNS_az, mpuNS_gx, mpuNS_gy, mpuNS_gz);
+Eigen::Vector3f accNS = {mpuNS_ax, mpuNS_ay, mpuNS_az};
+Eigen::Vector3f gyroNS = {mpuNS_gx, mpuNS_gy, mpuNS_gz};
+mpu6050 quadIMU = mpu6050(accNS, gyroNS);
 
 SetpointHandler spHandler(&quadData);
 
@@ -394,7 +397,7 @@ void calibrateESCs() {
  * @param imu Pointer to the imu object to get the error from
  * @param att Pointer to the structure that contains attitude info for the IMU
 */
-void calculate_IMU_error(IMU *imu) {
+void calculate_IMU_error(Generic_IMU *imu) {
   int16_t AcX, AcY, AcZ, GyX, GyY, GyZ;
 	
 	float errorAcc[3] = {0, 0, 0};
