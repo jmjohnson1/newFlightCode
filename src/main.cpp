@@ -1,6 +1,5 @@
 //================================================================================================//
 
-#include "Eigen/src/Core/Matrix.h"
 #include "UserDefines.h"
 #include <cstdio>
 #include <stdint.h>

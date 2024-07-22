@@ -108,7 +108,7 @@ bool telem::Begin(Quadcopter_t &quadData) {
   return true;
 }
 
-void telem::Run(Quadcopter_t &quadData, IMU &quadIMU) {
+void telem::Run(Quadcopter_t &quadData, Generic_IMU &quadIMU) {
   // For better readability
   bfs::MavLink<NUM_PARAMS, NUM_UTM> *mavptr = quadData.telemData.mavlink;
 

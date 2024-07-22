@@ -108,7 +108,7 @@ public:
 	mpu6050(const Eigen::Vector3f &accNullShift, const Eigen::Vector3f &gyroNullShift);
 	~mpu6050();
 	void Update();
-    bool Init(TwoWire *i2c);
+	bool Init(TwoWire *i2c);
 
 private:
 	MPU6050 *mpu6050_ = NULL;
@@ -118,14 +118,15 @@ private:
 
 class bmi088 : public Generic_IMU {
 public:
-    bmi088(const Eigen::Vector3f &accNullShift, const Eigen::Vector3f &gyroNullShift, SPIClass &spi, uint8_t accel_cs,uint8_t gyro_cs, 
-	const int accRange, const int gyroRange);
-    ~bmi088();
-	bool Init();
-    void Update();
+  bmi088(const Eigen::Vector3f &accNullShift,
+         const Eigen::Vector3f &gyroNullShift, SPIClass &spi, uint8_t accel_cs,
+         uint8_t gyro_cs, const int accRange, const int gyroRange);
+  ~bmi088();
+  bool Init();
+  void Update();
 
 private:
-    Bmi088 *bmi088_ = NULL;
+	Bmi088 *bmi088_ = NULL;
 	Bmi088::AccelRange accRange = Bmi088::ACCEL_RANGE_6G;
 	Bmi088::GyroRange gyroRange = Bmi088::GYRO_RANGE_500DPS;
 

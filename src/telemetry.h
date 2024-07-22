@@ -20,7 +20,7 @@ namespace telem {
 
 
   bool Begin(Quadcopter_t &quadData);
-  void Run(Quadcopter_t &quadData, IMU &quadIMU);
+  void Run(Quadcopter_t &quadData, Generic_IMU &quadIMU);
   uint32_t CheckForNewPosition(Quadcopter_t &quadData); 
 }
 
