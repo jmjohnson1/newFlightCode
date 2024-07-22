@@ -571,6 +571,24 @@ void loop() {
   dt = (current_time - prev_time) / 1000000.0;
 	quadData.flightStatus.timeSinceBoot = micros();
 
+	while (Serial.available()) {
+		char rc = Serial.read();
+		if (rc == 'r') {
+			CPU_RESTART;
+		} else if (rc == 's') {
+			if (!logRunning) {
+				logRunning = true;
+  			SD_is_present = !(logging.Setup());
+			}
+		} else if (rc == 't') {
+			if (logRunning==true) {
+				logRunning = false;
+				logging.End();
+				SD_is_present = false;
+			}
+		}
+	}
+
   loopBlink(); // Indicate we are in main loop with short blink every 1.5 seconds
   //
   //
@@ -584,8 +602,8 @@ void loop() {
 		//serialDebug::PrintRadioData(); // Currently does nothing
 		// serialDebug::PrintDesiredState(thrust_des, roll_des, pitch_des, yaw_des);
 		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
-		serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());
-		//serialDebug::PrintRollPitchYaw(quadIMU_info.roll, quadIMU_info.pitch, quadIMU_info.yaw);
+		/*serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());*/
+		/*serialDebug::PrintRollPitchYaw(quadData.att.eulerAngles_active->coeff(0), quadData.att.eulerAngles_active->coeff(1), quadData.att.eulerAngles_active->coeff(2));*/
 		//serialDebug::PrintPIDOutput(angleController.GetRollPID(), angleController.GetPitchPID(), angleController.GetYawPID());
 		// float motorCommands[4] = {0, 0, 0, 0};
 		// motors.GetMotorCommands(motorCommands);
@@ -604,20 +622,20 @@ void loop() {
         quadData.telemData.mavlink->throttle_enabled(true);
         throttleEnabled = true;
       }
-			if (!logRunning) {
-				logRunning = true;
-  			SD_is_present = !(logging.Setup());
-			}
+			/*if (!logRunning) {*/
+			/*	logRunning = true;*/
+			/*		SD_is_present = !(logging.Setup());*/
+			/*}*/
 			break;
 		case SwPos::SWITCH_HIGH:
       quadData.telemData.mavlink->throttle_enabled(false);
       throttleEnabled = false;
       quadData.flightStatus.inputOverride = false;
-			if (logRunning==true) {
-				logRunning = false;
-				logging.End();
-				SD_is_present = false;
-			}
+			/*if (logRunning==true) {*/
+			/*	logRunning = false;*/
+			/*	logging.End();*/
+			/*	SD_is_present = false;*/
+			/*}*/
 			break;
 		default:
 			break;
