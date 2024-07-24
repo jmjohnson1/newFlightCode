@@ -69,8 +69,10 @@ public:
 
 	Eigen::Vector3f GetAcc() const {return Eigen::Vector3f(accX_, accY_, accZ_);}
 	Eigen::Vector3f GetGyro() const {return Eigen::Vector3f(gyroX_, gyroY_, gyroZ_);}
+	
+	virtual void Update() {Serial.println("wrong function dummy."); }
 
-    void SetAccNullShift(float NullShift[3]) {
+	void SetAccNullShift(float NullShift[3]) {
 		accNullShiftX_ = NullShift[0];
 		accNullShiftY_ = NullShift[1];
 		accNullShiftZ_ = NullShift[2];

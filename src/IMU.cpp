@@ -115,11 +115,11 @@ void bmi088::Update() {
 	// Reading sensor data from BMI088.h defined functions
 	bmi088_->readSensor();
 	accX_ = bmi088_->getAccelX_mss();
-	accY_ = -bmi088_->getAccelY_mss();
-	accZ_ = -bmi088_->getAccelZ_mss();
+	accY_ = bmi088_->getAccelY_mss();
+	accZ_ = bmi088_->getAccelZ_mss();
 	gyroX_ = bmi088_->getGyroX_rads();
-	gyroY_ = -bmi088_->getGyroY_rads();
-	gyroZ_ = -bmi088_->getGyroZ_rads();
+	gyroY_ = bmi088_->getGyroY_rads();
+	gyroZ_ = bmi088_->getGyroZ_rads();
 
 	// Applying null shift bias
 	accX_ -= accNullShiftX_;

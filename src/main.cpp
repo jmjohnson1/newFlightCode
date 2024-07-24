@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <stdint.h>
 
+#include "core_pins.h"
 #include "eigen.h"  	// Linear algebra
 #include "SBUS.h"     //sBus interface
 
@@ -126,10 +127,11 @@ float mpuNS_gz = 0.0f;
 
 // Motor pin outputs:
 const uint8_t motorPins[4] = {2, 3, 4, 5};
+// LED indicator
 const uint8_t ledPin = 10;
-// 4 2 5 3 pin assignments for new drones, 0 1 2 3 for old drone
-// Can write high or low to check conditions when debugging.
-//* const uint8_t debugPin = 5; *//
+// Pins for BMI088 IMU
+const uint8_t bmiAccCS = 6;
+const uint8_t bmiGyrCS = 9;
 
 //================================================================================================//
 
@@ -161,6 +163,10 @@ bool sbusLostFrame;
 Eigen::Vector3f accNS = {mpuNS_ax, mpuNS_ay, mpuNS_az};
 Eigen::Vector3f gyroNS = {mpuNS_gx, mpuNS_gy, mpuNS_gz};
 mpu6050 quadIMU = mpu6050(accNS, gyroNS);
+
+Eigen::Vector3f accNS2 = Eigen::Vector3f::Zero();
+Eigen::Vector3f gyroNS2 = Eigen::Vector3f::Zero();
+bmi088 quadIMU2 = bmi088(accNS2, gyroNS2, SPI, bmiAccCS, bmiGyrCS, 0, 0);
 
 SetpointHandler spHandler(&quadData);
 
@@ -368,10 +374,7 @@ void calibrateESCs() {
     dt = (current_time - prev_time) / 1000000.0;
     digitalWrite(ledPin, HIGH); // LED on to indicate we are not in main loop
     getCommands();
-    failSafe();  
-    getDesState();
-	quadIMU.Update();
-    Madgwick6DOF(quadIMU, quadData, dt);
+		quadIMU.Update();
     getDesState();
 		quadData.flightStatus.controlInputs << quadData.flightStatus.thrustSetpoint, 0, 0, 0;
 		// Convert thrust and moments from controller to angular rates
@@ -397,8 +400,8 @@ void calibrateESCs() {
  * @param att Pointer to the structure that contains attitude info for the IMU
 */
 void calculate_IMU_error(Generic_IMU *imu) {
-  int16_t AcX, AcY, AcZ, GyX, GyY, GyZ;
-	
+
+	// Initialize these to hold the error terms
 	float errorAcc[3] = {0, 0, 0};
 	float errorGyro[3] = {0, 0, 0};
 
@@ -407,19 +410,22 @@ void calculate_IMU_error(Generic_IMU *imu) {
 	imu->SetAccNullShift(nullShiftArray);
 	imu->SetGyroNullShift(nullShiftArray);
 
-  // Read IMU values 12000 times
+  Serial.println("Calibrating IMU. Please wait ~12 seconds.");
+  // Read IMU values 12000 times (why 12000? idk)
   int c = 0;
   while (c < 12000) {
 		imu->Update();
 
 		errorAcc[0] += imu->GetAccX();
 		errorAcc[1] += imu->GetAccY();
-		errorAcc[2] += imu->GetAccZ() + 9.80665f; // Need to subtract gravity
+		errorAcc[2] += imu->GetAccZ() + 9.80665f; // Need to subtract gravity (but it's negative because that's the convention we use)
 
 		errorGyro[0] += imu->GetGyroX();
 		errorGyro[1] += imu->GetGyroY();
 		errorGyro[2] += imu->GetGyroZ();
 
+		// Add a delay here so we don't exceed the bandwidth of the IMU
+		delayMicroseconds(1000);
     c++;
   }
   // Divide the sum by 12000 to get the error value
@@ -428,34 +434,31 @@ void calculate_IMU_error(Generic_IMU *imu) {
 		errorGyro[i] = errorGyro[i]/c;
 	}
 
-
-  Serial.print("float AccErrorX = ");
+	Serial.println("Accelerometers: ");
+	Serial.print("{");
   Serial.print(errorAcc[0]);
-  Serial.println(";");
-  Serial.print("float AccErrorY = ");
+	Serial.print(",");
   Serial.print(errorAcc[1]);
-  Serial.println(";");
-  Serial.print("float AccErrorZ = ");
+	Serial.print(",");
   Serial.print(errorAcc[2]);
-  Serial.println(";");
+	Serial.println("}");
 
-  Serial.print("float GyroErrorX = ");
+	Serial.println("Gyros: ");
+	Serial.print("{");
   Serial.print(errorGyro[0]);
-  Serial.println(";");
-  Serial.print("float GyroErrorY = ");
+	Serial.print(",");
   Serial.print(errorGyro[1]);
-  Serial.println(";");
-  Serial.print("float GyroErrorZ = ");
+	Serial.print(",");
   Serial.print(errorGyro[2]);
-  Serial.println(";");
+	Serial.println("}");
 
-  Serial.println("Paste these values in Setup() function and "
-                 "comment out calculate_IMU_error() in void setup.");
-  for (;;);
+	Serial.println("Paste these values in the IMU constructor and "
+								 "comment out calculate_IMU_error() in void setup. The "
+								 "flight loop will not continue past this point");
+	for (;;);
 }
 
 // Adds items to the datalogger
-// FIXME: PID GAINS NOT YET INCLUDED
 void LoggingSetup() {
 	// Attitude
 	logging.AddItem(quadData.att.eulerAngles_madgwick, "euler_madgwick", 4);
@@ -473,6 +476,12 @@ void LoggingSetup() {
 	logging.AddItem(quadIMU.GetGyroXPtr(), "Gyro1", 4);
 	logging.AddItem(quadIMU.GetGyroYPtr(), "Gyro2", 4);
 	logging.AddItem(quadIMU.GetGyroZPtr(), "Gyro3", 4);
+	logging.AddItem(quadIMU2.GetAccXPtr(), "Accbmi1", 4);
+	logging.AddItem(quadIMU2.GetAccYPtr(), "Accbmi2", 4);
+	logging.AddItem(quadIMU2.GetAccZPtr(), "Accbmi3", 4);
+	logging.AddItem(quadIMU2.GetGyroXPtr(), "Gyrobmi1", 4);
+	logging.AddItem(quadIMU2.GetGyroYPtr(), "Gyrobmi2", 4);
+	logging.AddItem(quadIMU2.GetGyroZPtr(), "Gyrobmi3", 4);
 	// Control inputs and motor rates
 	logging.AddItem(quadData.flightStatus.controlInputs, "u", 4);
 	logging.AddItem(quadData.flightStatus.motorRates, "w", 4);
@@ -530,6 +539,11 @@ void setup() {
 	Serial.print("IMU initialization successful: ");
 	Serial.println(IMU_initSuccessful);
 
+	bool IMU2_initSuccessful = quadIMU2.Init();
+	quadIMU2.Update();
+	Serial.print("IMU2 initialization successful: ");
+	Serial.println(IMU2_initSuccessful);
+
 #ifdef USE_EKF
   ins.Configure();
 	ins.Initialize(quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
@@ -544,17 +558,17 @@ void setup() {
   // level when powered up Calibration parameters printed to serial monitor.
   // Paste these in the user specified variables section, then comment this out
   // forever.
-	// calculate_IMU_error(&quadIMU);
-
+	/*calculate_IMU_error(&quadIMU);*/
+	/*calculate_IMU_error(&quadIMU2);*/
 
   delay(5);
 
   // PROPS OFF. Uncomment this to calibrate your ESCs by setting throttle stick
   // to max, powering on, and lowering throttle to zero after the beeps
-  //calibrateESCs();
+  /*calibrateESCs();*/
   // Code will not proceed past here if this function is uncommented!
 
-  //motors.ArmMotors(); // Loop over commandMotors() until ESCs happily arm
+  /*motors.ArmMotors(); // Loop over commandMotors() until ESCs happily arm*/
 
   // Indicate entering main loop with 3 quick blinks
   setupBlink(3, 160, 70); // numBlinks, upTime (ms), downTime (ms)
@@ -592,8 +606,7 @@ void loop() {
 	}
 
   loopBlink(); // Indicate we are in main loop with short blink every 1.5 seconds
-  //
-  //
+
   if (isnan(quadData.navData.position_NED[0])) {
     ins.Initialize(quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
   }
@@ -604,7 +617,7 @@ void loop() {
 		//serialDebug::PrintRadioData(); // Currently does nothing
 		// serialDebug::PrintDesiredState(thrust_des, roll_des, pitch_des, yaw_des);
 		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
-		/*serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());*/
+		/*serialDebug::PrintAccelData(quadIMU2.GetAccX(), quadIMU2.GetAccY(), quadIMU2.GetAccZ());*/
 		/*serialDebug::PrintRollPitchYaw(quadData.att.eulerAngles_active->coeff(0), quadData.att.eulerAngles_active->coeff(1), quadData.att.eulerAngles_active->coeff(2));*/
 		//serialDebug::PrintPIDOutput(angleController.GetRollPID(), angleController.GetPitchPID(), angleController.GetYawPID());
 		// float motorCommands[4] = {0, 0, 0, 0};
@@ -699,6 +712,7 @@ void loop() {
 if (IMUUpdateTimer >= imuUpdatePeriod) {
 	IMUUpdateTimer = 0;
   quadIMU.Update(); // Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
+	quadIMU2.Update();
 }
 
 telem::Run(quadData, quadIMU);
