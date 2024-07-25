@@ -59,6 +59,12 @@ public:
 	float GetGyroX() const {return gyroX_;}
 	float GetGyroY() const {return gyroY_;}
 	float GetGyroZ() const {return gyroZ_;}
+	float GetAccXRaw() const {return accXRaw_;}
+	float GetAccYRaw() const {return accYRaw_;}
+	float GetAccZRaw() const {return accZRaw_;}
+	float GetGyroXRaw() const {return gyroXRaw_;}
+	float GetGyroYRaw() const {return gyroYRaw_;}
+	float GetGyroZRaw() const {return gyroZRaw_;}
 
 	const float* GetAccXPtr() {return &(accX_);}
 	const float* GetAccYPtr() {return &(accY_);}
@@ -66,6 +72,12 @@ public:
 	const float* GetGyroXPtr() {return &(gyroX_);}
 	const float* GetGyroYPtr() {return &(gyroY_);}
 	const float* GetGyroZPtr() {return &(gyroZ_);}
+	const float* GetAccXPtrRaw() {return &(accXRaw_);}
+	const float* GetAccYPtrRaw() {return &(accYRaw_);}
+	const float* GetAccZPtrRaw() {return &(accZRaw_);}
+	const float* GetGyroXPtrRaw() {return &(gyroXRaw_);}
+	const float* GetGyroYPtrRaw() {return &(gyroYRaw_);}
+	const float* GetGyroZPtrRaw() {return &(gyroZRaw_);}
 
 	Eigen::Vector3f GetAcc() const {return Eigen::Vector3f(accX_, accY_, accZ_);}
 	Eigen::Vector3f GetGyro() const {return Eigen::Vector3f(gyroX_, gyroY_, gyroZ_);}
@@ -88,6 +100,8 @@ public:
 protected:
 	float accX_, accY_, accZ_;
 	float gyroX_, gyroY_, gyroZ_;
+	float accXRaw_, accYRaw_, accZRaw_;
+	float gyroXRaw_, gyroYRaw_, gyroZRaw_;
 	float accNullShiftX_, accNullShiftY_, accNullShiftZ_;
 	float gyroNullShiftX_, gyroNullShiftY_, gyroNullShiftZ_;
 

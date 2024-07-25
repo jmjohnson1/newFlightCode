@@ -241,7 +241,7 @@ const float FLIGHT_AREA_Z_MIN = -2.5;
 int bndryOnOff;
 
 //========================================================================================================================//
-//                                                      FUNCTIONS //
+//                                                      FUNCTIONS                                                         //
 //========================================================================================================================//
 
 /**
@@ -476,12 +476,25 @@ void LoggingSetup() {
 	logging.AddItem(quadIMU.GetGyroXPtr(), "Gyro1", 4);
 	logging.AddItem(quadIMU.GetGyroYPtr(), "Gyro2", 4);
 	logging.AddItem(quadIMU.GetGyroZPtr(), "Gyro3", 4);
-	logging.AddItem(quadIMU2.GetAccXPtr(), "Accbmi1", 4);
-	logging.AddItem(quadIMU2.GetAccYPtr(), "Accbmi2", 4);
-	logging.AddItem(quadIMU2.GetAccZPtr(), "Accbmi3", 4);
-	logging.AddItem(quadIMU2.GetGyroXPtr(), "Gyrobmi1", 4);
-	logging.AddItem(quadIMU2.GetGyroYPtr(), "Gyrobmi2", 4);
-	logging.AddItem(quadIMU2.GetGyroZPtr(), "Gyrobmi3", 4);
+	logging.AddItem(quadIMU2.GetAccXPtr(), "AccBMI1", 4);
+	logging.AddItem(quadIMU2.GetAccYPtr(), "AccBMI2", 4);
+	logging.AddItem(quadIMU2.GetAccZPtr(), "AccBMI3", 4);
+	logging.AddItem(quadIMU2.GetGyroXPtr(), "GyroBMI1", 4);
+	logging.AddItem(quadIMU2.GetGyroYPtr(), "GyroBMI2", 4);
+	logging.AddItem(quadIMU2.GetGyroZPtr(), "GyroBMI3", 4);
+	// Unfiltered IMU data
+	logging.AddItem(quadIMU.GetAccXPtrRaw(), "Acc1Raw", 4);
+	logging.AddItem(quadIMU.GetAccYPtrRaw(), "Acc2Raw", 4);
+	logging.AddItem(quadIMU.GetAccZPtrRaw(), "Acc3Raw", 4);
+	logging.AddItem(quadIMU.GetGyroXPtrRaw(), "Gyro1Raw", 4);
+	logging.AddItem(quadIMU.GetGyroYPtrRaw(), "Gyro2Raw", 4);
+	logging.AddItem(quadIMU.GetGyroZPtrRaw(), "Gyro3Raw", 4);
+	logging.AddItem(quadIMU2.GetAccXPtrRaw(), "AccBMI1Raw", 4);
+	logging.AddItem(quadIMU2.GetAccYPtrRaw(), "AccBMI2Raw", 4);
+	logging.AddItem(quadIMU2.GetAccZPtrRaw(), "AccBMI3Raw", 4);
+	logging.AddItem(quadIMU2.GetGyroXPtrRaw(), "GyroBMI1Raw", 4);
+	logging.AddItem(quadIMU2.GetGyroYPtrRaw(), "GyroBMI2Raw", 4);
+	logging.AddItem(quadIMU2.GetGyroZPtrRaw(), "GyroBMI3Raw", 4);
 	// Control inputs and motor rates
 	logging.AddItem(quadData.flightStatus.controlInputs, "u", 4);
 	logging.AddItem(quadData.flightStatus.motorRates, "w", 4);
@@ -520,7 +533,6 @@ void setup() {
 
   // Initialize all pins
   pinMode(ledPin, OUTPUT); // Pin 13 LED blinker on board, do not modify
-  //*pinMode(5, OUTPUT);*//
 
   // Set built in LED to turn on to signal startup
   digitalWrite(ledPin, HIGH);
@@ -533,7 +545,7 @@ void setup() {
   // Begin mavlink telemetry module
 	telem::Begin(quadData);
 
-
+	// Initialize IMUs
 	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
   quadIMU.Update(); // Get an initial reading. If not, initial attitude estimate will be NaN
 	Serial.print("IMU initialization successful: ");
@@ -544,14 +556,14 @@ void setup() {
 	Serial.print("IMU2 initialization successful: ");
 	Serial.println(IMU2_initSuccessful);
 
+	// Initialize EKF
 #ifdef USE_EKF
   ins.Configure();
 	ins.Initialize(quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
 #endif
 
 
-  // Initialize the SD card, returns 1 if no sd card is detected or it can't be
-  // initialized. So it's negated to make SD_is_present true when everything is OK
+  // Initialize the SD card
 	LoggingSetup();
 
   // Get IMU error to zero accelerometer and gyro readings, assuming vehicle is
@@ -587,23 +599,23 @@ void loop() {
   dt = (current_time - prev_time) / 1000000.0;
 	quadData.flightStatus.timeSinceBoot = micros();
 
-	while (Serial.available()) {
-		char rc = Serial.read();
-		if (rc == 'r') {
-			CPU_RESTART;
-		} else if (rc == 's') {
-			if (!logRunning) {
-				logRunning = true;
-  			SD_is_present = !(logging.Setup());
-			}
-		} else if (rc == 't') {
-			if (logRunning==true) {
-				logRunning = false;
-				logging.End();
-				SD_is_present = false;
-			}
-		}
-	}
+	/*while (Serial.available()) {*/
+	/*	char rc = Serial.read();*/
+	/*	if (rc == 'r') {*/
+	/*		CPU_RESTART;*/
+	/*	} else if (rc == 's') {*/
+	/*		if (!logRunning) {*/
+	/*			logRunning = true;*/
+	/* 			SD_is_present = !(logging.Setup());*/
+	/*		}*/
+	/*	} else if (rc == 't') {*/
+	/*		if (logRunning==true) {*/
+	/*			logRunning = false;*/
+	/*			logging.End();*/
+	/*			SD_is_present = false;*/
+	/*		}*/
+	/*	}*/
+	/*}*/
 
   loopBlink(); // Indicate we are in main loop with short blink every 1.5 seconds
 
@@ -637,20 +649,20 @@ void loop() {
         quadData.telemData.mavlink->throttle_enabled(true);
         throttleEnabled = true;
       }
-			/*if (!logRunning) {*/
-			/*	logRunning = true;*/
-			/*		SD_is_present = !(logging.Setup());*/
-			/*}*/
+			if (!logRunning) {
+				logRunning = true;
+					SD_is_present = !(logging.Setup());
+			}
 			break;
 		case SwPos::SWITCH_HIGH:
       quadData.telemData.mavlink->throttle_enabled(false);
       throttleEnabled = false;
       quadData.flightStatus.inputOverride = false;
-			/*if (logRunning==true) {*/
-			/*	logRunning = false;*/
-			/*	logging.End();*/
-			/*	SD_is_present = false;*/
-			/*}*/
+			if (logRunning==true) {
+				logRunning = false;
+				logging.End();
+				SD_is_present = false;
+			}
 			break;
 		default:
 			break;
