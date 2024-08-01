@@ -11,7 +11,8 @@ public:
   AngleAttitudeController(const float (&Kp)[3], const float (&Ki)[3],
                           const float (&Kd)[3], float iLimit = 25.0f);
   void Update(const float setpoints[3], const AttitudeData_t &att,
-              const Eigen::Vector3f &gyroRates, float dt, bool noIntegral);
+              const Eigen::Vector3f &gyroRates, float dt, bool noIntegral,
+							bool angleForYaw);
 
   void GetMotorCommands(float motorCommandsNormalized[4],
                         float throttleSetting);

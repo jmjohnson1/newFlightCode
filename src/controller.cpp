@@ -63,13 +63,17 @@ AngleAttitudeController::AngleAttitudeController(const float (&Kp)[3],
 void AngleAttitudeController::Update(const float setpoints[3],
                                      const AttitudeData_t &att,
                                      const Eigen::Vector3f &gyroRates, float dt,
-                                     bool noIntegral) {
+                                     bool noIntegral,
+																		 bool AngleForYaw) {
   Eigen::Vector3f eulerAngles = *(att.eulerAngles_active);
-  rollPID_ =
-      AnglePID(setpoints[0], eulerAngles[0], gyroRates[0], dt, noIntegral, ROLL);
-  pitchPID_ =
-      AnglePID(setpoints[1], eulerAngles[1], gyroRates[1], dt, noIntegral, PITCH);
-  yawPID_ = RatePID(setpoints[2], gyroRates[2], dt, noIntegral, YAW);
+  rollPID_ = AnglePID(setpoints[0], eulerAngles[0], gyroRates[0], dt, noIntegral, ROLL);
+  pitchPID_ = AnglePID(setpoints[1], eulerAngles[1], gyroRates[1], dt, noIntegral, PITCH);
+	if (AngleForYaw == true) {
+		yawPID_ = AnglePID(setpoints[2], eulerAngles[2], gyroRates[2], dt, noIntegral, YAW);
+	} else {
+		yawPID_ = RatePID(att.yawRateSetpoint, gyroRates[2], dt, noIntegral, YAW);
+	}
+	
 }
 
 /**
@@ -114,19 +118,29 @@ float AngleAttitudeController::AnglePID(float setpoint, float measuredAngle,
   case PITCH:
     integral_prev = &prevIntegralPitch_;
     break;
+	case YAW:
+		integral_prev = &prevIntegralYaw_;
+		break;
   default:
     return 0.0f;
   }
   float error = setpoint - measuredAngle;
+	// Handle wrapping for yaw
+	if (axis == YAW) {
+		if (error <= -M_PI) {
+			error += 2*M_PI;
+		} else if (error > M_PI) {
+			error -= 2*M_PI;
+		}
+	}
   float integral = *integral_prev + error * dt;
   if (noIntegral) { // Don't let integrator build if this is set
     integral = 0.0f;
-  }
-  integral =
-      constrain(integral, -iLimit_,
-                iLimit_); // Saturate integrator to prevent unsafe buildup
-  float derivative =
-      -gyroRate; // This is an approximation of the error derivative
+  } 
+	// Saturate integrator to prevent unsafe buildup
+  integral = constrain(integral, -iLimit_, iLimit_);
+	// This is an approximation of the error derivative
+  float derivative = -gyroRate; 
   float PIDOutput = (Kp * error + Ki * integral + Kd * derivative);
   *integral_prev = integral;
 
@@ -134,7 +148,7 @@ float AngleAttitudeController::AnglePID(float setpoint, float measuredAngle,
 }
 
 /**
- * @brief Performs the PID calculations for an attitude angular rate given the
+ * @brief Performs the PI calculations for an attitude angular rate given the
  * setpoint and measured rate.
  * @param setpoint  The angular rate setpoint
  * @param measuredAngle  The current angular rate
@@ -148,9 +162,8 @@ float AngleAttitudeController::RatePID(float setpoint, float measuredRate,
                                        AxisToControl axis) {
   float *integral_prev = nullptr;
   float *error_prev = nullptr;
-  float Kp = Kp_[axis];
   float Ki = Ki_[axis];
-  float Kd = Kd_[axis];
+  float Kp = Kd_[axis];
   switch (axis) {
   case YAW:
     integral_prev = &prevIntegralYaw_;
@@ -165,8 +178,7 @@ float AngleAttitudeController::RatePID(float setpoint, float measuredRate,
     integral = 0.0f;
   }
   integral = constrain(integral, -iLimit_, iLimit_);
-  float derivative = (error - *error_prev) / dt;
-  float PIDOutput = (Kp * error + Ki * integral + Kd * derivative);
+  float PIDOutput = (Ki * integral + Kp * error);
   *integral_prev = integral;
   *error_prev = error;
   return PIDOutput;

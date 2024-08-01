@@ -14,7 +14,7 @@ constexpr std::size_t NUM_UTM = 0;
 
 // Minimum distance from waypoint for it to be considered "arrived"
 constexpr float WP_ARRIVED_THRESH = 0.20;
-// How long the quad needs to be close to the waypoint for it to count [ms]
+// How long the quad needs to be close to the waypoint for it to count [us]
 constexpr uint64_t WP_ARRIVED_TIME = 2800000;
 
 typedef struct AttitudeData_s {
@@ -23,8 +23,9 @@ typedef struct AttitudeData_s {
   Eigen::Quaternionf quat_madgwick = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
   Eigen::Quaternionf quat_ekf = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
   Eigen::Vector3f * eulerAngles_active = &eulerAngles_madgwick;
-  // Setpoints: [roll angle, pitch angle, yaw rate]
+  // Setpoints: [roll angle, pitch angle, yaw angle]
   Eigen::Vector3f eulerAngleSetpoint = Eigen::Vector3f::Zero();
+	float yawRateSetpoint = 0.0f;
   Eigen::Quaternionf quatSetpoint = Eigen::Quaternionf(1.0f, 0.0f, 0.0f, 0.0f);
   Eigen::Matrix3f currentDCM = Eigen::Matrix3f::Identity();
   Eigen::Matrix3f desiredDCM = Eigen::Matrix3f::Identity();
