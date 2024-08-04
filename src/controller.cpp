@@ -65,6 +65,7 @@ void AngleAttitudeController::Update(const float setpoints[3],
                                      const Eigen::Vector3f &gyroRates, float dt,
                                      bool noIntegral,
 																		 bool AngleForYaw) {
+	/*Serial.println(AngleForYaw);*/
   Eigen::Vector3f eulerAngles = *(att.eulerAngles_active);
   rollPID_ = AnglePID(setpoints[0], eulerAngles[0], gyroRates[0], dt, noIntegral, ROLL);
   pitchPID_ = AnglePID(setpoints[1], eulerAngles[1], gyroRates[1], dt, noIntegral, PITCH);
