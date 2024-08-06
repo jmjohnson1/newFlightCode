@@ -3,7 +3,7 @@
 
 #include "eigen.h"
 #include "UserDefines.h"
-#include "ArduinoLibs/BFSMavlink/mavlink.h"  // BFS Mavlink implementation
+#include "mavlink.h"  // BFS Mavlink implementation
 #include "defaultParams.h"
 
 // Define some constants for mission parameters

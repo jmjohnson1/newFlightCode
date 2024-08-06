@@ -1,7 +1,7 @@
-#include <EEPROM.h>
+#include "EEPROM.h"
 #include "telemetry.h"
 #include "defaultParams.h"
-#include "ArduinoLibs/BFSChecksum/checksum.h"
+#include "checksum.h"
 
 uint8_t param_buf[PARAM_SIZE];
 bfs::Fletcher16 param_checksum;
