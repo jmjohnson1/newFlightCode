@@ -2,8 +2,10 @@
 
 #include "flightRunner.h"
 #include "UserDefines.h"
+#include <cstdint>
 #include <cstdio>
 #include <stdint.h>
+#include <array>
 
 #include "core_pins.h"
 #include "eigen.h"  	// Linear algebra
@@ -67,22 +69,24 @@ RadioChannel resetChannel("reset", 14, 1000, 1000);
 // Array of pointers the the radio channels. This is useful for datalogging and updating the raw
 // values.
 const uint8_t numChannels = 15;
-RadioChannel *radioChannels[numChannels] = {&throttleChannel, 
-											&rollChannel, 
-											&pitchChannel, 
-											&yawChannel, 
-											&throCutChannel,
-											&boundaryOnOff, 											
-											&aux1,
-											&aux2,
-											&aux3,
-											&KpScaleChannel,
-											&KiScaleChannel,
-											&KdScaleChannel,
-											&scaleAllChannel,
-											&resetChannel,
-											&aux0
-											};
+RadioChannel *radioChannels[numChannels] = 
+	{
+		&throttleChannel, 
+		&rollChannel,
+		&pitchChannel,
+		&yawChannel,
+		&throCutChannel,
+		&boundaryOnOff,											
+		&aux1,
+		&aux2,
+		&aux3,
+		&KpScaleChannel,
+		&KiScaleChannel,
+		&KdScaleChannel,
+		&scaleAllChannel,
+		&resetChannel,
+		&aux0
+	};
 
 // Max roll/pitch angles in degrees for angle mode
 float maxRoll = quadProps::MAX_ANGLE*DEG_TO_RAD;
@@ -474,6 +478,7 @@ void LoggingSetup() {
 	logging.AddItem(&quadData.flightStatus.thrustSetpoint, "thrust_setpoint", 4);
 	// Raw radio PWM values (1000-2000)
 	for (int i = 0; i < numChannels; i++) {
+		Serial.println(i);
 		logging.AddItem(&(radioChannels[i]->rawValue_), radioChannels[i]->GetName(), 10);
 	}
 	// LP-filtered IMU data
@@ -552,6 +557,9 @@ void Setup() {
   // Begin mavlink telemetry module
 	telem::Begin(quadData);
 
+	Serial.println(KpScaleChannel.rawValue_);
+	Serial.println(KiScaleChannel.rawValue_);
+	Serial.println(KdScaleChannel.rawValue_);
 	// Initialize IMUs
 	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
   quadIMU.Update(); // Get an initial reading. If not, initial attitude estimate will be NaN
