@@ -76,7 +76,7 @@ typedef struct FlightStatus_s {
 typedef struct TelemData_s {
   bfs::MavLink<NUM_PARAMS, NUM_UTM> *mavlink = nullptr;
   std::array<float, NUM_PARAMS> paramValues;
-  std::array<char, NUM_PARAMS> paramIDs;
+  std::array<char[16], NUM_PARAMS> paramIDs;
   bool paramsUpdated = false;
 } TelemData_t;
 

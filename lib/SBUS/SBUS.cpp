@@ -56,6 +56,7 @@ void SBUS::begin()
 		SERIALPORT = _bus;
 	#elif defined(__IMXRT1062__) || defined(__IMXRT1052__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) || defined(__MKL26Z64__)  // Teensy 4.0 || Teensy 4.0 Beta || Teensy 3.5 || Teensy 3.6 || Teensy LC
 		_bus->begin(_sbusBaud,SERIAL_8E2_RXINV_TXINV);
+		Serial.println("defined");
 	#elif defined(STM32L496xx) || defined(STM32L476xx) || defined(STM32L433xx) || defined(STM32L432xx)  // STM32L4
 		_bus->begin(_sbusBaud,SERIAL_SBUS);
 	#elif defined(_BOARD_MAPLE_MINI_H_) // Maple Mini

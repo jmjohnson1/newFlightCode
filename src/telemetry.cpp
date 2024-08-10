@@ -13,7 +13,7 @@ bool telem::Begin(Quadcopter_t &quadData) {
 	// static unsigned char biggerReadBuffer[256];
   size_t biggerWriteBuffer_size = sizeof(biggerWriteBuffer);
 	// size_t biggerReadBuffer_size = sizeof(biggerReadBuffer);
-   Serial2.addMemoryForWrite(biggerWriteBuffer, biggerWriteBuffer_size);
+   /*Serial2.addMemoryForWrite(biggerWriteBuffer, biggerWriteBuffer_size);*/
   // Serial2.addMemoryForRead(biggerReadBuffer, biggerReadBuffer_size);
 
   quadData.telemData.mavlink = new bfs::MavLink<NUM_PARAMS, NUM_UTM>;
@@ -74,15 +74,35 @@ bool telem::Begin(Quadcopter_t &quadData) {
       }
     }
   }
-  /* Copy parameter data*/
+  // Copy parameter data
   memcpy(quadData.telemData.paramValues.data(), &(param_buf[1]),
           NUM_PARAMS * sizeof(float));
+
+	Serial.print("Copy address range: ");
+	Serial.print((uint64_t)&(param_buf[1]));
+	Serial.print(" to ");
+	Serial.println((uint64_t)(NUM_PARAMS * sizeof(float)));
+
   memcpy(quadData.telemData.paramIDs.data(), &(param_buf[1 + NUM_PARAMS*sizeof(float)]), NUM_PARAMS*sizeof(char[16]));
-  /* Update the parameter values in MAV Link */
+
+	Serial.print("Copy address range: ");
+	Serial.print((uint64_t)&(param_buf[1 + NUM_PARAMS*sizeof(float)]));
+	Serial.print(" to ");
+	Serial.println((uint64_t)(NUM_PARAMS * sizeof(char[16])));
+
+  // Update the parameter values in MAV Link 
   quadData.telemData.mavlink->params(quadData.telemData.paramValues);
+	Serial.print("arraySize = ");
+	Serial.print(sizeof(quadData.telemData.paramIDs));
   for (int32_t i = 0; i < NUM_PARAMS; i++) {
     char name[16];
     memcpy(&name, &(quadData.telemData.paramIDs[i*16]), sizeof(char[16]));
+
+		Serial.print("Copy address range: ");
+		Serial.print((uint64_t)&(quadData.telemData.paramIDs[i*16]));
+		Serial.print(" to ");
+		Serial.println((uint64_t)(sizeof(char[16])));
+
     quadData.telemData.mavlink->param_id(i, name);
   }
   quadData.telemData.paramsUpdated = true;

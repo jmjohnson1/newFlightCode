@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <memory>
-#include <stdint.h>
 #include "common.h"
 #include "RingBuf.h"  // Ring buffer used to store values for SD card
 #include "SdFat.h"    // Library used for SD card

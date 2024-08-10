@@ -70,6 +70,77 @@ add_subdirectory(lib)
 # Flight code source files
 add_subdirectory(src)
 
-# Main program
-add_subdirectory(apps)
+# main program
+include(${CMAKE_SOURCE_DIR}/cmake/mcu_upload.cmake)
 
+add_executable(main
+	apps/main.cpp
+	src/controller.cpp
+	src/datalogger.cpp
+	src/EKF.cpp
+	src/filter.cpp
+	src/IMU.cpp
+	src/madgwick.cpp
+	src/motors.cpp
+	src/nav-functions.cpp
+	src/navHandler.cpp
+	src/radio.cpp
+	src/serialDebug.cpp
+	src/statFun.cpp
+	src/telemetry.cpp
+	src/testing.cpp
+)
+
+target_include_directories(main PUBLIC
+	${CMAKE_SOURCE_DIR}/include	
+)
+
+target_link_libraries(main
+	TeensyLib
+	SdFat
+	LIS3MDL
+	Wire
+	SPI
+	bmi088
+	BFSChecksum
+	mavlink
+	EEPROM
+	Eigen
+	MPU6050
+	MPU9250
+	PWMServo
+	SBUS
+	TeensyTimerTool
+)
+
+flashMcu(main)
+
+add_executable(radioTest
+	test/radioTest.cpp
+	src/radio.cpp
+	src/datalogger.cpp
+)
+
+target_include_directories(radioTest PUBLIC
+	${CMAKE_SOURCE_DIR}/include	
+)
+
+target_link_libraries(radioTest
+	TeensyLib
+	SdFat
+	LIS3MDL
+	Wire
+	SPI
+	bmi088
+	BFSChecksum
+	mavlink
+	EEPROM
+	Eigen
+	MPU6050
+	MPU9250
+	PWMServo
+	SBUS
+	TeensyTimerTool
+)
+
+flashMcu(radioTest)

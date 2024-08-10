@@ -9,7 +9,6 @@ add_library(flightSource
 	filter.cpp
 	IMU.cpp
 	madgwick.cpp
-	flightRunner.cpp
 	motors.cpp
 	nav-functions.cpp
 	navHandler.cpp
@@ -24,11 +23,10 @@ add_library(flightSource
 
 # We need this directory, and users of our library will need it too
 target_include_directories(flightSource PUBLIC 
-"${DRONE_Code_SOURCE_DIR}/include"
+	"${DRONE_Code_SOURCE_DIR}/include"
 )
 
-# This depends on (header only) boost
-target_link_libraries(flightSource PRIVATE 
+target_link_libraries(flightSource PRIVATE
 	TeensyLib
 	SdFat
 	LIS3MDL
