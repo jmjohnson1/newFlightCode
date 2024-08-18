@@ -73,8 +73,8 @@ add_subdirectory(src)
 # main program
 include(${CMAKE_SOURCE_DIR}/cmake/mcu_upload.cmake)
 
-add_executable(main
-	apps/main.cpp
+add_executable(flightCode
+	apps/flightMain.cpp
 	src/controller.cpp
 	src/datalogger.cpp
 	src/EKF.cpp
@@ -91,11 +91,11 @@ add_executable(main
 	src/testing.cpp
 )
 
-target_include_directories(main PUBLIC
+target_include_directories(flightCode PUBLIC
 	${CMAKE_SOURCE_DIR}/include	
 )
 
-target_link_libraries(main
+target_link_libraries(flightCode
 	TeensyLib
 	SdFat
 	LIS3MDL
@@ -113,7 +113,7 @@ target_link_libraries(main
 	TeensyTimerTool
 )
 
-flashMcu(main)
+flashMcu(flightCode)
 
 add_executable(radioTest
 	test/radioTest.cpp

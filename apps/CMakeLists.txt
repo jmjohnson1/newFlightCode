@@ -1,14 +1,14 @@
 include(${CMAKE_SOURCE_DIR}/cmake/mcu_upload.cmake)
 
 add_executable(main
-	main.cpp
+	flightMain.cpp
 )
 
 target_include_directories(main PUBLIC
 	${CMAKE_SOURCE_DIR}/include	
 )
 
-target_link_libraries(main
+target_link_libraries(flightMain
 	TeensyLib
 	SdFat
 	LIS3MDL
@@ -27,4 +27,4 @@ target_link_libraries(main
 	flightSource
 )
 
-flashMcu(main)
+flashMcu(flightMain)
