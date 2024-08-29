@@ -13,7 +13,7 @@ constexpr std::size_t MAX_RALLYPOINTS = 5;
 constexpr std::size_t NUM_UTM = 0;
 
 // Minimum distance from waypoint for it to be considered "arrived"
-constexpr float WP_ARRIVED_THRESH = 0.20;
+constexpr float WP_ARRIVED_THRESH = 0.30;
 // How long the quad needs to be close to the waypoint for it to count [us]
 constexpr uint64_t WP_ARRIVED_TIME = 2800000;
 

@@ -531,6 +531,9 @@ void LoggingSetup() {
 	logging.AddItem(Kp2_array, "Kp2_array", 3);
 	logging.AddItem(Ki2_array, "Ki2_array", 3);
 	logging.AddItem(Kd2_array, "Kd2_array", 3);
+
+	// Flight mode
+	logging.AddItem(&customMode, "CustomMode", 10);
 }
 
 //===========================//
