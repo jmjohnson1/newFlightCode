@@ -1,6 +1,5 @@
 #ifndef COMMON_DEFS_H
 #define COMMON_DEFS_H
-
 #include "eigen.h"
 #include "UserDefines.h"
 #include "ArduinoLibs/BFSMavlink/mavlink.h"  // BFS Mavlink implementation
@@ -120,12 +119,12 @@ namespace quadProps {
   constexpr float DXB_KT = DIST_X_B*K_T;
   constexpr float DYB_KT = DIST_Y_B*K_T;
 
-  static const Eigen::Matrix4f ALLOCATION_MATRIX((Eigen::Matrix4f() << 
+  static const Eigen::Matrix4f ALLOCATION_MATRIX((Eigen::Matrix4f() <<
                                K_T, K_T, K_T, K_T,
                                DYF_KT, -DYF_KT, -DYB_KT, DYB_KT,
                                DXF_KT, DXF_KT, -DXB_KT, -DXB_KT,
                                -K_M, K_M, -K_M, K_M).finished());
-  
+
   static const Eigen::Matrix4f ALLOCATION_MATRIX_INV = ALLOCATION_MATRIX.inverse();
 
   constexpr float G = 9.8065;  // Gravity acceleration m/s^2
