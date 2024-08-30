@@ -221,6 +221,7 @@ PositionController::PositionController(const float (&Kp)[3],
   prevError_ << 0.0, 0.0, 0.0;
 
 
+	// filterObj, cutofffreq, samplefreq
 	biquadFilter_init(&xOutputFilter, 50, 200);
 	biquadFilter_init(&yOutputFilter, 50, 200);
 	biquadFilter_init(&zOutputFilter, 50, 200);
