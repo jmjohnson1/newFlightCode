@@ -226,8 +226,8 @@ elapsedMicros IMUUpdateTimer;
 
 // These define some loop rates
 const unsigned long EKFPeriod = 2; // milliseconds  (500 Hz)
-const unsigned long attitudeCtrlPeriod = 5; // milliseconds (200 Hz)
-const unsigned long positionCtrlPeriod = 5; // milliseconds (200 Hz)
+const unsigned long attitudeCtrlPeriod = 10; // milliseconds (100 Hz)
+const unsigned long positionCtrlPeriod = 13; // milliseconds (75 Hz)
 const unsigned long imuUpdatePeriod = 0; // microseconds (1000 Hz)
 
 #ifdef TEST_STAND
