@@ -234,9 +234,9 @@ bool restartSineSweep = true;
 #endif
 
 // Defining the flight area (Shepherd Drone Lab)
-const float FLIGHT_AREA_X_MAX = 1.5;
-const float FLIGHT_AREA_X_MIN = -6;
-const float FLIGHT_AREA_Y_MAX = 4;
+const float FLIGHT_AREA_X_MAX = 1;
+const float FLIGHT_AREA_X_MIN = -1;
+const float FLIGHT_AREA_Y_MAX = 1;
 const float FLIGHT_AREA_Y_MIN = -1;
 const float FLIGHT_AREA_Z_MAX = 0;
 const float FLIGHT_AREA_Z_MIN = -2.5;

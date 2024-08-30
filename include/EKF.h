@@ -93,7 +93,7 @@ class EKF {
     unsigned long timeWeekPrev_;
 
     // Sensor variances (as standard deviation) and models (tau)
-    Vector3f aNoiseSigma_mps2 = {0.03f, 0.03f, 0.05f}; // Std dev of accelerometer wide band noise (m/s^2)
+    Vector3f aNoiseSigma_mps2 = {0.08f, 0.08f, 0.08f}; // Std dev of accelerometer wide band noise (m/s^2)
     Vector3f aMarkovSigma_mps2 = {0.0045, 0.0045, 0.0045}; // Std dev of accelerometer Markov bias
     Vector3f aMarkovTau_s = {500, 500, 500}; // Correlation time or time constant
 
