@@ -1,5 +1,6 @@
 #include "controller.h"
 #include "Arduino.h"
+#include "filter.h"
 #include "nav-functions.h"
 
 
@@ -218,6 +219,11 @@ PositionController::PositionController(const float (&Kp)[3],
   iLimit_ = iLimit;
   prevIntegral_ << 0.0, 0.0, 0.0;
   prevError_ << 0.0, 0.0, 0.0;
+
+
+	biquadFilter_init(&xOutputFilter, 50, 200);
+	biquadFilter_init(&yOutputFilter, 50, 200);
+	biquadFilter_init(&zOutputFilter, 50, 200);
 }
 
 /**
@@ -263,6 +269,10 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   // Calculate desired acceleration in the NED frame using PID
   desAcc_ned = Kp_ * posError_ned + Ki_ * integral + Kd_ * derivative;
 
+	/*desAcc_ned(0) = biquadFilter_apply(&xOutputFilter, desAcc_ned(0));*/
+	/*desAcc_ned(1) = biquadFilter_apply(&yOutputFilter, desAcc_ned(1));*/
+	/*desAcc_ned(2) = biquadFilter_apply(&zOutputFilter, desAcc_ned(2));*/
+
 	prevError_ = posError_ned;
 	prevIntegral_ = integral;
 
@@ -274,6 +284,7 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   desiredThrust_ = constrain(desiredThrust_, quadProps::MIN_THRUST, quadProps::MAX_THRUST);
   desAcc_b3 =
       -desiredThrust_ / quadProps::QUAD_MASS; // It's easier to constrain the thrust. maybe
+	
   
   // Calculate a new desired attitude based on the amount of thrust available
   // and the desired accelerations in n1 and n2;
