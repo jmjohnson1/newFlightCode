@@ -1,6 +1,5 @@
 #ifndef COMMON_DEFS_H
 #define COMMON_DEFS_H
-
 #include "eigen.h"
 #include "UserDefines.h"
 #include "mavlink.h"  // BFS Mavlink implementation
@@ -13,7 +12,7 @@ constexpr std::size_t MAX_RALLYPOINTS = 5;
 constexpr std::size_t NUM_UTM = 0;
 
 // Minimum distance from waypoint for it to be considered "arrived"
-constexpr float WP_ARRIVED_THRESH = 0.20;
+constexpr float WP_ARRIVED_THRESH = 0.30;
 // How long the quad needs to be close to the waypoint for it to count [us]
 constexpr uint64_t WP_ARRIVED_TIME = 2800000;
 
@@ -120,12 +119,12 @@ namespace quadProps {
   constexpr float DXB_KT = DIST_X_B*K_T;
   constexpr float DYB_KT = DIST_Y_B*K_T;
 
-  static const Eigen::Matrix4f ALLOCATION_MATRIX((Eigen::Matrix4f() << 
+  static const Eigen::Matrix4f ALLOCATION_MATRIX((Eigen::Matrix4f() <<
                                K_T, K_T, K_T, K_T,
                                DYF_KT, -DYF_KT, -DYB_KT, DYB_KT,
                                DXF_KT, DXF_KT, -DXB_KT, -DXB_KT,
                                -K_M, K_M, -K_M, K_M).finished());
-  
+
   static const Eigen::Matrix4f ALLOCATION_MATRIX_INV = ALLOCATION_MATRIX.inverse();
 
   constexpr float G = 9.8065;  // Gravity acceleration m/s^2

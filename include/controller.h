@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "eigen.h"
+#include "filter.h"
 
 Eigen::Vector4f ControlAllocator(Eigen::Vector4f &inputs);
 
@@ -81,6 +82,7 @@ private:
   float Kd_[3];
 
   float iLimit_;
+
 };
 
 class PositionController {
@@ -135,7 +137,12 @@ private:
   Eigen::Matrix3f Ki_;
   Eigen::Matrix3f Kd_;
 
+
   float iLimit_; // Maximum value for the integral portion
+	
+	biquadFilter_t xOutputFilter;
+	biquadFilter_t yOutputFilter;
+	biquadFilter_t zOutputFilter;
 };
 
 class PositionController2 {

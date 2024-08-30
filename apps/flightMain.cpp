@@ -162,11 +162,11 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-Eigen::Vector3f accNS = {mpuNS_ax, mpuNS_ay, mpuNS_az};
-Eigen::Vector3f gyroNS = {mpuNS_gx, mpuNS_gy, mpuNS_gz};
+Eigen::Vector3f accNS = {0.01,0.10,-0.39};
+Eigen::Vector3f gyroNS = {-0.01,-0.01,0.01};
 mpu6050 quadIMU = mpu6050(accNS, gyroNS);
 
-Eigen::Vector3f accNS2 = Eigen::Vector3f::Zero();
+Eigen::Vector3f accNS2 = {-0.46,0.08,-0.05};
 Eigen::Vector3f gyroNS2 = Eigen::Vector3f::Zero();
 bmi088 quadIMU2 = bmi088(accNS2, gyroNS2, SPI, bmiAccCS, bmiGyrCS, 0, 0);
 
@@ -225,8 +225,8 @@ elapsedMicros IMUUpdateTimer;
 
 // These define some loop rates
 const unsigned long EKFPeriod = 2; // milliseconds  (500 Hz)
-const unsigned long attitudeCtrlPeriod = 5; // milliseconds (200 Hz)
-const unsigned long positionCtrlPeriod = 5; // milliseconds (200 Hz)
+const unsigned long attitudeCtrlPeriod = 10; // milliseconds (100 Hz)
+const unsigned long positionCtrlPeriod = 13; // milliseconds (75 Hz)
 const unsigned long imuUpdatePeriod = 0; // microseconds (1000 Hz)
 
 #ifdef TEST_STAND
@@ -264,10 +264,13 @@ void getDesState() {
   quadData.att.eulerAngleSetpoint[1] = constrain(pitch_des, -1.0, 1.0) * maxPitch;
   quadData.att.yawRateSetpoint = constrain(yawRate_des, -1.0, 1.0) * maxYawRate;
 	if (abs(yawRate_des) > YAW_DEADZONE) {
+    /*Serial.print("Yaw rate: ");*/
+    /*Serial.println(quadData.att.yawRateSetpoint);*/
 		quadData.att.eulerAngleSetpoint[2] += quadData.att.yawRateSetpoint/2000.0f; 
+    /*Serial.print("Yaw setpoint: ");*/
+    /*Serial.println(quadData.att.eulerAngleSetpoint[2]);*/
 	}
 }
-
 
 /**
  * @brief Gets the raw commands from the sbus radio receiver
@@ -553,15 +556,18 @@ void LoggingSetup() {
 	logging.AddItem(&iScale_att, "iScale_att", 4);
 	logging.AddItem(&dScale_att, "dScale_att", 4);
 	// PID values
-	logging.AddItem(Kp_array, "Kp_array", 3);
-	logging.AddItem(Ki_array, "Ki_array", 3);
-	logging.AddItem(Kd_array, "Kd_array", 3);
-	logging.AddItem(Kp_pos, "Kp_pos", 3);
-	logging.AddItem(Ki_pos, "Ki_pos", 3);
-	logging.AddItem(Kd_pos, "Kd_pos", 3);
-	logging.AddItem(Kp2_array, "Kp2_array", 3);
-	logging.AddItem(Ki2_array, "Ki2_array", 3);
-	logging.AddItem(Kd2_array, "Kd2_array", 3);
+	logging.AddItem(Kp_array, "Kp_array", 3, 4);
+	logging.AddItem(Ki_array, "Ki_array", 3, 4);
+	logging.AddItem(Kd_array, "Kd_array", 3, 4);
+	logging.AddItem(Kp_pos, "Kp_pos", 3, 4);
+	logging.AddItem(Ki_pos, "Ki_pos", 3, 4);
+	logging.AddItem(Kd_pos, "Kd_pos", 3, 4);
+	logging.AddItem(Kp2_array, "Kp2_array", 3, 4);
+	logging.AddItem(Ki2_array, "Ki2_array", 3, 4);
+	logging.AddItem(Kd2_array, "Kd2_array", 3, 4);
+
+	// Flight mode
+	logging.AddItem(&customMode, "CustomMode", 10);
 }
 
 //===========================//

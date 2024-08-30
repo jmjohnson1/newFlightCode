@@ -10,11 +10,11 @@ uint8_t chk_buf[2];
 
 bool telem::Begin(Quadcopter_t &quadData) {
   static unsigned char biggerWriteBuffer[256*10];
-	// static unsigned char biggerReadBuffer[256];
+	static unsigned char biggerReadBuffer[256];
   size_t biggerWriteBuffer_size = sizeof(biggerWriteBuffer);
-	// size_t biggerReadBuffer_size = sizeof(biggerReadBuffer);
-   /*Serial2.addMemoryForWrite(biggerWriteBuffer, biggerWriteBuffer_size);*/
-  // Serial2.addMemoryForRead(biggerReadBuffer, biggerReadBuffer_size);
+	size_t biggerReadBuffer_size = sizeof(biggerReadBuffer);
+  Serial2.addMemoryForWrite(biggerWriteBuffer, biggerWriteBuffer_size);
+  Serial2.addMemoryForRead(biggerReadBuffer, biggerReadBuffer_size);
 
   quadData.telemData.mavlink = new bfs::MavLink<NUM_PARAMS, NUM_UTM>;
   quadData.telemData.mavlink->hardware_serial(&Serial2);
