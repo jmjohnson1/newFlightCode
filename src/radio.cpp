@@ -3,11 +3,7 @@
 RadioChannel::RadioChannel(String name, uint8_t channel, uint16_t zeroPoint, 
 													 uint16_t failsafe, bool critical, uint16_t minRange, uint16_t maxRange) {
 	name_ = name;
-	Serial.print("name_ = ");
-	Serial.println(name_);
 	rawValue_ = failsafe;
-	Serial.print("rawValue_ = ");
-	Serial.println(rawValue_);
 	rawValue_previous_ = failsafe;
 	failsafeValue_ = failsafe;
 	channel_ = channel;

@@ -25,18 +25,20 @@ Motors::Motors(const uint8_t motorPins[4], int minPulseDuration, int maxPulseDur
 void Motors::ScaleCommand(Eigen::Vector4f &angularRates) {
 	// This maps the angular rates to (0, 1)
 	for (int i = 0; i < 4; i++) {
-		// Yes, it's hideous. Don't try to follow in your head. This formulation may
-		// also not work with other motors. If you are using a different type of
-		// motor than this was designed for, check if this is your bug.
-		motorCommandNormalized_[i] = angularRates[i]/quadProps::K_W1;  
-		motorCommandNormalized_[i] +=
-		0.25f*quadProps::K_W2*quadProps::K_W2/quadProps::K_W1/quadProps::K_W1;
-		motorCommandNormalized_[i] = -sqrt(motorCommandNormalized_[i]) -
-		quadProps::K_W2/quadProps::K_W1/2.0f; 
-		motorCommandNormalized_[i] = constrain(motorCommandNormalized_[i], 0, 1);
+		/*// Yes, it's hideous. Don't try to follow in your head. This formulation may*/
+		/*// also not work with other motors. If you are using a different type of*/
+		/*// motor than this was designed for, check if this is your bug.*/
+		/*motorCommandNormalized_[i] = angularRates[i]/quadProps::K_W1;  */
+		/*motorCommandNormalized_[i] +=*/
+		/*0.25f*quadProps::K_W2*quadProps::K_W2/quadProps::K_W1/quadProps::K_W1;*/
+		/*motorCommandNormalized_[i] = -sqrt(motorCommandNormalized_[i]) -*/
+		/*quadProps::K_W2/quadProps::K_W1/2.0f; */
+		/*motorCommandNormalized_[i] = constrain(motorCommandNormalized_[i], 0, 1);*/
+		motorCommandNormalized_[i] = quadProps::K_W1*angularRates[i]*angularRates[i] + quadProps::K_W2*angularRates[i];
 		if (isnan(motorCommandNormalized_[i])) {
 			motorCommandNormalized_[i] = 0;
 		}
+		motorCommandNormalized_[i] = constrain(motorCommandNormalized_[i], 0, 1);
 		motorCommandScaled_[i] = map(motorCommandNormalized_[i], 0, 1, 0, 180);
 	}
 }

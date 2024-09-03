@@ -475,41 +475,7 @@ void LoggingSetup() {
 	logging.AddItem(&quadData.flightStatus.thrustSetpoint, "thrust_setpoint", 4);
 	//
 	// Raw radio PWM values (1000-2000)
-	
-
-
-	Serial.println((uint64_t)&throttleChannel); 
-	Serial.println((uint64_t)&rollChannel    );
-	Serial.println((uint64_t)&pitchChannel   );
-	Serial.println((uint64_t)&yawChannel     );
-	Serial.println((uint64_t)&throCutChannel );
-	Serial.println((uint64_t)&boundaryOnOff	 ); 									
-	Serial.println((uint64_t)&aux1           );
-	Serial.println((uint64_t)&aux2           );
-	Serial.println((uint64_t)&aux3           );
-	Serial.println((uint64_t)&KpScaleChannel );
-	Serial.println((uint64_t)&KiScaleChannel );
-	Serial.println((uint64_t)&KdScaleChannel );
-	Serial.println((uint64_t)&scaleAllChannel);
-	Serial.println((uint64_t)&resetChannel   );
-	Serial.println((uint64_t)&aux0           );
-
-
-
-
-	Serial.println("In logging setup");
 	for (int i = 0; i < numChannels; i++) {
-		Serial.println(i);
-
-		Serial.print("Address: ");
-		Serial.print((uint64_t)radioChannels[i]);
-		Serial.print("\tName: ");
-		Serial.print(radioChannels[i]->GetName());
-		Serial.print("\tValue: ");
-		Serial.print(radioChannels[i]->GetRawValue());
-		Serial.print("\tValue2: ");
-		Serial.println(radioChannels[i]->rawValue_);
-
 		logging.AddItem(&(radioChannels[i]->rawValue_), radioChannels[i]->GetName(), 10);
 	}
 	// LP-filtered IMU data
@@ -585,21 +551,6 @@ void Setup() {
 
   delay(5);
 
-
-
-	Serial.println("RadioChannel Array: ");
-	for (int i = 0; i < numChannels; i++) {
-		Serial.print("Name: ");
-		Serial.print(radioChannels[i]->GetName());
-		Serial.print("\tValue: ");
-		Serial.print(radioChannels[i]->GetRawValue());
-		Serial.print("\tValue2: ");
-		Serial.print(radioChannels[i]->rawValue_);
-		Serial.print("\tAddress: ");
-		Serial.println((uint64_t)radioChannels[i]);
-	}
-
-
   // Initialize radio communication
   radioSetup();
 
@@ -625,23 +576,10 @@ void Setup() {
 
 	// Putting this here for now. Initialize the yaw angle setpoint to 180
 	quadData.att.eulerAngleSetpoint[2] = M_PI;
-	Serial.println("setpoint");
 
   // Initialize the SD card
-	/*LoggingSetup();*/
-	/*Serial.println("loggingsetup");*/
+	LoggingSetup();
 
-	Serial.println("RadioChannel Array: ");
-	for (int i = 0; i < numChannels; i++) {
-		Serial.print("Name: ");
-		Serial.print(radioChannels[i]->GetName());
-		Serial.print("\tValue: ");
-		Serial.print(radioChannels[i]->GetRawValue());
-		Serial.print("\tValue2: ");
-		Serial.print(radioChannels[i]->rawValue_);
-		Serial.print("\tAddress: ");
-		Serial.println((uint64_t)radioChannels[i]);
-	}
   // Get IMU error to zero accelerometer and gyro readings, assuming vehicle is
   // level when powered up Calibration parameters printed to serial monitor.
   // Paste these in the user specified variables section, then comment this out

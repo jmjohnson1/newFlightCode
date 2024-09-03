@@ -13,7 +13,7 @@ enum class SwPos {
 class RadioChannel {
 public:
 	RadioChannel(String name, uint8_t channel, uint16_t zeroPoint, uint16_t failsafe, bool critical = false, uint16_t minRange = 1000, uint16_t maxRange = 2000);
-	~RadioChannel() {Serial.println("Destructor called");}
+	~RadioChannel() {}
 
 	void FailureCheck(uint16_t *failureFlag);
 	SwPos SwitchPosition();

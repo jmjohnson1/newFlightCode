@@ -11,8 +11,10 @@ function (flashMcu TARGET)
   add_custom_target(${HEX_TARGET}
     DEPENDS ${HEX_CMD}
   )
+
+
 	add_custom_target(${UPLOAD_TARGET}
-		COMMAND ${CMAKE_SOURCE_DIR}/tools/linux/teensy_post_compile -file=${TARGET} -path=${CMAKE_CURRENT_BINARY_DIR} -tools=${CMAKE_SOURCE_DIR}/tools/linux -reboot
+		COMMAND ${CMAKE_SOURCE_DIR}/tools/${CMAKE_HOST_SYSTEM_NAME}/teensy_post_compile -file=${TARGET} -path=${CMAKE_CURRENT_BINARY_DIR} -tools=${CMAKE_SOURCE_DIR}/tools/${CMAKE_HOST_SYSTEM_NAME} -reboot
 		DEPENDS ${HEX_CMD}
 	)
   # Linker

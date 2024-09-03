@@ -101,17 +101,18 @@ namespace quadProps {
   constexpr float DIST_X_B = 0.10345f; // x Distance from CoM to front motors [m]
   constexpr float DIST_Y_B = 0.11383f; // x Distance from CoM to front motors [m]
 
-  // EMAX ECO II 1300KV with HQProp 7x4x3
-  constexpr float K_T = 4.9831e-6;  // Thrust coefficient [N/(rad/s^2)]
-  constexpr float K_M = 1.6320e-7;  // Motor torque coefficient [Nm/(rad/s^2)]
+  constexpr float K_T = 4.9e-6;  // Thrust coefficient [N/(rad/s^2)]
+  constexpr float K_M = 7.9e-8;  // Motor torque coefficient [Nm/(rad/s^2)]
   #if defined BAT_3S
 	constexpr float MAX_THRUST = 32.0f;  // Maximum total thrust (N)
-  constexpr float K_W1 = -6.1875e2;
-  constexpr float K_W2 = 1.7412e3;
+  /*constexpr float K_W1 = -6.1875e2;*/
+  /*constexpr float K_W2 = 1.7412e3;*/
   #elif defined BAT_4S
 	constexpr float MAX_THRUST = 44.0f;  // Maximum total thrust (N)
-  constexpr float K_W1 = -1.2349e3;
-  constexpr float K_W2 = 2.7856e3;
+  /*constexpr float K_W1 = -1.2349e3;*/
+  /*constexpr float K_W2 = 2.7856e3;*/
+  constexpr float K_W1 = 3.9e-7;
+  constexpr float K_W2 = 1.2e-4;
   #endif
 
   constexpr float DXF_KT = DIST_X_F*K_T;
