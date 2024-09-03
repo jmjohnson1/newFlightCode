@@ -74,7 +74,7 @@ add_subdirectory(src)
 include(${CMAKE_SOURCE_DIR}/cmake/mcu_upload.cmake)
 
 add_executable(flightCode
-	apps/flightMain.cpp
+	apps/flightCode.cpp
 	src/controller.cpp
 	src/datalogger.cpp
 	src/EKF.cpp
@@ -104,7 +104,7 @@ target_link_libraries(flightCode
 	bmi088
 	BFSChecksum
 	mavlink
-	EEPROM
+	# EEPROM
 	Eigen
 	MPU6050
 	MPU9250
@@ -134,7 +134,7 @@ target_link_libraries(radioTest
 	bmi088
 	BFSChecksum
 	mavlink
-	EEPROM
+	# EEPROM
 	Eigen
 	MPU6050
 	MPU9250

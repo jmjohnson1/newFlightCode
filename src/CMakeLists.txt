@@ -2,7 +2,7 @@
 file(GLOB HEADER_LIST CONFIGURE_DEPENDS "${DRONE_Code_SOURCE_DIR}/include/*.h")
 
 # Make an automatic library - will be static or dynamic based on user setting
-add_library(flightSource 
+add_library(flightLib 
 	controller.cpp
 	datalogger.cpp
 	EKF.cpp
@@ -22,11 +22,11 @@ add_library(flightSource
 )
 
 # We need this directory, and users of our library will need it too
-target_include_directories(flightSource PUBLIC 
+target_include_directories(flightLib PUBLIC 
 	"${DRONE_Code_SOURCE_DIR}/include"
 )
 
-target_link_libraries(flightSource PRIVATE
+target_link_libraries(flightLib PUBLIC
 	TeensyLib
 	SdFat
 	LIS3MDL
@@ -35,7 +35,7 @@ target_link_libraries(flightSource PRIVATE
 	bmi088
 	BFSChecksum
 	mavlink
-	EEPROM
+	# EEPROM
 	Eigen
 	MPU6050
 	MPU9250
@@ -43,3 +43,4 @@ target_link_libraries(flightSource PRIVATE
 	SBUS
 	TeensyTimerTool
 )
+

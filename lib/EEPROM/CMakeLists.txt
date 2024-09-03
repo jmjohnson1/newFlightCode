@@ -1,6 +1,4 @@
 add_library(EEPROM
-	EEPROM.cpp
-	
 	EEPROM.h
 )
 
