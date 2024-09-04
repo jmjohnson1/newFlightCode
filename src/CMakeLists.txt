@@ -16,6 +16,8 @@ list(APPEND COMMON_LIBS
 )
 
 
+
+
 ## PID Controllers ##
 add_library(pidController
 	controller.cpp
@@ -27,10 +29,9 @@ target_include_directories(pidController PUBLIC
 )
 
 target_link_libraries(pidController PRIVATE
-	${COMMON_LIBS}
 )
 
-## Filtering ##
+## Sensor Fusion ##
 add_library(sensorFusion
 	EKF.cpp
 	madgwick.cpp
