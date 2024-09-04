@@ -578,7 +578,7 @@ void Setup() {
 	quadData.att.eulerAngleSetpoint[2] = M_PI;
 
   // Initialize the SD card
-	LoggingSetup();
+	/*LoggingSetup();*/
 
   // Get IMU error to zero accelerometer and gyro readings, assuming vehicle is
   // level when powered up Calibration parameters printed to serial monitor.

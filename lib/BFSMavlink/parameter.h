@@ -119,6 +119,8 @@ class MavLinkParameter {
     }
   }
   void MsgHandler(const mavlink_message_t &ref) {
+		Serial.print("msgID: ");
+		Serial.println(ref.msgid);
     switch (ref.msgid) {
       case MAVLINK_MSG_ID_PARAM_REQUEST_READ: {
         mavlink_msg_param_request_read_decode(&ref, &request_read_);
@@ -201,6 +203,8 @@ class MavLinkParameter {
                                             params_[i].param_index);
     mavlink_msg_to_send_buffer(msg_buf_, &msg_);
     bus_->write(msg_buf_, msg_len_);
+		Serial.print("Sent param ");
+		Serial.println(i);
   }
   /* Message handlers */
   mavlink_param_request_read_t request_read_;
@@ -237,6 +241,7 @@ class MavLinkParameter {
       * full list of parameters 
       */
       param_index_ = 0;
+			Serial.println("got request list");
     }
   }
   void ParamSetHandler(const mavlink_param_set_t &ref) {

@@ -9,7 +9,7 @@
 // if we store them with IDs and a checksum at the end and a header at the
 // beginning.
 constexpr uint8_t PARAM_HEADER[1] = {'P'};
-constexpr std::size_t NUM_PARAMS = 24;
+constexpr std::size_t NUM_PARAMS = 36;
 constexpr std::size_t PARAM_SIZE = sizeof(char[1]) + NUM_PARAMS*(sizeof(float) + sizeof(char[16])) + sizeof(uint16_t);
 
 constexpr char PARAM_ID_0[16]  = "CT_KP_ROLL";
@@ -38,6 +38,20 @@ constexpr char PARAM_ID_21[16] = "CT2_KR";
 constexpr char PARAM_ID_22[16] = "CT2_Kw";
 constexpr char PARAM_ID_23[16] = "CT2_KI";
 
+constexpr char PARAM_ID_24[16] = "ACC_NS_1";
+constexpr char PARAM_ID_25[16] = "ACC_NS_2";
+constexpr char PARAM_ID_26[16] = "ACC_NS_3";
+constexpr char PARAM_ID_27[16] = "GYR_NS_1";
+constexpr char PARAM_ID_28[16] = "GYR_NS_2";
+constexpr char PARAM_ID_29[16] = "GYR_NS_3";
+
+constexpr char PARAM_ID_30[16] = "ACC2_NS_1";
+constexpr char PARAM_ID_31[16] = "ACC2_NS_2";
+constexpr char PARAM_ID_32[16] = "ACC2_NS_3";
+constexpr char PARAM_ID_33[16] = "GYR2_NS_1";
+constexpr char PARAM_ID_34[16] = "GYR2_NS_2";
+constexpr char PARAM_ID_35[16] = "GYR2_NS_3";
+
 
 constexpr float PARAM_DEFAULT_0  = 1.66f;
 constexpr float PARAM_DEFAULT_1  = 4.81f;
@@ -64,6 +78,20 @@ constexpr float PARAM_DEFAULT_20 = 250.0f;
 constexpr float PARAM_DEFAULT_21 = 1.5f;
 constexpr float PARAM_DEFAULT_22 = 0.11f;
 constexpr float PARAM_DEFAULT_23 = 0.06f;
+
+constexpr float PARAM_DEFAULT_24 = 0.00f;
+constexpr float PARAM_DEFAULT_25 = 0.00f;
+constexpr float PARAM_DEFAULT_26 = 0.00f;
+constexpr float PARAM_DEFAULT_27 = 0.00f;
+constexpr float PARAM_DEFAULT_28 = 0.00f;
+constexpr float PARAM_DEFAULT_29 = 0.00f;
+
+constexpr float PARAM_DEFAULT_30 = 0.00f;
+constexpr float PARAM_DEFAULT_31 = 0.00f;
+constexpr float PARAM_DEFAULT_32 = 0.00f;
+constexpr float PARAM_DEFAULT_33 = 0.00f;
+constexpr float PARAM_DEFAULT_34 = 0.00f;
+constexpr float PARAM_DEFAULT_35 = 0.00f;
 
 inline void GetDefaultTelemParams(uint8_t paramBuf[PARAM_SIZE]) {
   float paramDefaultVals[NUM_PARAMS];
@@ -95,7 +123,18 @@ inline void GetDefaultTelemParams(uint8_t paramBuf[PARAM_SIZE]) {
   paramDefaultVals[21] = PARAM_DEFAULT_21;
   paramDefaultVals[22] = PARAM_DEFAULT_22;
   paramDefaultVals[23] = PARAM_DEFAULT_23;
-
+  paramDefaultVals[24] = PARAM_DEFAULT_24;
+  paramDefaultVals[25] = PARAM_DEFAULT_25;
+  paramDefaultVals[26] = PARAM_DEFAULT_26;
+  paramDefaultVals[27] = PARAM_DEFAULT_27;
+  paramDefaultVals[28] = PARAM_DEFAULT_28;
+  paramDefaultVals[29] = PARAM_DEFAULT_29;
+  paramDefaultVals[30] = PARAM_DEFAULT_30;
+  paramDefaultVals[31] = PARAM_DEFAULT_31;
+  paramDefaultVals[32] = PARAM_DEFAULT_32;
+  paramDefaultVals[33] = PARAM_DEFAULT_33;
+  paramDefaultVals[34] = PARAM_DEFAULT_34;
+  paramDefaultVals[35] = PARAM_DEFAULT_35;
 
   paramDefaultIDs[0]  = PARAM_ID_0;
   paramDefaultIDs[1]  = PARAM_ID_1;
@@ -121,6 +160,18 @@ inline void GetDefaultTelemParams(uint8_t paramBuf[PARAM_SIZE]) {
   paramDefaultIDs[21] = PARAM_ID_21;
   paramDefaultIDs[22] = PARAM_ID_22;
   paramDefaultIDs[23] = PARAM_ID_23;
+  paramDefaultIDs[24] = PARAM_ID_24;
+  paramDefaultIDs[25] = PARAM_ID_25;
+  paramDefaultIDs[26] = PARAM_ID_26;
+  paramDefaultIDs[27] = PARAM_ID_27;
+  paramDefaultIDs[28] = PARAM_ID_28;
+  paramDefaultIDs[29] = PARAM_ID_29;
+  paramDefaultIDs[30] = PARAM_ID_30;
+  paramDefaultIDs[31] = PARAM_ID_31;
+  paramDefaultIDs[32] = PARAM_ID_32;
+  paramDefaultIDs[33] = PARAM_ID_33;
+  paramDefaultIDs[34] = PARAM_ID_34;
+  paramDefaultIDs[35] = PARAM_ID_35;
 
   // Copy these to the buffer
   std::memcpy(&(paramBuf[1]), &(paramDefaultVals[0]), NUM_PARAMS*sizeof(float));

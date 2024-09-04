@@ -142,6 +142,9 @@ class MavLink {
         mission_.MsgHandler(msg_);
         rtcm_.MsgHandler(msg_);
         utm_.MsgHandler(msg_);
+
+				Serial.print("msgID: ");
+				Serial.println(msg_.msgid);
       }
     }
   }
