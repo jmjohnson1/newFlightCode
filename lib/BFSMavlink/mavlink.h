@@ -143,8 +143,6 @@ class MavLink {
         rtcm_.MsgHandler(msg_);
         utm_.MsgHandler(msg_);
 
-				Serial.print("msgID: ");
-				Serial.println(msg_.msgid);
       }
     }
   }
@@ -740,7 +738,6 @@ class MavLink {
       cmd_ = cmd_int_.command;
       switch (cmd_int_.command) {
         case MAV_CMD_NAV_TAKEOFF_LOCAL:
-          Serial.println(throttle_enabled());
           if (throttle_enabled() == true) {
             SendCmdAck(MAV_RESULT_ACCEPTED, 255);
             heartbeat_.custom_mode(TAKEOFF);

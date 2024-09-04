@@ -83,7 +83,7 @@ bool telem::Begin(Quadcopter_t &quadData) {
   quadData.telemData.mavlink->params(quadData.telemData.paramValues);
   for (int32_t i = 0; i < NUM_PARAMS; i++) {
     char name[16];
-    memcpy(&name, &(quadData.telemData.paramIDs[i*16]), sizeof(char[16]));
+    memcpy(&name, &(quadData.telemData.paramIDs[i]), sizeof(char[16]));
     quadData.telemData.mavlink->param_id(i, name);
   }
   quadData.telemData.paramsUpdated = true;

@@ -33,7 +33,6 @@ namespace bfs {
 void MavLinkHeartbeat::Update() {
   if (heartbeat_timer_ms_ > HEARTBEAT_PERIOD_MS_) {
     SendHeartbeat();
-		Serial.println("heartbeat sent");
     heartbeat_timer_ms_ = 0;
   }
 }
