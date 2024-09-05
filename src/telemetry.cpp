@@ -8,7 +8,7 @@ bfs::Fletcher16 param_checksum;
 uint16_t chk_computed, chk_read;
 uint8_t chk_buf[2];
 
-bool telem::Begin(Quadcopter_t &quadData) {
+bool telem::Begin(QuadType::Quadcopter_t &quadData) {
   static unsigned char biggerWriteBuffer[256*10];
 	static unsigned char biggerReadBuffer[256];
   size_t biggerWriteBuffer_size = sizeof(biggerWriteBuffer);
@@ -109,7 +109,7 @@ bool telem::Begin(Quadcopter_t &quadData) {
   return true;
 }
 
-void telem::Run(Quadcopter_t &quadData, Generic_IMU &quadIMU) {
+void telem::Run(QuadType::Quadcopter_t &quadData, Generic_IMU &quadIMU) {
   // For better readability
   bfs::MavLink<NUM_PARAMS, NUM_UTM> *mavptr = quadData.telemData.mavlink;
 
@@ -122,13 +122,13 @@ void telem::Run(Quadcopter_t &quadData, Generic_IMU &quadIMU) {
   mavptr->imu_gyro_y_radps(quadIMU.GetGyroY());
   mavptr->imu_gyro_z_radps(quadIMU.GetGyroZ());
   // Attitude
-  mavptr->nav_roll_rad(quadData.att.eulerAngles_active->coeff(0));
-  mavptr->nav_pitch_rad(quadData.att.eulerAngles_active->coeff(1));
-  mavptr->nav_hdg_rad(quadData.att.eulerAngles_active->coeff(2));
-  float quatSp[4] = {quadData.att.quatSetpoint.w(),
-                     quadData.att.quatSetpoint.x(),
-                     quadData.att.quatSetpoint.y(),
-                     quadData.att.quatSetpoint.z()};
+  mavptr->nav_roll_rad(quadData.attitudeData.eulerAngles_active->coeff(0));
+  mavptr->nav_pitch_rad(quadData.attitudeData.eulerAngles_active->coeff(1));
+  mavptr->nav_hdg_rad(quadData.attitudeData.eulerAngles_active->coeff(2));
+  float quatSp[4] = {quadData.attitudeData.quatSetpoint.w(),
+                     quadData.attitudeData.quatSetpoint.x(),
+                     quadData.attitudeData.quatSetpoint.y(),
+                     quadData.attitudeData.quatSetpoint.z()};
   mavptr->quaternionSetpoint(quatSp);
   // Position & velocity
   mavptr->nav_north_pos_m(quadData.navData.position_NED[0]);
@@ -190,7 +190,7 @@ void telem::Run(Quadcopter_t &quadData, Generic_IMU &quadIMU) {
 const float MAX_POS_CHG = 10;
 bool firstUpdate = true;
 
-uint32_t telem::CheckForNewPosition(Quadcopter_t &quadData) {
+uint32_t telem::CheckForNewPosition(QuadType::Quadcopter_t &quadData) {
   float viconX = quadData.telemData.mavlink->viconX();
   float viconY = quadData.telemData.mavlink->viconY();
   float viconZ = quadData.telemData.mavlink->viconZ();

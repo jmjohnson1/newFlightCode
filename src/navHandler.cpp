@@ -1,6 +1,6 @@
 #include "navHandler.h"
 
-SetpointHandler::SetpointHandler(Quadcopter_t *quadData) :
+SetpointHandler::SetpointHandler(QuadType::Quadcopter_t *quadData) :
 quadData_(quadData),
 quadPos_(&(quadData->navData.position_NED)) {
   posSetpoint_ = &(quadData->navData.positionSetpoint_NED);

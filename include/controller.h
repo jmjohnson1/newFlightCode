@@ -11,7 +11,7 @@ class AngleAttitudeController {
 public:
   AngleAttitudeController(const float (&Kp)[3], const float (&Ki)[3],
                           const float (&Kd)[3], float iLimit = 25.0f);
-  void Update(const float setpoints[3], const AttitudeData_t &att,
+  void Update(const float setpoints[3], const QuadType::Attitude_t &att,
               const Eigen::Vector3f &gyroRates, float dt, bool noIntegral,
 							bool angleForYaw);
 
@@ -96,7 +96,7 @@ public:
               const Eigen::Vector3f &velocitySetpoints,
               const Eigen::Vector3d &currentPosition, 
               const Eigen::Vector3f &currentVelocity,
-              const AttitudeData_t &att,
+              const QuadType::Attitude_t &att,
               float dt, bool noIntegral);
 
 	void Reset();
@@ -154,7 +154,7 @@ public:
               const Eigen::Vector3f &currentPosition, 
               const Eigen::Vector3f &currentVelocity,
               const Eigen::Vector3f &b1d,
-              const AttitudeData_t &att,
+              const QuadType::Attitude_t &att,
               float dt);
 	void Reset() { prevIntegral_.setZero(); }
 
@@ -193,7 +193,7 @@ public:
   DCMAttitudeControl(const float (&Kp)[3], const float (&Ki)[3], const float (&Kd)[3],
                      const float iLimit, const float c2);
   
-  void Update(const AttitudeData_t &att, const Eigen::Vector3f &gyroRates, const float dt);
+  void Update(const QuadType::Attitude_t &att, const Eigen::Vector3f &gyroRates, const float dt);
 
   Eigen::Vector3f GetControlTorque() { return controlTorque_; }
 

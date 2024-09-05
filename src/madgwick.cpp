@@ -2,7 +2,7 @@
 
 const float B_madgwick = 0.04f; // Madgwick lowpass parameter
 
-void Madgwick6DOF(const Generic_IMU &imu, Quadcopter_t &quad, float dt) {
+void Madgwick6DOF(const Generic_IMU &imu, QuadType::Quadcopter_t &quad, float dt) {
   float recipNorm;
   float s0, s1, s2, s3;
   float qDot1, qDot2, qDot3, qDot4;
@@ -15,10 +15,10 @@ void Madgwick6DOF(const Generic_IMU &imu, Quadcopter_t &quad, float dt) {
   float ay = imu.GetAccY();
   float az = imu.GetAccZ();
 
-	float q0 = quad.att.quat_madgwick.w();
-	float q1 = quad.att.quat_madgwick.x();
-	float q2 = quad.att.quat_madgwick.y();
-	float q3 = quad.att.quat_madgwick.z();
+	float q0 = quad.attitudeData.quat_madgwick.w();
+	float q1 = quad.attitudeData.quat_madgwick.x();
+	float q2 = quad.attitudeData.quat_madgwick.y();
+	float q3 = quad.attitudeData.quat_madgwick.z();
 
   // Rate of change of quaternion from gyroscope
   qDot1 = 0.5f * (-q1 * gx - q2 * gy - q3 * gz);
@@ -88,10 +88,10 @@ void Madgwick6DOF(const Generic_IMU &imu, Quadcopter_t &quad, float dt) {
   q3 *= recipNorm;
 
 	// Store the new quaternion
-  quad.att.quat_madgwick = Eigen::Quaternionf(q0, q1, q2, q3);
+  quad.attitudeData.quat_madgwick = Eigen::Quaternionf(q0, q1, q2, q3);
 
   // Compute euler angles
-  quad.att.eulerAngles_madgwick[0] = atan2(q0*q1 + q2*q3, 0.5f - q1*q1 - q2*q2);
-  quad.att.eulerAngles_madgwick[1] = asin(-2.0f*(q1*q3 - q0*q2));
-  quad.att.eulerAngles_madgwick[2] = atan2(q1*q2 + q0*q3, 0.5f - q2*q2 - q3*q3);
+  quad.attitudeData.eulerAngles_madgwick[0] = atan2(q0*q1 + q2*q3, 0.5f - q1*q1 - q2*q2);
+  quad.attitudeData.eulerAngles_madgwick[1] = asin(-2.0f*(q1*q3 - q0*q2));
+  quad.attitudeData.eulerAngles_madgwick[2] = atan2(q1*q2 + q0*q3, 0.5f - q2*q2 - q3*q3);
 }

@@ -5,7 +5,7 @@
 
 class SetpointHandler {
 public:
-  SetpointHandler(Quadcopter_t *quadData);
+  SetpointHandler(QuadType::Quadcopter_t *quadData);
   void UpdateSetpoint();
 
 private:
@@ -16,7 +16,7 @@ private:
   
 
   // Keep a constant pointer to the global variables
-  const Quadcopter_t *quadData_;
+  const QuadType::Quadcopter_t *quadData_;
   // Because these are used a lot, pointers to these can be pulled out of
   // quadData.
   const Eigen::Vector3f *quadPos_;

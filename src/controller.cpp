@@ -1,5 +1,6 @@
 #include "controller.h"
 #include "Arduino.h"
+#include "common.h"
 #include "filter.h"
 #include "nav-functions.h"
 
@@ -62,7 +63,7 @@ AngleAttitudeController::AngleAttitudeController(const float (&Kp)[3],
 */
 
 void AngleAttitudeController::Update(const float setpoints[3],
-                                     const AttitudeData_t &att,
+                                     const QuadType::Attitude_t &att,
                                      const Eigen::Vector3f &gyroRates, float dt,
                                      bool noIntegral,
 																		 bool AngleForYaw) {
@@ -241,7 +242,7 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
                                 const Eigen::Vector3f &velocitySetpoints,
                                 const Eigen::Vector3d &currentPosition,
                                 const Eigen::Vector3f &currentVelocity,
-                                const AttitudeData_t &att, float dt, bool noIntegral) {
+                                const QuadType::Attitude_t &att, float dt, bool noIntegral) {
   // Declare some variables
   Eigen::Vector3f posError_ned, integral, derivative, desAcc_ned;
   float desAcc_b3; // Desired thrust resolved in the 3 axis of the body frame
@@ -341,7 +342,7 @@ PositionController2::PositionController2(const float (&Kp)[3], const float (&Ki)
               const Eigen::Vector3f &currentPosition, 
               const Eigen::Vector3f &currentVelocity,
               const Eigen::Vector3f &b1d,
-              const AttitudeData_t &att,
+              const QuadType::Attitude_t &att,
               float dt) {
   // n3 basis vector (navigation frame)
   Eigen::Vector3f n3 = {0, 0, 1};
@@ -377,7 +378,7 @@ DCMAttitudeControl::DCMAttitudeControl(const float (&Kp)[3], const float (&Ki)[3
   prevIntegral_.setZero();
 }
 
-void DCMAttitudeControl::Update(const AttitudeData_t &att, const Eigen::Vector3f &gyroRates, const float dt) {
+void DCMAttitudeControl::Update(const QuadType::Attitude_t &att, const Eigen::Vector3f &gyroRates, const float dt) {
   // Attitude and angular rate error vectors
   Eigen::Matrix3f term = att.desiredDCM*att.currentDCM.transpose() - att.currentDCM*att.desiredDCM.transpose();
   Eigen::Vector3f e_R = 0.5f*SkewInverse(term);

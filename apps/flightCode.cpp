@@ -149,7 +149,7 @@ const uint8_t bmiGyrCS = 9;
 // DECLARE GLOBAL VARIABLES
 // General stuff
 float dt;
-Quadcopter_t quadData;
+QuadType::Quadcopter_t quadData;
 
 unsigned long current_time, prev_time;
 unsigned long print_counter;
@@ -260,13 +260,13 @@ void getDesState() {
 
   // Constrain within normalized bounds
   quadData.flightStatus.thrustSetpoint = constrain(thrust_des, 0.0, 1.0)*quadProps::MAX_THRUST;
-  quadData.att.eulerAngleSetpoint[0] = constrain(roll_des, -1.0, 1.0) * maxRoll;
-  quadData.att.eulerAngleSetpoint[1] = constrain(pitch_des, -1.0, 1.0) * maxPitch;
-  quadData.att.yawRateSetpoint = constrain(yawRate_des, -1.0, 1.0) * maxYawRate;
+  quadData.attitudeData.eulerAngleSetpoint[0] = constrain(roll_des, -1.0, 1.0) * maxRoll;
+  quadData.attitudeData.eulerAngleSetpoint[1] = constrain(pitch_des, -1.0, 1.0) * maxPitch;
+  quadData.attitudeData.yawRateSetpoint = constrain(yawRate_des, -1.0, 1.0) * maxYawRate;
 	if (abs(yawRate_des) > YAW_DEADZONE) {
     /*Serial.print("Yaw rate: ");*/
     /*Serial.println(quadData.att.yawRateSetpoint);*/
-		quadData.att.eulerAngleSetpoint[2] += quadData.att.yawRateSetpoint/2000.0f; 
+		quadData.attitudeData.eulerAngleSetpoint[2] += quadData.attitudeData.yawRateSetpoint/2000.0f; 
     /*Serial.print("Yaw setpoint: ");*/
     /*Serial.println(quadData.att.eulerAngleSetpoint[2]);*/
 	}
@@ -469,9 +469,9 @@ void calculate_IMU_error(Generic_IMU *imu) {
 // Adds items to the datalogger
 void LoggingSetup() {
 	// Attitude
-	logging.AddItem(quadData.att.eulerAngles_madgwick, "euler_madgwick", 4);
-	logging.AddItem(quadData.att.eulerAngles_ekf, "euler_ekf", 4);
-	logging.AddItem(quadData.att.eulerAngleSetpoint, "euler_setpoint", 4);
+	logging.AddItem(quadData.attitudeData.eulerAngles_madgwick, "euler_madgwick", 4);
+	logging.AddItem(quadData.attitudeData.eulerAngles_ekf, "euler_ekf", 4);
+	logging.AddItem(quadData.attitudeData.eulerAngleSetpoint, "euler_setpoint", 4);
 	logging.AddItem(&quadData.flightStatus.thrustSetpoint, "thrust_setpoint", 4);
 	//
 	// Raw radio PWM values (1000-2000)
@@ -575,7 +575,7 @@ void Setup() {
 #endif
 
 	// Putting this here for now. Initialize the yaw angle setpoint to 180
-	quadData.att.eulerAngleSetpoint[2] = M_PI;
+	quadData.attitudeData.eulerAngleSetpoint[2] = M_PI;
 
   // Initialize the SD card
 	/*LoggingSetup();*/
@@ -806,8 +806,8 @@ if(quadData.telemData.paramsUpdated == true) {
   	ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
 		quadData.navData.position_NED = ins.Get_PosEst().cast<float>();
 		quadData.navData.velocity_NED = ins.Get_VelEst();
-  	quadData.att.eulerAngles_ekf = ins.Get_OrientEst();
-    quadData.att.currentDCM = Euler2DCM(quadData.att.eulerAngles_ekf);
+  	quadData.attitudeData.eulerAngles_ekf = ins.Get_OrientEst();
+    quadData.attitudeData.currentDCM = Euler2DCM(quadData.attitudeData.eulerAngles_ekf);
 	}
 	Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates
 #else
@@ -836,11 +836,11 @@ if (bndryOnOff == 1) {
 			currentPosCovariance[1] < positionCovarianceLimit &&
 			currentPosCovariance[2] < positionCovarianceLimit) {
 		positionFix = true;
-		quadData.att.eulerAngles_active = &(quadData.att.eulerAngles_ekf);
+		quadData.attitudeData.eulerAngles_active = &(quadData.attitudeData.eulerAngles_ekf);
 	} else {
 		positionFix = false;
     // positionFix = true;
-		quadData.att.eulerAngles_active = &(quadData.att.eulerAngles_madgwick);
+		quadData.attitudeData.eulerAngles_active = &(quadData.attitudeData.eulerAngles_madgwick);
 	}
 	if (positionCtrlTimer >= positionCtrlPeriod) {
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
@@ -854,7 +854,7 @@ if (bndryOnOff == 1) {
           spHandler.UpdateSetpoint();
           posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), 
                             quadData.navData.velocitySetpoint_NED,
-                            ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
+                            ins.Get_PosEst(), ins.Get_VelEst(), quadData.attitudeData, dt, false);
           // posControl2.Update(quadData.navData.positionSetpoint_NED, quadData.navData.velocitySetpoint_NED, 
           //                    ins.Get_PosEst().cast<float>(), ins.Get_VelEst(), b1d, quadData.att, dt);
           if (customMode == bfs::CustomMode::MISSION ||
@@ -862,8 +862,8 @@ if (bndryOnOff == 1) {
               customMode == bfs::CustomMode::TAKEOFF ||
               customMode == bfs::CustomMode::LANDING) {
             quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
-            quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
-            quadData.att.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
+            quadData.attitudeData.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
+            quadData.attitudeData.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
             // quadData.flightStatus.thrustSetpoint = posControl2.GetDesiredThrust();
             // quadData.att.desiredDCM = posControl2.GetDesiredDCM();
           } else if (customMode == bfs::CustomMode::ALTITUDE) {
@@ -877,7 +877,7 @@ if (bndryOnOff == 1) {
     // We can set the thrust input now
 		quadData.flightStatus.controlInputs[0] = quadData.flightStatus.thrustSetpoint;
     // Save the setpoint as a quaternion too
-    quadData.att.quatSetpoint = Euler2Quat(quadData.att.eulerAngleSetpoint);
+    quadData.attitudeData.quatSetpoint = Euler2Quat(quadData.attitudeData.eulerAngleSetpoint);
 	}
 	# else
 		// Compute desired state based on radio inputs
@@ -949,7 +949,7 @@ if (bndryOnOff == 1) {
     /*  // dcmAttControl.Update(quadData.att, gyroRates, dt);*/
     /*  // quadData.flightStatus.controlInputs(lastN(3)) = dcmAttControl.GetControlTorque();*/
     /*}*/
-    angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, dt, noIntegral, positionFix);
+    angleController.Update(quadData.attitudeData.eulerAngleSetpoint.data(), quadData.attitudeData, gyroRates, dt, noIntegral, positionFix);
     quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
 	}
 

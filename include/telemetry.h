@@ -19,9 +19,9 @@ namespace telem {
   constexpr int16_t MIN_STREAM_PERIOD = 50;
 
 
-  bool Begin(Quadcopter_t &quadData);
-  void Run(Quadcopter_t &quadData, Generic_IMU &quadIMU);
-  uint32_t CheckForNewPosition(Quadcopter_t &quadData); 
+  bool Begin(QuadType::Quadcopter_t &quadData);
+  void Run(QuadType::Quadcopter_t &quadData, Generic_IMU &quadIMU);
+  uint32_t CheckForNewPosition(QuadType::Quadcopter_t &quadData); 
 }
 
 #endif
