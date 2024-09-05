@@ -52,7 +52,6 @@ constexpr char PARAM_ID_33[16] = "GYR2_NS_1";
 constexpr char PARAM_ID_34[16] = "GYR2_NS_2";
 constexpr char PARAM_ID_35[16] = "GYR2_NS_3";
 
-
 constexpr float PARAM_DEFAULT_0  = 1.66f;
 constexpr float PARAM_DEFAULT_1  = 4.81f;
 constexpr float PARAM_DEFAULT_2  = 0.34f;

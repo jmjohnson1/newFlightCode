@@ -162,11 +162,11 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-Eigen::Vector3f accNS = {0.01,0.10,-0.39};
-Eigen::Vector3f gyroNS = {-0.01,-0.01,0.01};
+Eigen::Vector3f accNS  = Eigen::Vector3f::Zero();
+Eigen::Vector3f gyroNS = Eigen::Vector3f::Zero();
 mpu6050 quadIMU = mpu6050(accNS, gyroNS);
 
-Eigen::Vector3f accNS2 = {-0.46,0.08,-0.05};
+Eigen::Vector3f accNS2  = Eigen::Vector3f::Zero();
 Eigen::Vector3f gyroNS2 = Eigen::Vector3f::Zero();
 bmi088 quadIMU2 = bmi088(accNS2, gyroNS2, SPI, bmiAccCS, bmiGyrCS, 0, 0);
 
@@ -407,14 +407,14 @@ void calibrateESCs() {
  * @param imu Pointer to the imu object to get the error from
  * @param att Pointer to the structure that contains attitude info for the IMU
 */
-void calculate_IMU_error(Generic_IMU *imu) {
+Eigen::Vector<float, 6> calculate_IMU_error(Generic_IMU *imu) {
 
 	// Initialize these to hold the error terms
 	float errorAcc[3] = {0, 0, 0};
 	float errorGyro[3] = {0, 0, 0};
 
 	// First set the null shift to zero
-	float nullShiftArray[3] = {0, 0, 0};
+	Eigen::Vector3f nullShiftArray = Eigen::Vector3f::Zero();
 	imu->SetAccNullShift(nullShiftArray);
 	imu->SetGyroNullShift(nullShiftArray);
 
@@ -460,10 +460,8 @@ void calculate_IMU_error(Generic_IMU *imu) {
   Serial.print(errorGyro[2]);
 	Serial.println("}");
 
-	Serial.println("Paste these values in the IMU constructor and "
-								 "comment out calculate_IMU_error() in void setup. The "
-								 "flight loop will not continue past this point");
-	for (;;);
+	Serial.println("Values have been saved to Parameters. Comment out 'calculate_IMU_error()' in Setup() to prevent this from running at startup");
+	return Eigen::Vector<float, 6>(errorAcc[0], errorAcc[1], errorAcc[2], errorGyro[0], errorGyro[1], errorGyro[2]);
 }
 
 // Adds items to the datalogger
@@ -578,14 +576,34 @@ void Setup() {
 	quadData.attitudeData.eulerAngleSetpoint[2] = M_PI;
 
   // Initialize the SD card
-	/*LoggingSetup();*/
+	LoggingSetup();
 
   // Get IMU error to zero accelerometer and gyro readings, assuming vehicle is
   // level when powered up Calibration parameters printed to serial monitor.
   // Paste these in the user specified variables section, then comment this out
   // forever.
-	/*calculate_IMU_error(&quadIMU);*/
-	/*calculate_IMU_error(&quadIMU2);*/
+	// BEGIN
+	Eigen::Vector<float, 6> temp;
+	temp = calculate_IMU_error(&quadIMU);
+	for (int32_t i = 0; i < 6; i++) {
+		telem::UpdateParam(quadData, i+24, temp(i));
+	}
+	temp = calculate_IMU_error(&quadIMU2);
+	for (int32_t i = 0; i < 6; i++) {
+		telem::UpdateParam(quadData, i+30, temp(i));
+	}
+	// END 
+	// Get IMU null shift values from params
+	for (int32_t i = 0; i < 3; i++) {
+		accNS(i) = quadData.telemData.paramValues[i+24];
+		gyroNS(i) = quadData.telemData.paramValues[i+27];
+		accNS2(i) = quadData.telemData.paramValues[i+30];
+		gyroNS2(i) = quadData.telemData.paramValues[i+33];
+	}
+	quadIMU.SetAccNullShift(accNS);
+	quadIMU.SetGyroNullShift(gyroNS);
+	quadIMU2.SetAccNullShift(accNS2);
+	quadIMU2.SetGyroNullShift(gyroNS2);
 
   delay(5);
 

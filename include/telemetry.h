@@ -22,6 +22,7 @@ namespace telem {
   bool Begin(QuadType::Quadcopter_t &quadData);
   void Run(QuadType::Quadcopter_t &quadData, Generic_IMU &quadIMU);
   uint32_t CheckForNewPosition(QuadType::Quadcopter_t &quadData); 
+	void UpdateParam(QuadType::Quadcopter_t &quadData, int32_t idx, float value);
 }
 
 #endif

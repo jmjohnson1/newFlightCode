@@ -208,3 +208,31 @@ uint32_t telem::CheckForNewPosition(QuadType::Quadcopter_t &quadData) {
   }
   return quadData.navData.numMocapUpdates;
 }
+
+void telem::UpdateParam(QuadType::Quadcopter_t &quadData, int32_t idx, float value) {
+  bfs::MavLink<NUM_PARAMS, NUM_UTM> *mavptr = quadData.telemData.mavlink;
+  if (idx >= 0) {
+		mavptr->param(idx, value);
+    // Update the value in common data struct
+    quadData.telemData.paramValues[idx] = value;
+    /* Update the parameter buffer value */
+    memcpy(param_buf + sizeof(PARAM_HEADER) + idx*sizeof(float),
+           &(quadData.telemData.paramValues[idx]), sizeof(float));
+    /* Compute a new checksum */
+    chk_computed = param_checksum.Compute(param_buf,
+                                          sizeof(PARAM_HEADER) +
+                                          NUM_PARAMS*(sizeof(float) + sizeof(char[16])));
+    chk_buf[0] = static_cast<uint8_t>(chk_computed >> 8);
+    chk_buf[1] = static_cast<uint8_t>(chk_computed);
+    param_buf[PARAM_SIZE - 2] = chk_buf[0];
+    param_buf[PARAM_SIZE - 1] = chk_buf[1];
+    /* Write to EEPROM */
+    for (std::size_t i = 0; i < sizeof(float); i++) {
+      std::size_t addr = i + sizeof(PARAM_HEADER) + idx*sizeof(float);
+      EEPROM.write(addr, param_buf[addr]);
+    }
+    // Save the checksum
+    EEPROM.write(PARAM_SIZE - 2, param_buf[PARAM_SIZE - 2]);
+    EEPROM.write(PARAM_SIZE - 1, param_buf[PARAM_SIZE - 1]);
+  }
+}

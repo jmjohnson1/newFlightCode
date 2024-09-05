@@ -84,15 +84,15 @@ public:
 	
 	virtual void Update() {Serial.println("wrong function dummy."); }
 
-	void SetAccNullShift(float NullShift[3]) {
-		accNullShiftX_ = NullShift[0];
-		accNullShiftY_ = NullShift[1];
-		accNullShiftZ_ = NullShift[2];
+	void SetAccNullShift(Eigen::Vector3f& NullShift) {
+		accNullShiftX_ = NullShift(0);
+		accNullShiftY_ = NullShift(1);
+		accNullShiftZ_ = NullShift(2);
 	}
-	void SetGyroNullShift(float NullShift[3]) {
-		gyroNullShiftX_ = NullShift[0];
-		gyroNullShiftY_ = NullShift[1];
-		gyroNullShiftZ_ = NullShift[2];
+	void SetGyroNullShift(Eigen::Vector3f& NullShift) {
+		gyroNullShiftX_ = NullShift(0);
+		gyroNullShiftY_ = NullShift(1);
+		gyroNullShiftZ_ = NullShift(2);
 	}
 
 	bool Init();
