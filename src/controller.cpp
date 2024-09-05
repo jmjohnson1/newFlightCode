@@ -205,7 +205,10 @@ float AngleAttitudeController::RatePID(float setpoint, float measuredRate,
 */
 PositionController::PositionController(const float (&Kp)[3],
                                        const float (&Ki)[3],
-                                       const float (&Kd)[3], float iLimit) {
+                                       const float (&Kd)[3], float iLimit, const float updateRate,
+																			 const float xy_P_FilterFreq, const float xy_I_FilterFreq,
+																			 const float xy_D_FilterFreq, const float z_P_FilterFreq,
+																			 const float z_I_FilterFreq, const float z_D_FilterFreq) {
   // Initialize the gain matrices
   Kp_ = Eigen::Matrix3f::Zero();
   Ki_ = Eigen::Matrix3f::Zero();
@@ -223,9 +226,12 @@ PositionController::PositionController(const float (&Kp)[3],
 
 
 	// filterObj, cutofffreq, samplefreq
-	biquadFilter_init(&xOutputFilter, 50, 200);
-	biquadFilter_init(&yOutputFilter, 50, 200);
-	biquadFilter_init(&zOutputFilter, 50, 200);
+	biquadFilter_init(&xy_P_Filter, xy_P_FilterFreq, updateRate);
+	biquadFilter_init(&xy_I_Filter, xy_I_FilterFreq, updateRate);
+	biquadFilter_init(&xy_D_Filter, xy_D_FilterFreq, updateRate);
+	biquadFilter_init(&z_P_Filter, z_P_FilterFreq, updateRate);
+	biquadFilter_init(&z_I_Filter, z_I_FilterFreq, updateRate);
+	biquadFilter_init(&z_D_Filter, z_D_FilterFreq, updateRate);
 }
 
 /**

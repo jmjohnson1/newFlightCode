@@ -91,7 +91,10 @@ public:
   const float EPSILON = 0.1f;
 
   PositionController(const float (&Kp)[3], const float (&Ki)[3],
-                     const float (&Kd)[3], float iLimit = 0.25f);
+                     const float (&Kd)[3], float iLimit = 0.25f, const float updateRate=100.0f,
+										 const float xy_P_FilterFreq=0.0f, const float xy_I_FilterFreq=0.0f,
+										 const float xy_D_FilterFreq=0.0f, const float z_P_FilterFreq=0.0f,
+										 const float z_I_FilterFreq=0.0f, const float z_D_FilterFreq=0.0f);
   void Update(const Eigen::Vector3d &posSetpoints,
               const Eigen::Vector3f &velocitySetpoints,
               const Eigen::Vector3d &currentPosition, 
@@ -140,9 +143,12 @@ private:
 
   float iLimit_; // Maximum value for the integral portion
 	
-	biquadFilter_t xOutputFilter;
-	biquadFilter_t yOutputFilter;
-	biquadFilter_t zOutputFilter;
+	biquadFilter_t xy_P_Filter;
+	biquadFilter_t xy_I_Filter;
+	biquadFilter_t xy_D_Filter;
+	biquadFilter_t z_P_Filter;
+	biquadFilter_t z_I_Filter;
+	biquadFilter_t z_D_Filter;
 };
 
 class PositionController2 {

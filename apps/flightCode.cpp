@@ -19,6 +19,8 @@
 #include "navHandler.h"
 #include "datalogger.h"
 
+#include "config_default.h"
+
 //================================================================================================//
 //                                     USER-SPECIFIED VARIABLES                                   //
 //================================================================================================//
@@ -583,15 +585,15 @@ void Setup() {
   // Paste these in the user specified variables section, then comment this out
   // forever.
 	// BEGIN
-	Eigen::Vector<float, 6> temp;
-	temp = calculate_IMU_error(&quadIMU);
-	for (int32_t i = 0; i < 6; i++) {
-		telem::UpdateParam(quadData, i+24, temp(i));
-	}
-	temp = calculate_IMU_error(&quadIMU2);
-	for (int32_t i = 0; i < 6; i++) {
-		telem::UpdateParam(quadData, i+30, temp(i));
-	}
+	/*Eigen::Vector<float, 6> temp;*/
+	/*temp = calculate_IMU_error(&quadIMU);*/
+	/*for (int32_t i = 0; i < 6; i++) {*/
+	/*	telem::UpdateParam(quadData, i+24, temp(i));*/
+	/*}*/
+	/*temp = calculate_IMU_error(&quadIMU2);*/
+	/*for (int32_t i = 0; i < 6; i++) {*/
+	/*	telem::UpdateParam(quadData, i+30, temp(i));*/
+	/*}*/
 	// END 
 	// Get IMU null shift values from params
 	for (int32_t i = 0; i < 3; i++) {

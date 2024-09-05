@@ -93,6 +93,7 @@ add_executable(flightCode
 
 target_include_directories(flightCode PUBLIC
 	${CMAKE_SOURCE_DIR}/include	
+	${CMAKE_SOURCE_DIR}/config
 )
 
 target_link_libraries(flightCode
