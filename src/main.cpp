@@ -163,12 +163,12 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-Eigen::Vector3f accNS = {0.01,0.10,-0.39};
-Eigen::Vector3f gyroNS = {-0.01,-0.01,0.01};
+Eigen::Vector3f accNS = {0.105, 0.140, -0.439};
+Eigen::Vector3f gyroNS = {-0.008, -0.006, 0.004};
 mpu6050 quadIMU = mpu6050(accNS, gyroNS);
 
-Eigen::Vector3f accNS2 = {-0.46,0.08,-0.05};
-Eigen::Vector3f gyroNS2 = Eigen::Vector3f::Zero();
+Eigen::Vector3f accNS2 = {-0.371, 0.135, -0.064};
+Eigen::Vector3f gyroNS2 = {0.002, -0.001, -0.003};
 bmi088 quadIMU2 = bmi088(accNS2, gyroNS2, SPI, bmiAccCS, bmiGyrCS, 0, 0);
 
 SetpointHandler spHandler(&quadData);
@@ -226,8 +226,8 @@ elapsedMicros IMUUpdateTimer;
 
 // These define some loop rates
 const unsigned long EKFPeriod = 2; // milliseconds  (500 Hz)
-const unsigned long attitudeCtrlPeriod = 10; // milliseconds (100 Hz)
-const unsigned long positionCtrlPeriod = 13; // milliseconds (75 Hz)
+const unsigned long attitudeCtrlPeriod = 5; // milliseconds (100 Hz)
+const unsigned long positionCtrlPeriod = 5; // milliseconds (75 Hz)
 const unsigned long imuUpdatePeriod = 0; // microseconds (1000 Hz)
 
 #ifdef TEST_STAND

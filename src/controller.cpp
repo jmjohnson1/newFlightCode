@@ -222,9 +222,9 @@ PositionController::PositionController(const float (&Kp)[3],
 
 
 	// filterObj, cutofffreq, samplefreq
-	biquadFilter_init(&xOutputFilter, 50, 200);
-	biquadFilter_init(&yOutputFilter, 50, 200);
-	biquadFilter_init(&zOutputFilter, 50, 200);
+	biquadFilter_init(&xOutputFilter, 30, 200);
+	biquadFilter_init(&yOutputFilter, 30, 200);
+	biquadFilter_init(&zOutputFilter, 30, 200);
 }
 
 /**
@@ -266,6 +266,9 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   }
   //derivative = (posError_ned - prevError_) / dt;
   derivative = velocitySetpoints - currentVelocity;
+
+	derivative(0) = biquadFilter_apply(&xOutputFilter, derivative(0));
+	derivative(1) = biquadFilter_apply(&yOutputFilter, derivative(1));
 
   // Calculate desired acceleration in the NED frame using PID
   desAcc_ned = Kp_ * posError_ned + Ki_ * integral + Kd_ * derivative;

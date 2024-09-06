@@ -9,8 +9,8 @@ uint16_t chk_computed, chk_read;
 uint8_t chk_buf[2];
 
 bool telem::Begin(Quadcopter_t &quadData) {
-  static unsigned char biggerWriteBuffer[256*10];
-	static unsigned char biggerReadBuffer[256];
+  static unsigned char biggerWriteBuffer[1024];
+	static unsigned char biggerReadBuffer[1024];
   size_t biggerWriteBuffer_size = sizeof(biggerWriteBuffer);
 	size_t biggerReadBuffer_size = sizeof(biggerReadBuffer);
   Serial2.addMemoryForWrite(biggerWriteBuffer, biggerWriteBuffer_size);
