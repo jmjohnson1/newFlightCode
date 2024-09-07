@@ -522,15 +522,15 @@ void LoggingSetup() {
 	logging.AddItem(&iScale_att, "iScale_att", 4);
 	logging.AddItem(&dScale_att, "dScale_att", 4);
 	// PID values
-	logging.AddItem(Kp_array, "Kp_array", 3, 4);
-	logging.AddItem(Ki_array, "Ki_array", 3, 4);
-	logging.AddItem(Kd_array, "Kd_array", 3, 4);
-	logging.AddItem(Kp_pos, "Kp_pos", 3, 4);
-	logging.AddItem(Ki_pos, "Ki_pos", 3, 4);
-	logging.AddItem(Kd_pos, "Kd_pos", 3, 4);
-	logging.AddItem(Kp2_array, "Kp2_array", 3, 4);
-	logging.AddItem(Ki2_array, "Ki2_array", 3, 4);
-	logging.AddItem(Kd2_array, "Kd2_array", 3, 4);
+	logging.AddItem(Kp_array, "Kp_array", 4, 3);
+	logging.AddItem(Ki_array, "Ki_array", 4, 3);
+	logging.AddItem(Kd_array, "Kd_array", 4, 3);
+	logging.AddItem(Kp_pos, "Kp_pos", 4, 3);
+	logging.AddItem(Ki_pos, "Ki_pos", 4, 3);
+	logging.AddItem(Kd_pos, "Kd_pos", 4, 3);
+	logging.AddItem(Kp2_array, "Kp2_array", 4, 3);
+	logging.AddItem(Ki2_array, "Ki2_array", 4, 3);
+	logging.AddItem(Kd2_array, "Kd2_array", 4, 3);
 
 	// Flight mode
 	logging.AddItem(&customMode, "CustomMode", 10);
@@ -597,9 +597,9 @@ void Setup() {
 	// END 
 	// Get IMU null shift values from params
 	for (int32_t i = 0; i < 3; i++) {
-		accNS(i) = quadData.telemData.paramValues[i+24];
-		gyroNS(i) = quadData.telemData.paramValues[i+27];
-		accNS2(i) = quadData.telemData.paramValues[i+30];
+		accNS(i)   = quadData.telemData.paramValues[i+24];
+		gyroNS(i)  = quadData.telemData.paramValues[i+27];
+		accNS2(i)  = quadData.telemData.paramValues[i+30];
 		gyroNS2(i) = quadData.telemData.paramValues[i+33];
 	}
 	quadIMU.SetAccNullShift(accNS);
@@ -718,28 +718,6 @@ void Loop() {
 			break;
 	}
 
-  // Check autopilot mode
-
-
-	// Check autopilot switch
-	// switch(aux0.SwitchPosition()) {
-	// 	case SwPos::SWITCH_HIGH:
-	// 		// 
-	// 		quadData.UpdateMode(bfs::CustomMode::POSITION);
-	// 		break;
-	// 	case SwPos::SWITCH_MID:
-	// 		// Altitude assistance
-	// 		quadData.UpdateMode(bfs::CustomMode::ALTITUDE);
-	// 		break;
-	// 	case SwPos::SWITCH_LOW:
-	// 		// Manual flight
-	// 		quadData.UpdateMode(bfs::CustomMode::MANUAL);
-	// 		break;
-	// 	default:
-	// 		break;
-
-	// }
-
 	// Handle restart request
   if (throttleEnabled == false) {
 		if (resetChannel.SwitchPosition() == SwPos::SWITCH_HIGH) {
@@ -747,7 +725,7 @@ void Loop() {
 		}
 	}
 
-  if (SD_is_present && (current_time - print_counterSD) > LOG_INTERVAL_USEC) {
+  if (SD_is_present && (current_time - print_counterSD) > DroneConfig::LOOP_PER_LOG) {
   	// Write to SD card buffer
 		print_counterSD = micros();
 		logging.Write();
@@ -788,13 +766,13 @@ if(quadData.telemData.paramsUpdated == true) {
   Ki_pos[2] = quadData.telemData.paramValues[13];
   Kd_pos[2] = quadData.telemData.paramValues[14];
 
-  Kp2_array[0] = quadData.telemData.paramValues[21]; 
+  Kp2_array[0] = quadData.telemData.paramValues[21];
   Ki2_array[0] = quadData.telemData.paramValues[23];
   Kd2_array[0] = quadData.telemData.paramValues[22];
-  Kp2_array[1] = quadData.telemData.paramValues[21]; 
+  Kp2_array[1] = quadData.telemData.paramValues[21];
   Ki2_array[1] = quadData.telemData.paramValues[23];
   Kd2_array[1] = quadData.telemData.paramValues[22];
-  Kp2_array[2] = quadData.telemData.paramValues[21]; 
+  Kp2_array[2] = quadData.telemData.paramValues[21];
   Ki2_array[2] = quadData.telemData.paramValues[23];
   Kd2_array[2] = quadData.telemData.paramValues[22];
 
@@ -808,19 +786,10 @@ if(quadData.telemData.paramsUpdated == true) {
   dcmAttControl.SetKp(Kp2_array);
   dcmAttControl.SetKi(Ki2_array);
   dcmAttControl.SetKd(Kd2_array);
-
-
-
-  // ins.Set_AccelSigma(quadData.telemData.paramValues[15]*Eigen::Vector3f::Ones());
-  // ins.Set_AccelMarkov(quadData.telemData.paramValues[16]*Eigen::Vector3f::Ones());
-  // ins.Set_AccelTau(quadData.telemData.paramValues[17]*Eigen::Vector3f::Ones());
-  // ins.Set_RotRateSigma(quadData.telemData.paramValues[18]*Eigen::Vector3f::Ones());
-  // ins.Set_RotRateMarkov(quadData.telemData.paramValues[19]*Eigen::Vector3f::Ones());
-  // ins.Set_RotRateTau(quadData.telemData.paramValues[20]*Eigen::Vector3f::Ones());
 }
 
 #ifdef USE_EKF
-	if (EKFUpdateTimer > EKFPeriod) {
+	if (EKFUpdateTimer > DroneConfig::LOOP_PER_EKF) {
 		EKFUpdateTimer = 0;
 		quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
   	ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
@@ -831,7 +800,7 @@ if(quadData.telemData.paramsUpdated == true) {
 	}
 	Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates
 #else
-	if (EKFUpdateTimer > EKFPeriod) {
+	if (EKFUpdateTimer > DroneConfig::LOOP_PER_EKF) {
 		Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates
 	}
 #endif
@@ -839,11 +808,11 @@ if(quadData.telemData.paramsUpdated == true) {
 // Flight boundary limit
 if (bndryOnOff == 1) {
 	if (quadData.navData.position_NED[0] > FLIGHT_AREA_X_MAX ||
-		quadData.navData.position_NED[0] < FLIGHT_AREA_X_MIN ||
-		quadData.navData.position_NED[1] > FLIGHT_AREA_Y_MAX ||
-		quadData.navData.position_NED[1] < FLIGHT_AREA_Y_MIN ||
-		quadData.navData.position_NED[2] > FLIGHT_AREA_Z_MAX ||
-		quadData.navData.position_NED[2] < FLIGHT_AREA_Z_MIN) {
+			quadData.navData.position_NED[0] < FLIGHT_AREA_X_MIN ||
+			quadData.navData.position_NED[1] > FLIGHT_AREA_Y_MAX ||
+			quadData.navData.position_NED[1] < FLIGHT_AREA_Y_MIN ||
+			quadData.navData.position_NED[2] > FLIGHT_AREA_Z_MAX ||
+			quadData.navData.position_NED[2] < FLIGHT_AREA_Z_MIN) {
 			quadData.flightStatus.inputOverride = true;
 			quadData.telemData.mavlink->throttle_enabled(false);
 			throttleEnabled = false;
@@ -862,7 +831,7 @@ if (bndryOnOff == 1) {
     // positionFix = true;
 		quadData.attitudeData.eulerAngles_active = &(quadData.attitudeData.eulerAngles_madgwick);
 	}
-	if (positionCtrlTimer >= positionCtrlPeriod) {
+	if (positionCtrlTimer >= DroneConfig::LOOP_PER_POS) {
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
 		positionCtrlTimer = 0;
 		if (positionFix == true) {
@@ -906,56 +875,13 @@ if (bndryOnOff == 1) {
     quadData.att.quatSetpoint = Euler2Quat(quadData.att.eulerAngleSetpoint);
 #endif
 	
-#ifdef TEST_STAND
-	// Sine sweep
-  if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
-		roll_des = testStand::SineSweep(restartSineSweep);
-		restartSineSweep = false;
-  } else {
-		restartSineSweep = true;
-	}
-
-	// if (aux1.SwitchPosition() == SwPos::SWITCH_HIGH) {
-	// 	thrust_des = testStand::ThrustSweep(restartSineSweep);
-	// 	restartSineSweep = false;
-	// } else {
-	// 	restartSineSweep = true;
-	// }
-
-	// Step inputs
-  if (aux2.SwitchPosition() == SwPos::SWITCH_MID) {
-		roll_des = testStand::Step(aux3);
-  } else if (aux2.SwitchPosition() == SwPos::SWITCH_HIGH) {
-		pitch_des = testStand::Step(aux3);
-	}
-#endif
-
-
-	// PID Gain scaling
-#ifdef PID_TUNING
-	pScale_att = gainTuning::ScaleFactor(KpScaleChannel);
-	iScale_att = gainTuning::ScaleFactor(KiScaleChannel);
-	dScale_att = gainTuning::ScaleFactor(KdScaleChannel);
-	allScale_att = gainTuning::ScaleFactor(scaleAllChannel);
-
-	pScale_att *= allScale_att;
-	iScale_att *= allScale_att;
-	dScale_att *= allScale_att;
-
-	float KpScaled[3] = {Kp_roll_angle*pScale_att, Kp_pitch_angle*pScale_att, Kp_yaw};
-	float KiScaled[3] = {Ki_roll_angle*iScale_att, Ki_pitch_angle*iScale_att, Ki_yaw};
-	float KdScaled[3] = {Kd_roll_angle*dScale_att, Kd_pitch_angle*dScale_att, Kd_yaw};
-	angleController.SetKp(KpScaled);
-	angleController.SetKi(KiScaled);
-	angleController.SetKd(KdScaled);
-#endif
 
 	bool noIntegral = false;
 	if (quadData.flightStatus.thrustSetpoint < 0.5f || throttleEnabled == false) {
 		noIntegral = true;
 	}
 	
-	if (attitudeCtrlTimer >= attitudeCtrlPeriod) {
+	if (attitudeCtrlTimer >= DroneConfig::LOOP_PER_ATT) {
 		attitudeCtrlTimer = 0;
     Eigen::Vector3f gyroRates = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
     /*if (customMode == bfs::CustomMode::MANUAL ||*/
@@ -989,8 +915,7 @@ if (bndryOnOff == 1) {
 
 
   // Regulate loop rate
-  loopRate(2000); 
-  // digitalWriteFast(5, LOW);
+  loopRate(DroneConfig::LOOP_RATE_FC); 
 }
 
 int main() {

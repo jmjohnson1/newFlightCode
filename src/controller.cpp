@@ -1,5 +1,4 @@
 #include "controller.h"
-#include "Arduino.h"
 #include "common.h"
 #include "filter.h"
 #include "nav-functions.h"

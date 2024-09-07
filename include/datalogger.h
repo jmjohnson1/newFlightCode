@@ -10,7 +10,7 @@
 // Use Teensy SDIO
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
 // Size to log 256 byte lines at 100 Hz for a while
-#define LOG_FILE_SIZE 256 * 100 * 600 * 10 /*~1,500,000,000 bytes.*/
+#define LOG_FILE_SIZE 1500000000 
 // Space to hold more than 1 second of 256-byte lines at 100 Hz in the buffer
 #define RING_BUF_CAPACITY 50 * 512
 

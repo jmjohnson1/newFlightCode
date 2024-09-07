@@ -13,35 +13,40 @@ list(APPEND COMMON_LIBS
 	PWMServo
 	SBUS
 	TeensyTimerTool
+	libFilter
 )
 
 
 
 
 # ## PID Controllers ##
-# add_library(pidController
-# 	controller.cpp
-# 	${DRONE_Code_SOURCE_DIR}/include/controller.h
-# )
-#
-# target_include_directories(pidController PUBLIC
-# 	"${DRONE_Code_SOURCE_DIR}/include"
-# )
-#
-# target_link_libraries(pidController PRIVATE
-# )
-#
-# ## Sensor Fusion ##
-# add_library(sensorFusion
-# 	EKF.cpp
-# 	madgwick.cpp
-# 	nav-functions.cpp
-# )
-#
-# target_include_directories(sensorFusion PUBLIC
-# 	"${DRONE_Code_SOURCE_DIR}/include"
-# )
-#
-# target_link_libraries(sensorFusion PRIVATE
-# 	${COMMON_LIBS}
-# )
+add_library(pidController
+	controller.cpp
+	${DRONE_Code_SOURCE_DIR}/include/controller.h
+)
+
+target_include_directories(pidController PUBLIC
+	"${DRONE_Code_SOURCE_DIR}/include"
+)
+
+target_link_libraries(pidController PRIVATE
+	TeensyLib
+	libFilter
+	Eigen
+	mavlink
+)
+
+## Sensor Fusion ##
+add_library(sensorFusion
+	EKF.cpp
+	madgwick.cpp
+	nav-functions.cpp
+)
+
+target_include_directories(sensorFusion PUBLIC
+	"${DRONE_Code_SOURCE_DIR}/include"
+)
+
+target_link_libraries(sensorFusion PRIVATE
+	${COMMON_LIBS}
+)

@@ -78,7 +78,6 @@ add_executable(flightCode
 	src/controller.cpp
 	src/datalogger.cpp
 	src/EKF.cpp
-	src/filter.cpp
 	src/IMU.cpp
 	src/madgwick.cpp
 	src/motors.cpp
@@ -112,6 +111,7 @@ target_link_libraries(flightCode
 	PWMServo
 	SBUS
 	TeensyTimerTool
+	libFilter
 )
 
 flashMcu(flightCode)

@@ -1,4 +1,3 @@
-#include "Arduino.h"
 #include "filter.h"
 #include <cmath>
 
