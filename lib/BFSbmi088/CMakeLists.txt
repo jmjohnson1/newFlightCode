@@ -1,6 +1,5 @@
 add_library(bmi088
 	BMI088.cpp
-	
 	BMI088.h
 )
 

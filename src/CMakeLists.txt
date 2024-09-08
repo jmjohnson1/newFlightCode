@@ -31,8 +31,8 @@ target_include_directories(pidController PUBLIC
 
 target_link_libraries(pidController PRIVATE
 	TeensyLib
-	libFilter
 	Eigen
+	libFilter
 	mavlink
 )
 

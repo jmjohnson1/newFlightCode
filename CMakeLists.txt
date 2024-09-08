@@ -61,6 +61,14 @@ link_libraries(
 	-lstdc++
 )
 
+include(FetchContent)
+FetchContent_Declare(
+	TeensyLog
+	GIT_REPOSITORY https://github.com/jmjohnson1/TeensyLog.git
+)
+
+FetchContent_MakeAvailable(TeensyLog)
+
 # Teensy files
 add_subdirectory(teensy4)
 
