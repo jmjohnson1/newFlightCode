@@ -130,7 +130,7 @@ namespace quadProps {
 
   static const Eigen::Matrix4f ALLOCATION_MATRIX_INV = ALLOCATION_MATRIX.inverse();
 
-  constexpr float G = 9.8065;  // Gravity acceleration m/s^2
+  constexpr float G = 9.80665;  // Gravity acceleration m/s^2
 }
 
 #endif

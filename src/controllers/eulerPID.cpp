@@ -1,5 +1,5 @@
 #include "eulerPID.h"
-#include "Eigen/src/Core/Matrix.h"
+#include <Arduino.h>
 
 //===============//
 // Control Mixer //
@@ -11,8 +11,8 @@
  * moments about each axis in Nm. (T, Mx, My, Mz)
  * @return 4-element vector containing the angular rate setpoints for each motor
 */
-Eigen::Vector4f ControlAllocator(Eigen::Vector4f &inputs) {
-  Eigen::Vector4f w = (quadProps::ALLOCATION_MATRIX_INV*inputs).cwiseSqrt().real();
+Eigen::Vector4f ControlAllocator(const Eigen::Vector4f &inputs, const Eigen::Matrix4f &AllocationMatrixInv) {
+  Eigen::Vector4f w = (AllocationMatrixInv*inputs).cwiseSqrt().real();
   for (int i = 0; i < 4; i++) {
     if (isnan(w[i])) {
       w[i] = 0.0f;
@@ -197,7 +197,7 @@ float AngleAttitudeController::RatePID(float setpoint, float measuredRate,
  * to
 */
 PositionController::PositionController(const float (&Kp)[3], const float (&Ki)[3], const float (&Kd)[3],
-                                       float angleLimit, float mass, float maxThrust, float minThrust, float iLimit,
+                                       float angleLimit, float mass, float minThrust, float maxThrust, float iLimit,
                                        const float updateRate, const float xy_P_FilterFreq, const float xy_I_FilterFreq,
                                        const float xy_D_FilterFreq, const float z_P_FilterFreq,
                                        const float z_I_FilterFreq, const float z_D_FilterFreq)

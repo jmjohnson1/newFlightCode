@@ -43,7 +43,6 @@ include(${CMAKE_SOURCE_DIR}/cmake/mcu_upload.cmake)
 
 add_executable(flightCode
 	apps/flightCode.cpp
-	src/controllers/controller.cpp
 	src/datalogger.cpp
 	src/EKF.cpp
 	src/IMU.cpp
@@ -61,7 +60,6 @@ add_executable(flightCode
 target_include_directories(flightCode PUBLIC
 	${CMAKE_SOURCE_DIR}/include	
 	${CMAKE_SOURCE_DIR}/config
-	${CMAKE_SOURCE_DIR}/src/controllers
 )
 
 target_link_libraries(flightCode
@@ -81,6 +79,7 @@ target_link_libraries(flightCode
 	SBUS
 	TeensyTimerTool
 	libFilter
+	PIDController
 )
 
 flashMcu(flightCode ${CMAKE_SOURCE_DIR})

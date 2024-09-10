@@ -4,7 +4,7 @@
 #include "eigen.h"
 #include "filter.h"
 
-Eigen::Vector4f ControlAllocator(Eigen::Vector4f &inputs);
+Eigen::Vector4f ControlAllocator(const Eigen::Vector4f &inputs, const Eigen::Matrix4f &AllocationMatrixInv);
 
 class AngleAttitudeController {
 public:

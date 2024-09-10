@@ -14,7 +14,7 @@ target_include_directories(mavlink PUBLIC
 )
 
 target_link_libraries(mavlink PRIVATE
-	TeensyLib
+	Teensy4
 	BFSUnits
 )
 

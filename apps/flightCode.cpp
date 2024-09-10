@@ -11,7 +11,8 @@
 #include "telemetry.h"
 #include "IMU.h"
 #include "madgwick.h"
-#include "controller.h"
+#include "eulerPID.h"
+#include "dcmPID.h"
 #include "motors.h"
 #include "radio.h"
 #include "testing.h"
@@ -182,8 +183,10 @@ float Kp2_array[3] = {0.0f, 0.0f, 0.0f};
 float Ki2_array[3] = {0.0f, 0.0f, 0.0f};
 float Kd2_array[3] = {0.0f, 0.0f, 0.0f};
 AngleAttitudeController angleController = AngleAttitudeController(Kp_array, Ki_array, Kd_array, 50.0f);
-PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos, 1.0f);
-PositionController2 posControl2 = PositionController2(Kp_pos, Ki_pos, Kd_pos, 1.0f, 3.6f);
+PositionController posControl = PositionController(
+    Kp_pos, Ki_pos, Kd_pos, quadProps::MAX_ANGLE, quadProps::QUAD_MASS,
+    quadProps::MIN_THRUST, quadProps::MAX_THRUST, 1.0f,
+    DroneConfig::LOOP_RATE_POS, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 DCMAttitudeControl dcmAttControl = DCMAttitudeControl(Kp2_array, Ki2_array, Kd2_array, 1.0f, 0.8f);
 Eigen::Vector3f b1d = {-1.0f, 0.0f, 0.0f};
 uint32_t customMode = bfs::CustomMode::MANUAL;
@@ -388,7 +391,7 @@ void calibrateESCs() {
     getDesState();
 		quadData.flightStatus.controlInputs << quadData.flightStatus.thrustSetpoint, 0, 0, 0;
 		// Convert thrust and moments from controller to angular rates
-		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs);
+		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs, quadProps::ALLOCATION_MATRIX_INV);
 		Serial.print(quadData.flightStatus.motorRates[0]);
 		Serial.print(",");
 		Serial.print(quadData.flightStatus.motorRates[0]);
@@ -843,7 +846,7 @@ if (bndryOnOff == 1) {
           spHandler.UpdateSetpoint();
           posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), 
                             quadData.navData.velocitySetpoint_NED,
-                            ins.Get_PosEst(), ins.Get_VelEst(), quadData.attitudeData, dt, false);
+														ins.Get_PosEst(), ins.Get_VelEst(), *(quadData.attitudeData.eulerAngles_active), dt, false);
           // posControl2.Update(quadData.navData.positionSetpoint_NED, quadData.navData.velocitySetpoint_NED, 
           //                    ins.Get_PosEst().cast<float>(), ins.Get_VelEst(), b1d, quadData.att, dt);
           if (customMode == bfs::CustomMode::MISSION ||
@@ -895,13 +898,13 @@ if (bndryOnOff == 1) {
     /*  // dcmAttControl.Update(quadData.att, gyroRates, dt);*/
     /*  // quadData.flightStatus.controlInputs(lastN(3)) = dcmAttControl.GetControlTorque();*/
     /*}*/
-    angleController.Update(quadData.attitudeData.eulerAngleSetpoint.data(), quadData.attitudeData, gyroRates, dt, noIntegral, positionFix);
+		angleController.Update(quadData.attitudeData.eulerAngleSetpoint, *(quadData.attitudeData.eulerAngles_active), gyroRates, dt, noIntegral, quadData.attitudeData.yawRateSetpoint, positionFix);
     quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
 	}
 
 	// Convert thrust and moments from controller to angular rates
 	if (quadData.telemData.mavlink->throttle_enabled()) {
-		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs);
+		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs, quadProps::ALLOCATION_MATRIX_INV);
 	} else {
 		quadData.flightStatus.motorRates = Eigen::Vector4f::Zero();
 	}
