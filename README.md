@@ -4,7 +4,7 @@
 - CMake
 
 ## Building the flight code
-From the project root directory, run `cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=cmake/mcu_toolchain.cmake`
+From the project root directory, run `cmake -B build -S .`
 Change to the build directory and run `make -j[# of cores]`
 
 ## Uploading flight code
