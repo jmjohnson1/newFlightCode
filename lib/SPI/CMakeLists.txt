@@ -8,4 +8,4 @@ target_include_directories(SPI PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
-target_link_libraries(SPI PRIVATE TeensyLib)
+target_link_libraries(SPI PUBLIC Teensy4)

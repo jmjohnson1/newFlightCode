@@ -7,8 +7,8 @@ target_include_directories(bmi088 PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
-target_link_libraries(bmi088 PRIVATE
+target_link_libraries(bmi088 PUBLIC
+	Teensy4
 	Wire
 	SPI
-	TeensyLib
 )

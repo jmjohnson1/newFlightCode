@@ -26,4 +26,4 @@ target_include_directories(TeensyTimerTool PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
-target_link_libraries(TeensyTimerTool PRIVATE TeensyLib)
+target_link_libraries(TeensyTimerTool PUBLIC Teensy4)

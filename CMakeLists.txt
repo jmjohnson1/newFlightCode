@@ -1,76 +1,36 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.21)
+include(FetchContent)
+# Includes toolchain, linker scripts, and CLI tools
+FetchContent_Declare(
+	TeensyTools
+	GIT_REPOSITORY https://github.com/jmjohnson1/TeensyTools.git
+	GIT_TAG v1.0.1
+)
+FetchContent_MakeAvailable(TeensyTools)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_TOOLCHAIN_FILE ${teensytools_SOURCE_DIR}/cmake/mcu_toolchain.cmake)
 project(
 	DRONE_Code
-	VERSION 1.0
+	VERSION 1.1
 	LANGUAGES C CXX
 )
+# Sets compiler and linker options as well as some definitions
+include("${teensytools_SOURCE_DIR}/cmake/mcu_config.cmake")
+configMCU(${teensytools_SOURCE_DIR})
 
-set(MCU IMXRT1062)
-set(MCU_LD imxrt1062.ld)
-set(MCU_DEF ARDUINO_TEENSY40)
-set(TEENSYDUINO_VERSION 159)
-set(ARDUINO_VERSION 10813)
-
-# MCU configuration
-add_definitions(
-	-D__${MCU}__
-	-DARDUINO=${ARDUINO_VERSION}
-	-DTEENSYDUINO=${TEENSYDUINO_VERSION}
-	-D${MCU_DEF}
-	-DF_CPU=600000000
-	-DUSB_SERIAL
-	-DLAYOUT_US_ENGLISH
-	-DUSING_MAKEFILE
-)
-# Compile options
-add_compile_options(
-	$<$<COMPILE_LANGUAGE:C>:-std=gnu11>
-	$<$<COMPILE_LANGUAGE:CXX>:-std=gnu++20>
-	$<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
-	$<$<COMPILE_LANGUAGE:CXX>:-felide-constructors>
-	$<$<COMPILE_LANGUAGE:CXX>:-Wno-error=narrowing>
-	$<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
-	$<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>
-	$<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
-	-g 
-	-Os 
-	-Wno-psabi 
-	-mthumb 
-	-ffunction-sections 
-	-fdata-sections 
-	-MMD
-	-mcpu=cortex-m7
-	-mfloat-abi=hard 
-	-mfpu=fpv5-d16
-)
-# Linking
-set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/teensy4/imxrt1062.ld")
-add_link_options(
-	-Os
-	-Wl,--gc-sections,--relax
-	--specs=nano.specs
-	-mcpu=cortex-m7
-	-mfloat-abi=hard
-	-mfpu=fpv5-d16
-	-mthumb
-	-T${LINKER_SCRIPT}
-)
-link_libraries(
-	-lm
-	-lstdc++
-)
-
-include(FetchContent)
 FetchContent_Declare(
-	TeensyLog
-	GIT_REPOSITORY https://github.com/jmjohnson1/TeensyLog.git
+	Teensy4
+	GIT_REPOSITORY https://github.com/jmjohnson1/Teensy4.git
+	GIT_TAG v1.0.0
 )
+FetchContent_MakeAvailable(Teensy4)
 
-FetchContent_MakeAvailable(TeensyLog)
-
-# Teensy files
-add_subdirectory(teensy4)
+# FetchContent_Declare(
+# 	TeensyLog
+# 	GIT_REPOSITORY https://github.com/jmjohnson1/TeensyLog.git
+# 	GIT_TAG v1.0.0
+# )
+# FetchContent_MakeAvailable(TeensyLog)
 
 # Libraries
 add_subdirectory(lib)
@@ -83,7 +43,7 @@ include(${CMAKE_SOURCE_DIR}/cmake/mcu_upload.cmake)
 
 add_executable(flightCode
 	apps/flightCode.cpp
-	src/controller.cpp
+	src/controllers/controller.cpp
 	src/datalogger.cpp
 	src/EKF.cpp
 	src/IMU.cpp
@@ -101,10 +61,11 @@ add_executable(flightCode
 target_include_directories(flightCode PUBLIC
 	${CMAKE_SOURCE_DIR}/include	
 	${CMAKE_SOURCE_DIR}/config
+	${CMAKE_SOURCE_DIR}/src/controllers
 )
 
 target_link_libraries(flightCode
-	TeensyLib
+	Teensy4
 	SdFat
 	LIS3MDL
 	Wire
@@ -122,7 +83,7 @@ target_link_libraries(flightCode
 	libFilter
 )
 
-flashMcu(flightCode)
+flashMcu(flightCode ${CMAKE_SOURCE_DIR})
 
 add_executable(radioTest
 	test/radioTest.cpp
@@ -135,7 +96,7 @@ target_include_directories(radioTest PUBLIC
 )
 
 target_link_libraries(radioTest
-	TeensyLib
+	Teensy4
 	SdFat
 	LIS3MDL
 	Wire
@@ -152,4 +113,4 @@ target_link_libraries(radioTest
 	TeensyTimerTool
 )
 
-flashMcu(radioTest)
+flashMcu(radioTest ${CMAKE_SOURCE_DIR})

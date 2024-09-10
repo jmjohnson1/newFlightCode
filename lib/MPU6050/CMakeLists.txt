@@ -11,7 +11,7 @@ target_include_directories(MPU6050 PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
-target_link_libraries(MPU6050 PRIVATE
+target_link_libraries(MPU6050 PUBLIC
+	Teensy4
 	Wire
-	TeensyLib
 )

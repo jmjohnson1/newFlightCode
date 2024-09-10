@@ -12,8 +12,8 @@ target_include_directories(LIS3MDL PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>	
 )
 
-target_link_libraries(LIS3MDL PRIVATE 
-	TeensyLib
+target_link_libraries(LIS3MDL PUBLIC 
+	Teensy4
 	Wire
 	SPI
 )

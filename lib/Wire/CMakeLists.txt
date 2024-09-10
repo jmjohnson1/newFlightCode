@@ -13,4 +13,4 @@ target_include_directories(Wire PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>	
 )
 
-target_link_libraries(Wire PRIVATE TeensyLib)
+target_link_libraries(Wire PUBLIC Teensy4)

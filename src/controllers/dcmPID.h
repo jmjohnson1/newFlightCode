@@ -1,16 +1,17 @@
 #ifndef DCM_PID_H
 #define DCM_PID_H
 
+#include "eigen.h"
+
 class DCMPositionPID {
 public:
-  DCMPositionPID(const float (&Kp)[3], const float (&Ki)[3],
-                      const float (&Kd)[3], const float iLimit, const float c1);
+  DCMPositionPID(const float (&Kp)[3], const float (&Ki)[3], const float (&Kd)[3], const float iLimit, const float c1,
+                 const float mass = 1.0f, const float gravity = 9.81f);
   void Update(const Eigen::Vector3f &posSetpoints,
               const Eigen::Vector3f &velocitySetpoints,
               const Eigen::Vector3f &currentPosition, 
               const Eigen::Vector3f &currentVelocity,
               const Eigen::Vector3f &b1d,
-              const QuadType::Attitude_t &att,
               float dt);
 	void Reset() { prevIntegral_.setZero(); }
 
@@ -42,14 +43,17 @@ private:
   Eigen::Matrix3f Kd_;
   float iLimit_; // Maximum value for the integral portion
   float c1_;  // constant used in integral
+	const float mass_;
+	const float gravity_;
 };
 
 class DCMAttitudeControl {
 public:
   DCMAttitudeControl(const float (&Kp)[3], const float (&Ki)[3], const float (&Kd)[3],
                      const float iLimit, const float c2);
-  
-  void Update(const QuadType::Attitude_t &att, const Eigen::Vector3f &gyroRates, const float dt);
+
+  void Update(const Eigen::Matrix3f &currentDCM, const Eigen::Matrix3f &desiredDCM, const Eigen::Vector3f &gyroRates,
+              const float dt);
 
   Eigen::Vector3f GetControlTorque() { return controlTorque_; }
 
@@ -78,7 +82,6 @@ private:
   float c2_;  // constant used in integral
 };
 
-#endif
 
 
 #endif

@@ -8,6 +8,6 @@ target_include_directories(BFSChecksum PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
-target_link_libraries(BFSChecksum PRIVATE
-	TeensyLib
+target_link_libraries(BFSChecksum PUBLIC
+	Teensy4
 )

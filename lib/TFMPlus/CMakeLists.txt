@@ -9,4 +9,4 @@ target_include_directories(TFMPlus PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
-target_link_libraries(TFMPlus PRIVATE TeensyLib)
+target_link_libraries(TFMPlus PUBLIC Teensy4)
