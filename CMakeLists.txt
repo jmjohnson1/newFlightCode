@@ -25,12 +25,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Teensy4)
 
-# FetchContent_Declare(
-# 	TeensyLog
-# 	GIT_REPOSITORY https://github.com/jmjohnson1/TeensyLog.git
-# 	GIT_TAG v1.0.0
-# )
-# FetchContent_MakeAvailable(TeensyLog)
+FetchContent_Declare(
+	TeensyLog
+	GIT_REPOSITORY https://github.com/jmjohnson1/TeensyLog.git
+	GIT_TAG v1.0.1
+)
+FetchContent_MakeAvailable(TeensyLog)
 
 # Libraries
 add_subdirectory(lib)
@@ -39,7 +39,7 @@ add_subdirectory(lib)
 add_subdirectory(src)
 
 # main program
-include(${CMAKE_SOURCE_DIR}/cmake/mcu_upload.cmake)
+include("${teensytools_SOURCE_DIR}/cmake/mcu_upload.cmake")
 
 add_executable(flightCode
 	apps/flightCode.cpp
@@ -80,9 +80,10 @@ target_link_libraries(flightCode
 	TeensyTimerTool
 	libFilter
 	PIDController
+	TeensyLog
 )
 
-flashMcu(flightCode ${CMAKE_SOURCE_DIR})
+flashMcu(flightCode ${teensytools_SOURCE_DIR})
 
 add_executable(radioTest
 	test/radioTest.cpp
@@ -112,4 +113,4 @@ target_link_libraries(radioTest
 	TeensyTimerTool
 )
 
-flashMcu(radioTest ${CMAKE_SOURCE_DIR})
+flashMcu(radioTest ${teensytools_SOURCE_DIR})

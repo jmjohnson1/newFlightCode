@@ -1,26 +1,27 @@
 //================================================================================================//
 
 #include "UserDefines.h"
+#include "config_default.h"
+#include <TeensyLog.h>
+#undef CR
+#include <dcmPID.h>
+#include <eulerPID.h>
+#include <eigen.h> // Linear algebra
 
-#include "eigen.h"  	// Linear algebra
-#include "SBUS.h"     //sBus interface
-
+#include "SBUS.h"  //sBus interface
+#include "EKF.h"
+#include "IMU.h"
 #include "common.h"
+#include "datalogger.h"
 #include "heartbeat.h"
+#include "madgwick.h"
+#include "motors.h"
+#include "navHandler.h"
+#include "radio.h"
 #include "serialDebug.h"
 #include "telemetry.h"
-#include "IMU.h"
-#include "madgwick.h"
-#include "eulerPID.h"
-#include "dcmPID.h"
-#include "motors.h"
-#include "radio.h"
 #include "testing.h"
-#include "EKF.h"
-#include "navHandler.h"
-#include "datalogger.h"
 
-#include "config_default.h"
 
 //================================================================================================//
 //                                     USER-SPECIFIED VARIABLES                                   //
@@ -220,12 +221,10 @@ Datalogger logging;
 bool wasTrueLastLoop = false; // This will be renamed at some point
 
 // Various timers
-elapsedMillis heartbeatTimer;
-elapsedMillis fastMavlinkTimer;
-elapsedMillis EKFUpdateTimer;
+elapsedMicros EKFUpdateTimer;
 elapsedMicros sdCardUpdateTimer;
-elapsedMillis attitudeCtrlTimer;
-elapsedMillis positionCtrlTimer;
+elapsedMicros attitudeCtrlTimer;
+elapsedMicros positionCtrlTimer;
 elapsedMicros IMUUpdateTimer;
 
 // These define some loop rates
@@ -246,6 +245,7 @@ const float FLIGHT_AREA_Y_MIN = -1;
 const float FLIGHT_AREA_Z_MAX = 0;
 const float FLIGHT_AREA_Z_MIN = -2.5;
 int bndryOnOff;
+
 
 //========================================================================================================================//
 //                                                      FUNCTIONS                                                         //
@@ -545,6 +545,9 @@ void LoggingSetup() {
 void Setup() {
   Serial.begin(500000); // USB serial (baud rate doesn't actually matter for Teensy)
   delay(500); // Give Serial some time to initialize
+	
+	// Serial port logging
+	Log.begin(DroneConfig::LogLevel, &Serial);
 
   // Initialize all pins
   pinMode(ledPin, OUTPUT); // Pin 13 LED blinker on board, do not modify
@@ -563,13 +566,15 @@ void Setup() {
 	// Initialize IMUs
 	bool IMU_initSuccessful = quadIMU.Init(&Wire);	
   quadIMU.Update(); // Get an initial reading. If not, initial attitude estimate will be NaN
-	Serial.print("IMU initialization successful: ");
-	Serial.println(IMU_initSuccessful);
+	if (IMU_initSuccessful == false) {
+		Log.warningln("IMU failed to initialize");
+	}
 
 	bool IMU2_initSuccessful = quadIMU2.Init();
 	quadIMU2.Update();
-	Serial.print("IMU2 initialization successful: ");
-	Serial.println(IMU2_initSuccessful);
+	if (IMU2_initSuccessful == false) {
+		Log.warningln("IMU2 failed to initialize");
+	}
 
 	// Initialize EKF
 #ifdef USE_EKF
@@ -623,14 +628,13 @@ void Setup() {
   setupBlink(3, 160, 70); // numBlinks, upTime (ms), downTime (ms)
 
   doneWithSetup = 1;
-	Serial.println("setupdone");
+	Log.verboseln("Setup done");
 }
 
 //==========================//
 //========== Loop ==========//
 //==========================//
 void Loop() {
-  // digitalWriteFast(5, HIGH);
   // Keep track of what time it is and how much time has elapsed since the last loop
   prev_time = current_time;
   current_time = micros();
@@ -677,6 +681,21 @@ void Loop() {
 		//serialDebug::PrintZPosPID(posControl.GetTmpPropo()[2],
 		//posControl.GetTmpInteg()[2],posControl.GetTmpDeriv()[2]);
 		// serialDebug::DisplayRoll(roll_des, quadIMU_info.roll);
+		if (DroneConfig::LOG_VERBOSE_RADIO_PWM) {
+			for (int i = 0; i < numChannels; i++) {
+				/*logging.AddItem(&(radioChannels[i]->rawValue_), radioChannels[i]->GetName(), 10);*/
+				Log.verboseln("%s: %d", radioChannels[i]->GetName().c_str(), radioChannels[i]->GetRawValue());
+			}
+		}
+		if (DroneConfig::LOG_VERBOSE_MOTOR_COMMANDS) {
+			float scaledCommands[4];
+			motors.GetMotorCommands(scaledCommands);
+			Log.verboseln("Motor rates: %F, %F, %F, %F", quadData.flightStatus.motorRates(0), quadData.flightStatus.motorRates(1), quadData.flightStatus.motorRates(2), quadData.flightStatus.motorRates(3));
+			Log.verboseln("Scaled motor commands: %F, %F, %F, %F", scaledCommands[0], scaledCommands[1], scaledCommands[2], scaledCommands[3]);
+		}
+		if (DroneConfig::LOG_VERBOSE_CONTROL_INPUTS) {
+			Log.verboseln("Control inputs: %F, %F, %F, %F", quadData.flightStatus.controlInputs(0), quadData.flightStatus.controlInputs(1), quadData.flightStatus.controlInputs(2), quadData.flightStatus.controlInputs(3));
+		}
 	}
 
 	// Mode checking
@@ -689,7 +708,7 @@ void Loop() {
       }
 			if (!logRunning) {
 				logRunning = true;
-					SD_is_present = !(logging.Setup());
+				SD_is_present = !(logging.Setup());
 			}
 			break;
 		case SwPos::SWITCH_HIGH:
@@ -910,8 +929,9 @@ if (bndryOnOff == 1) {
 	}
 	// Convert angular rates to PWM commands
 	motors.ScaleCommand(quadData.flightStatus.motorRates);
-
 	motors.CommandMotor();
+
+
   // Get vehicle commands for next loop iteration
   getCommands(); // Pulls current available radio commands
   failSafe();    // Prevent failures in event of bad receiver connection, defaults to failsafe values assigned in setup

@@ -1,11 +1,17 @@
 #ifndef DRONE_CONFIG_H
 #define DRONE_CONFIG_H
 
+#include <TeensyLog.h>
 #include <stdint.h>
 
 namespace DroneConfig {
 
 // You can edit these
+// Logging
+const int LogLevel = LOG_LEVEL_VERBOSE;
+constexpr bool LOG_VERBOSE_RADIO_PWM = false;
+constexpr bool LOG_VERBOSE_CONTROL_INPUTS = true;
+constexpr bool LOG_VERBOSE_MOTOR_COMMANDS = true;
 // Rates in Hz
 // The flight controller is designed to run at 2 kHz, best not to change it
 constexpr float LOOP_RATE_FC = 2000;
@@ -37,6 +43,7 @@ constexpr float ATT_YAW_I_CUTOFF_FREQ = 0.0f;
 constexpr float ATT_YAW_D_CUTOFF_FREQ = 0.0f;
 
 // Don't edit these
+
 // Loop periods in microseconds
 constexpr uint64_t LOOP_PER_FC = static_cast<uint64_t>((1.0f / LOOP_RATE_FC) * 1.0e6);
 constexpr uint64_t LOOP_PER_ATT = static_cast<uint64_t>((1.0f / LOOP_RATE_ATT) * 1.0e6);
