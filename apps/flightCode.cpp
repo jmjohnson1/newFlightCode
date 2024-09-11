@@ -820,10 +820,10 @@ if(quadData.telemData.paramsUpdated == true) {
   	quadData.attitudeData.eulerAngles_ekf = ins.Get_OrientEst();
     quadData.attitudeData.currentDCM = Euler2DCM(quadData.attitudeData.eulerAngles_ekf);
 	}
-	Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates
+	Madgwick6DOF(quadIMU.GetAcc(), quadIMU.GetGyro(), quadData.attitudeData.quat_madgwick, quadData.attitudeData.eulerAngles_madgwick, dt);
 #else
 	if (EKFUpdateTimer > DroneConfig::LOOP_PER_EKF) {
-		Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates
+		Madgwick6DOF(quadIMU.GetAcc(), quadIMU.GetGyro(), quadData.attitudeData.quat_madgwick, quadData.attitudeData.eulerAngles_madgwick, dt);
 	}
 #endif
 

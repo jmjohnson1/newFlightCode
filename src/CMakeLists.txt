@@ -18,17 +18,24 @@ list(APPEND COMMON_LIBS
 
 ## Sensor Fusion ##
 add_library(sensorFusion
-	EKF.cpp
-	madgwick.cpp
-	nav-functions.cpp
+	sensorFusion/EKF.cpp
+	sensorFusion/madgwick.cpp
+	sensorFusion/nav-functions.cpp
+
+	sensorFusion/EKF.h
+	sensorFusion/madgwick.h
+	sensorFusion/nav-functions.h
 )
 
 target_include_directories(sensorFusion PUBLIC
-	"${DRONE_Code_SOURCE_DIR}/include"
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sensorFusion>
 )
 
-target_link_libraries(sensorFusion PRIVATE
-	${COMMON_LIBS}
+target_link_libraries(sensorFusion 
+	PRIVATE
+	Teensy4
+	PUBLIC
+	Eigen
 )
 
 ## PID Controllers ##
@@ -49,6 +56,6 @@ target_link_libraries(PIDController
 	Eigen
 	libFilter
 	PRIVATE
-	sensorFusion
+	TeensyLog
 )
 

@@ -44,11 +44,8 @@ include("${teensytools_SOURCE_DIR}/cmake/mcu_upload.cmake")
 add_executable(flightCode
 	apps/flightCode.cpp
 	src/datalogger.cpp
-	src/EKF.cpp
 	src/IMU.cpp
-	src/madgwick.cpp
 	src/motors.cpp
-	src/nav-functions.cpp
 	src/navHandler.cpp
 	src/radio.cpp
 	src/serialDebug.cpp
@@ -80,6 +77,7 @@ target_link_libraries(flightCode
 	TeensyTimerTool
 	libFilter
 	PIDController
+	sensorFusion
 	TeensyLog
 )
 

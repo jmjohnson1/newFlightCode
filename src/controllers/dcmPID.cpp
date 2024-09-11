@@ -1,18 +1,23 @@
 #include "dcmPID.h"
 
 #include <Arduino.h>
+#include <TeensyLog.h>
 
-#include "nav-functions.h"
+Eigen::Vector3f InvSkew(const Eigen::Matrix3f &m) {
+	Eigen::Vector3f v;
+  v[0] = m(2, 1);
+  v[1] = -m(2, 0);
+  v[2] = m(1, 0);
+  return v;
+}
 
 /**
  * @brief PID position controller from
  *  Geometric Nonlinear PID Control of a Quadrotor UAV on SE(3)
  *  Goodarzi et al. (2013)
  */
-DCMPositionPID::DCMPositionPID(const float (&Kp)[3], const float (&Ki)[3],
-                               const float (&Kd)[3], const float iLimit,
-                               const float c1, const float mass,
-                               const float gravity)
+DCMPositionPID::DCMPositionPID(const float (&Kp)[3], const float (&Ki)[3], const float (&Kd)[3], const float iLimit,
+                               const float c1, const float mass, const float gravity)
     : mass_(mass), gravity_(gravity) {
   for (int i = 0; i < 3; i++) {
     Kp_.diagonal()[i] = Kp[i];
@@ -28,10 +33,8 @@ DCMPositionPID::DCMPositionPID(const float (&Kp)[3], const float (&Ki)[3],
  * @brief Update the attitude and thrust setpoints
  *
  */
-void DCMPositionPID::Update(const Eigen::Vector3f &posSetpoints,
-                            const Eigen::Vector3f &velocitySetpoints,
-                            const Eigen::Vector3f &currentPosition,
-                            const Eigen::Vector3f &currentVelocity,
+void DCMPositionPID::Update(const Eigen::Vector3f &posSetpoints, const Eigen::Vector3f &velocitySetpoints,
+                            const Eigen::Vector3f &currentPosition, const Eigen::Vector3f &currentVelocity,
                             const Eigen::Vector3f &b1d, float dt) {
   // n3 basis vector (navigation frame)
   Eigen::Vector3f n3 = {0, 0, 1};
@@ -46,23 +49,17 @@ void DCMPositionPID::Update(const Eigen::Vector3f &posSetpoints,
   }
   prevIntegral_ = e_i;
   // Compute b3 axis direction
-  Eigen::Vector3f b3c =
-      -(-Kp_ * e_x - Kd_ * e_v - Ki_ * e_i - mass_ * gravity_ * n3)
-           .normalized();
+  Eigen::Vector3f b3c = -(-Kp_ * e_x - Kd_ * e_v - Ki_ * e_i - mass_ * gravity_ * n3).normalized();
   // b1 direction is the projection of b1d on the plane orthogonal to b3c
-  Eigen::Vector3f b1c =
-      -1.0f / (b3c.cross(b1d)).norm() * b3c.cross(b3c.cross(b1d));
+  Eigen::Vector3f b1c = -1.0f / (b3c.cross(b1d)).norm() * b3c.cross(b3c.cross(b1d));
   desiredDCM_.row(0) = b1c;
   desiredDCM_.row(1) = b3c.cross(b1c);
   desiredDCM_.row(2) = b3c;
-  desiredThrust_ = (Kp_ * e_x + Kd_ * e_v + Ki_ * e_i + mass_ * gravity_ * n3)
-                       .dot(desiredDCM_.transpose() * n3);
+  desiredThrust_ = (Kp_ * e_x + Kd_ * e_v + Ki_ * e_i + mass_ * gravity_ * n3).dot(desiredDCM_.transpose() * n3);
 }
 
-DCMAttitudeControl::DCMAttitudeControl(const float (&Kp)[3],
-                                       const float (&Ki)[3],
-                                       const float (&Kd)[3], const float iLimit,
-                                       const float c2) {
+DCMAttitudeControl::DCMAttitudeControl(const float (&Kp)[3], const float (&Ki)[3], const float (&Kd)[3],
+                                       const float iLimit, const float c2) {
   for (int i = 0; i < 3; i++) {
     Kp_.diagonal()[i] = Kp[i];
     Ki_.diagonal()[i] = Ki[i];
@@ -73,14 +70,11 @@ DCMAttitudeControl::DCMAttitudeControl(const float (&Kp)[3],
   prevIntegral_.setZero();
 }
 
-void DCMAttitudeControl::Update(const Eigen::Matrix3f &currentDCM,
-                                const Eigen::Matrix3f &desiredDCM,
-                                const Eigen::Vector3f &gyroRates,
-                                const float dt) {
+void DCMAttitudeControl::Update(const Eigen::Matrix3f &currentDCM, const Eigen::Matrix3f &desiredDCM,
+                                const Eigen::Vector3f &gyroRates, const float dt) {
   // Attitude and angular rate error vectors
-  Eigen::Matrix3f term =
-      desiredDCM * currentDCM.transpose() - currentDCM * desiredDCM.transpose();
-  Eigen::Vector3f e_R = 0.5f * SkewInverse(term);
+  Eigen::Matrix3f term = desiredDCM * currentDCM.transpose() - currentDCM * desiredDCM.transpose();
+  Eigen::Vector3f e_R = 0.5f * InvSkew(term);
   Eigen::Vector3f e_w = gyroRates;
   // Integral term
   Eigen::Vector3f e_i = prevIntegral_ + (e_w + c2_ * e_R) * dt;
