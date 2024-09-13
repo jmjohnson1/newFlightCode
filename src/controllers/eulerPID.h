@@ -1,7 +1,11 @@
 #ifndef EULER_PID_H
 #define EULER_PID_H
 
+#ifdef UNIX_COMPILE
+#include "Eigen/Core"
+#else
 #include "eigen.h"
+#endif
 #include "filter.h"
 
 Eigen::Vector4f ControlAllocator(const Eigen::Vector4f &inputs, const Eigen::Matrix4f &AllocationMatrixInv);
