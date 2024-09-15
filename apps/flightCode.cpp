@@ -220,6 +220,10 @@ Datalogger logging;
 
 bool wasTrueLastLoop = false; // This will be renamed at some point
 
+// Handles the thrust ramp up for takeoff
+TakeoffRamp TakeoffRampUp(quadProps::QUAD_MASS*quadProps::G/2.0f, 1.0f, 0);
+
+
 // Various timers
 elapsedMicros EKFUpdateTimer;
 elapsedMicros sdCardUpdateTimer;
@@ -861,22 +865,29 @@ if (bndryOnOff == 1) {
       if (quadData.telemData.mavlink->throttle_enabled()) {
         if (customMode == bfs::CustomMode::MANUAL) {
 					posControl.Reset();
+				} else if (customMode == bfs::CustomMode::TAKEOFF && !TakeoffRampUp.Done()) {
+					quadData.flightStatus.thrustSetpoint = TakeoffRampUp.RampIncrement(quadData.flightStatus.thrustSetpoint, DroneConfig::LOOP_PER_POS);
+					quadData.attitudeData.eulerAngleSetpoint = *(quadData.attitudeData.eulerAngles_active);
+					posControl.Reset();
         } else {
           spHandler.UpdateSetpoint();
           posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), 
                             quadData.navData.velocitySetpoint_NED,
 														ins.Get_PosEst(), ins.Get_VelEst(), *(quadData.attitudeData.eulerAngles_active), dt, false);
-          // posControl2.Update(quadData.navData.positionSetpoint_NED, quadData.navData.velocitySetpoint_NED, 
-          //                    ins.Get_PosEst().cast<float>(), ins.Get_VelEst(), b1d, quadData.att, dt);
-          if (customMode == bfs::CustomMode::MISSION ||
-              customMode == bfs::CustomMode::POSITION ||
+          if (customMode == bfs::CustomMode::POSITION ||
               customMode == bfs::CustomMode::TAKEOFF ||
               customMode == bfs::CustomMode::LANDING) {
             quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
             quadData.attitudeData.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
             quadData.attitudeData.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
-            // quadData.flightStatus.thrustSetpoint = posControl2.GetDesiredThrust();
-            // quadData.att.desiredDCM = posControl2.GetDesiredDCM();
+					} else if (customMode == bfs::CustomMode::MISSION) {
+						// This is a little dirty.
+						// Reset this because we know takeoff is done and this won't cause problems with the earlier if statement.
+						TakeoffRampUp.Reset();
+            quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+            quadData.attitudeData.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
+            quadData.attitudeData.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
+
           } else if (customMode == bfs::CustomMode::ALTITUDE) {
             quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
           }
@@ -917,7 +928,8 @@ if (bndryOnOff == 1) {
     /*  // dcmAttControl.Update(quadData.att, gyroRates, dt);*/
     /*  // quadData.flightStatus.controlInputs(lastN(3)) = dcmAttControl.GetControlTorque();*/
     /*}*/
-		angleController.Update(quadData.attitudeData.eulerAngleSetpoint, *(quadData.attitudeData.eulerAngles_active), gyroRates, dt, noIntegral, quadData.attitudeData.yawRateSetpoint, positionFix);
+    angleController.Update(quadData.attitudeData.eulerAngleSetpoint, *(quadData.attitudeData.eulerAngles_active),
+                           gyroRates, dt, noIntegral, quadData.attitudeData.yawRateSetpoint, positionFix);
     quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
 	}
 
