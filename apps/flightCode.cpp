@@ -754,7 +754,6 @@ void Loop() {
   }
 
 
-	// TODO: Be better
 
 
 if (IMUUpdateTimer >= imuUpdatePeriod) {
@@ -841,6 +840,7 @@ if (bndryOnOff == 1) {
 		}
 }
 #ifdef USE_POSITION_CONTROLLER
+	// TODO: Be better
 	// Check if position Controller enabled
 	Eigen::Vector3f currentPosCovariance = ins.Get_CovPos();
 	if (currentPosCovariance[0] < positionCovarianceLimit &&
