@@ -4,9 +4,14 @@
 #include "common.h"
 
 class SetpointHandler {
+	enum HandlerFlags {
+		NONE = 0,
+		TAKEOFF_RAMP_UP = 1
+	};
+
 public:
   SetpointHandler(QuadType::Quadcopter_t *quadData);
-  void UpdateSetpoint();
+  HandlerFlags UpdateSetpoint();
 
 private:
   void TakeoffSetpoint();

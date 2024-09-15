@@ -32,7 +32,7 @@ void SetpointHandler::TakeoffSetpoint() {
     // Set all setpoints to the current position
     takeoffSetpoint_ = quadData_->navData.position_NED;
     // Set the third component to the desired altitude (remember Z down)
-    takeoffSetpoint_[2] = -0.75;
+    takeoffSetpoint_[2] = -0.25;
   }
   *posSetpoint_ = takeoffSetpoint_;
   velSetpoint_->setZero();
@@ -46,7 +46,8 @@ void SetpointHandler::TakeoffSetpoint() {
   }
 
   if (waypointArrivedTimer_ > WP_ARRIVED_TIME) {
-      quadData_->telemData.mavlink->custom_mode(bfs::CustomMode::POSITION);
+    quadData_->telemData.mavlink->custom_mode(bfs::CustomMode::POSITION);
+    takeoffFlag_ = false;
   }
 }
 void SetpointHandler::MissionSetpoint() {
@@ -120,7 +121,7 @@ void SetpointHandler::LandingSetpoint() {
     // Set all setpoints to the current position
     landingSetpoint_ = *quadPos_;
     // Set the third component to the desired altitude (remember Z down)
-    landingSetpoint_[2] = -0.2f;
+    landingSetpoint_[2] = -0.25f;
     waypointArrivedTimer_ = 0;
   }
   *posSetpoint_ = landingSetpoint_;
@@ -134,10 +135,11 @@ void SetpointHandler::LandingSetpoint() {
     waypointArrivedTimer_ = 0;
   }
   if (waypointArrivedTimer_ > WP_ARRIVED_TIME) {
-      // Set status to disarm regardless of switch position
-      *inputOverride_ = true;
-      quadData_->telemData.mavlink->throttle_enabled(false);
-      quadData_->telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
+		// Set status to disarm regardless of switch position
+		*inputOverride_ = true;
+		quadData_->telemData.mavlink->throttle_enabled(false);
+		quadData_->telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
+		landingFlag_ = false;
   }
 }
 
