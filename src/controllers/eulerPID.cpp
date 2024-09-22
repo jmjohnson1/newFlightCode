@@ -2,6 +2,11 @@
 
 #include <Arduino.h>
 #include <TeensyLog.h>
+#include "filter.h"
+
+
+// Minimum cutoff frequency for lowpass filters on pid values
+const float MIN_CUTOFF_FREQ = 1.0f;
 
 //===============//
 // Control Mixer //
@@ -18,7 +23,7 @@ Eigen::Vector4f ControlAllocator(const Eigen::Vector4f &inputs, const Eigen::Mat
   for (int i = 0; i < 4; i++) {
     if (isnan(w[i])) {
       w[i] = 0.0f;
-      Log.warningln("NaN value encountered in control allocator");
+      /*Log.verboseln("NaN value encountered in control allocator");*/
     }
   }
   return w;
@@ -189,9 +194,7 @@ float AngleAttitudeController::RatePID(float setpoint, float measuredRate, float
  */
 PositionController::PositionController(const float (&Kp)[3], const float (&Ki)[3], const float (&Kd)[3],
                                        float angleLimit, float mass, float minThrust, float maxThrust, float iLimit,
-                                       const float updateRate, const float xy_P_FilterFreq, const float xy_I_FilterFreq,
-                                       const float xy_D_FilterFreq, const float z_P_FilterFreq,
-                                       const float z_I_FilterFreq, const float z_D_FilterFreq)
+                                       const float updateRate, const float velFilterFreq)
     : angleLimit_(angleLimit),
       mass_(mass),
       maxThrust_(maxThrust),
@@ -213,13 +216,16 @@ PositionController::PositionController(const float (&Kp)[3], const float (&Ki)[3
   prevIntegral_ << 0.0, 0.0, 0.0;
   prevError_ << 0.0, 0.0, 0.0;
 
+	if (velFilterFreq > MIN_CUTOFF_FREQ) {
+		filterEnabled_ = true;
+	}
+
   // filterObj, cutofffreq, samplefreq
-  biquadFilter_init(&xy_P_Filter, xy_P_FilterFreq, updateRate);
-  biquadFilter_init(&xy_I_Filter, xy_I_FilterFreq, updateRate);
-  biquadFilter_init(&xy_D_Filter, xy_D_FilterFreq, updateRate);
-  biquadFilter_init(&z_P_Filter, z_P_FilterFreq, updateRate);
-  biquadFilter_init(&z_I_Filter, z_I_FilterFreq, updateRate);
-  biquadFilter_init(&z_D_Filter, z_D_FilterFreq, updateRate);
+	if (filterEnabled_) {
+		biquadFilter_init(&vN_filter_, velFilterFreq, updateRate);
+		biquadFilter_init(&vE_filter_, velFilterFreq, updateRate);
+		biquadFilter_init(&vD_filter_, velFilterFreq, updateRate);
+	}
 }
 
 /**
@@ -259,12 +265,14 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints, const Eigen
   // derivative = (posError_ned - prevError_) / dt;
   derivative = velocitySetpoints - currentVelocity;
 
+	if (filterEnabled_) {
+		derivative(0) = biquadFilter_apply(&vN_filter_, derivative(0));
+		derivative(1) = biquadFilter_apply(&vE_filter_, derivative(1));
+		derivative(2) = biquadFilter_apply(&vD_filter_, derivative(2));
+	}
+
   // Calculate desired acceleration in the NED frame using PID
   desAcc_ned = Kp_ * posError_ned + Ki_ * integral + Kd_ * derivative;
-
-  /*desAcc_ned(0) = biquadFilter_apply(&xOutputFilter, desAcc_ned(0));*/
-  /*desAcc_ned(1) = biquadFilter_apply(&yOutputFilter, desAcc_ned(1));*/
-  /*desAcc_ned(2) = biquadFilter_apply(&zOutputFilter, desAcc_ned(2));*/
 
   prevError_ = posError_ned;
   prevIntegral_ = integral;

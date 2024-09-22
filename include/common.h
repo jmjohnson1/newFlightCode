@@ -14,7 +14,7 @@ constexpr std::size_t NUM_UTM = 0;
 // Minimum distance from waypoint for it to be considered "arrived"
 constexpr float WP_ARRIVED_THRESH = 0.30;
 // How long the quad needs to be close to the waypoint for it to count [us]
-constexpr uint64_t WP_ARRIVED_TIME = 2800000;
+constexpr uint64_t WP_ARRIVED_TIME = 2000000;
 
 namespace QuadType {
 	typedef struct Attitude_s {
@@ -70,7 +70,9 @@ namespace QuadType {
 		float thrustSetpoint = 0.0f;
 		Eigen::Vector4f controlInputs = Eigen::Vector4f::Zero();
 		Eigen::Vector4f motorRates = Eigen::Vector4f::Zero();
+		Eigen::Vector4f motorRates_norm = Eigen::Vector4f::Zero();
 		uint64_t timeSinceBoot = micros();
+		bool inAir = false;
 	} FlightStatus_t;
 
 	typedef struct Telem_s {
@@ -96,15 +98,15 @@ namespace QuadType {
 namespace quadProps {
 	constexpr float MAX_ANGLE = 30.0f;  // Maximum pitch/roll angle in degrees
 	constexpr float MIN_THRUST = 1.0f;  // Minimum total thrust (N)
-  constexpr float QUAD_MASS = 1.1f;  // Quadcopter mass (kg)
+  constexpr float QUAD_MASS = 1.2f;  // Quadcopter mass (kg)
 
   constexpr float DIST_X_F = 0.08665f; // x Distance from CoM to front motors [m]
   constexpr float DIST_Y_F = 0.13938f; // x Distance from CoM to front motors [m]
   constexpr float DIST_X_B = 0.10345f; // x Distance from CoM to front motors [m]
   constexpr float DIST_Y_B = 0.11383f; // x Distance from CoM to front motors [m]
 
-  constexpr float K_T = 4.9e-6;  // Thrust coefficient [N/(rad/s^2)]
-  constexpr float K_M = 7.9e-8;  // Motor torque coefficient [Nm/(rad/s^2)]
+  constexpr float K_T = 4.8e-6;  // Thrust coefficient [N/(rad/s^2)]
+  constexpr float K_M = 7.7e-8;  // Motor torque coefficient [Nm/(rad/s^2)]
   #if defined BAT_3S
 	constexpr float MAX_THRUST = 32.0f;  // Maximum total thrust (N)
   /*constexpr float K_W1 = -6.1875e2;*/
@@ -113,9 +115,9 @@ namespace quadProps {
 	constexpr float MAX_THRUST = 44.0f;  // Maximum total thrust (N)
   /*constexpr float K_W1 = -1.2349e3;*/
   /*constexpr float K_W2 = 2.7856e3;*/
-  constexpr float K_W1 = 3.9e-7;
-  constexpr float K_W2 = 1.2e-4;
-  #endif
+  constexpr float K_W1 = 9.4e-8;
+  constexpr float K_W2 = 4.2e-4;
+#endif
 
   constexpr float DXF_KT = DIST_X_F*K_T;
   constexpr float DYF_KT = DIST_Y_F*K_T;

@@ -184,10 +184,9 @@ float Kp2_array[3] = {0.0f, 0.0f, 0.0f};
 float Ki2_array[3] = {0.0f, 0.0f, 0.0f};
 float Kd2_array[3] = {0.0f, 0.0f, 0.0f};
 AngleAttitudeController angleController = AngleAttitudeController(Kp_array, Ki_array, Kd_array, 50.0f);
-PositionController posControl = PositionController(
-    Kp_pos, Ki_pos, Kd_pos, quadProps::MAX_ANGLE, quadProps::QUAD_MASS,
-    quadProps::MIN_THRUST, quadProps::MAX_THRUST, 1.0f,
-    DroneConfig::LOOP_RATE_POS, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos, quadProps::MAX_ANGLE, quadProps::QUAD_MASS,
+                                                   quadProps::MIN_THRUST, quadProps::MAX_THRUST, 1.0f,
+                                                   DroneConfig::LOOP_RATE_POS, DroneConfig::POS_DERIVATIVE_CUTOFF_FREQ);
 DCMAttitudeControl dcmAttControl = DCMAttitudeControl(Kp2_array, Ki2_array, Kd2_array, 1.0f, 0.8f);
 Eigen::Vector3f b1d = {-1.0f, 0.0f, 0.0f};
 uint32_t customMode = bfs::CustomMode::MANUAL;
@@ -231,10 +230,6 @@ elapsedMicros attitudeCtrlTimer;
 elapsedMicros positionCtrlTimer;
 elapsedMicros IMUUpdateTimer;
 
-// These define some loop rates
-const unsigned long EKFPeriod = 2; // milliseconds  (500 Hz)
-const unsigned long attitudeCtrlPeriod = 10; // milliseconds (100 Hz)
-const unsigned long positionCtrlPeriod = 13; // milliseconds (75 Hz)
 const unsigned long imuUpdatePeriod = 0; // microseconds (1000 Hz)
 
 #ifdef TEST_STAND
@@ -514,6 +509,7 @@ void LoggingSetup() {
 	// Control inputs and motor rates
 	logging.AddItem(quadData.flightStatus.controlInputs, "u", 4);
 	logging.AddItem(quadData.flightStatus.motorRates, "w", 4);
+	logging.AddItem(quadData.flightStatus.motorRates_norm, "w_norm", 4);
 	// Timers
 	logging.AddItem(&(quadData.flightStatus.timeSinceBoot), "timeSinceBoot", 10);
 	logging.AddItem(&(quadData.navData.mocapUpdate_mocapTime), "mocapTime", 10);
@@ -700,6 +696,11 @@ void Loop() {
 		if (DroneConfig::LOG_VERBOSE_CONTROL_INPUTS) {
 			Log.verboseln("Control inputs: %F, %F, %F, %F", quadData.flightStatus.controlInputs(0), quadData.flightStatus.controlInputs(1), quadData.flightStatus.controlInputs(2), quadData.flightStatus.controlInputs(3));
 		}
+		if (DroneConfig::LOG_VERBOSE_FLIGHT_STATUS) {
+			Log.verboseln("Flight mode: %u", quadData.telemData.mavlink->custom_mode());
+			Log.verboseln("Takeoff ready: %T", TakeoffRampUp.Done());
+			Log.verboseln("Position fix: %T", positionFix);
+		}
 	}
 
 	// Mode checking
@@ -854,7 +855,7 @@ if (bndryOnOff == 1) {
 		quadData.attitudeData.eulerAngles_active = &(quadData.attitudeData.eulerAngles_ekf);
 	} else {
 		positionFix = false;
-    // positionFix = true;
+    /*positionFix = true;*/
 		quadData.attitudeData.eulerAngles_active = &(quadData.attitudeData.eulerAngles_madgwick);
 	}
 	if (positionCtrlTimer >= DroneConfig::LOOP_PER_POS) {
@@ -865,25 +866,22 @@ if (bndryOnOff == 1) {
       if (quadData.telemData.mavlink->throttle_enabled()) {
         if (customMode == bfs::CustomMode::MANUAL) {
 					posControl.Reset();
-				} else if (customMode == bfs::CustomMode::TAKEOFF && !TakeoffRampUp.Done()) {
-					quadData.flightStatus.thrustSetpoint = TakeoffRampUp.RampIncrement(quadData.flightStatus.thrustSetpoint, DroneConfig::LOOP_PER_POS);
-					quadData.attitudeData.eulerAngleSetpoint = *(quadData.attitudeData.eulerAngles_active);
-					posControl.Reset();
+				/*} else if (customMode == bfs::CustomMode::TAKEOFF && !TakeoffRampUp.Done()) {*/
+				/*	quadData.flightStatus.thrustSetpoint = TakeoffRampUp.RampIncrement(quadData.flightStatus.thrustSetpoint, DroneConfig::LOOP_PER_POS);*/
+				/*	quadData.attitudeData.eulerAngleSetpoint = *(quadData.attitudeData.eulerAngles_active);*/
+				/*	posControl.Reset();*/
         } else {
           spHandler.UpdateSetpoint();
-          posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), 
-                            quadData.navData.velocitySetpoint_NED,
-														ins.Get_PosEst(), ins.Get_VelEst(), *(quadData.attitudeData.eulerAngles_active), dt, false);
-          if (customMode == bfs::CustomMode::POSITION ||
-              customMode == bfs::CustomMode::TAKEOFF ||
-              customMode == bfs::CustomMode::LANDING) {
+          posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), quadData.navData.velocitySetpoint_NED,
+                            ins.Get_PosEst(), ins.Get_VelEst(), *(quadData.attitudeData.eulerAngles_active), dt, false);
+          if (customMode == bfs::CustomMode::TAKEOFF || customMode == bfs::CustomMode::LANDING) {
             quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
             quadData.attitudeData.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
             quadData.attitudeData.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
-					} else if (customMode == bfs::CustomMode::MISSION) {
-						// This is a little dirty.
-						// Reset this because we know takeoff is done and this won't cause problems with the earlier if statement.
-						TakeoffRampUp.Reset();
+          } else if (customMode == bfs::CustomMode::POSITION || customMode == bfs::CustomMode::MISSION) {
+            // This is a little dirty.
+            // Reset this because we know takeoff is done and this won't cause problems with the earlier if statement.
+            TakeoffRampUp.Reset();
             quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
             quadData.attitudeData.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
             quadData.attitudeData.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
@@ -941,6 +939,13 @@ if (bndryOnOff == 1) {
 	}
 	// Convert angular rates to PWM commands
 	motors.ScaleCommand(quadData.flightStatus.motorRates);
+
+	float motorCommands_norm[4];
+	motors.GetMotorCommands(motorCommands_norm);
+	for (int i = 0; i < 4; i++) {
+		quadData.flightStatus.motorRates_norm(i) = motorCommands_norm[i];
+	}
+
 	motors.CommandMotor();
 
 
@@ -952,6 +957,7 @@ if (bndryOnOff == 1) {
   // Regulate loop rate
   loopRate(DroneConfig::LOOP_RATE_FC); 
 }
+
 
 int main() {
 	Setup();

@@ -17,7 +17,7 @@ class SetpointHandler {
   void PositionSetpoint();
 
   // Keep a constant pointer to the global variables
-  const QuadType::Quadcopter_t *quadData_;
+  QuadType::Quadcopter_t *quadData_;
   // Because these are used a lot, pointers to these can be pulled out of
   // quadData.
   const Eigen::Vector3f *quadPos_;

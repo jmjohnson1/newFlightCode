@@ -48,6 +48,7 @@ void SetpointHandler::TakeoffSetpoint() {
   if (waypointArrivedTimer_ > WP_ARRIVED_TIME) {
     quadData_->telemData.mavlink->custom_mode(bfs::CustomMode::POSITION);
     takeoffFlag_ = false;
+		quadData_->flightStatus.inAir = true;
   }
 }
 void SetpointHandler::MissionSetpoint() {
@@ -144,6 +145,10 @@ void SetpointHandler::LandingSetpoint() {
 }
 
 void SetpointHandler::PositionSetpoint() {
+	// If the quad hasn't taken off yet, need to do that first
+	if (quadData_->flightStatus.inAir == false) {
+		quadData_->telemData.mavlink->custom_mode(bfs::CustomMode::TAKEOFF);
+	}
   // posSetpoint is already set. We use this function to see if we've arrived,
   // then hold or switch to another flight mode. We also keep the velocity
   // setpoint at zero.
