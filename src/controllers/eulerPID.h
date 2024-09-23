@@ -150,10 +150,9 @@ private:
 	
 	
 	// Low pass filter
-	bool filterEnabled_ = false;
-	biquadFilter_t vN_filter_;
-	biquadFilter_t vE_filter_;
-	biquadFilter_t vD_filter_;
+	LowpassFilter vNFilter;
+	LowpassFilter vEFilter;
+	LowpassFilter vDFilter;
 };
 
 #endif

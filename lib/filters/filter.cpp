@@ -104,3 +104,17 @@ float butterworth2_apply(butterworth2_s *filter, float input) {
 
 	return result;
 }
+
+float LowpassFilter::Apply(float newValue) {
+	output_ += (newValue - output_)*alpha_;
+	return output_;
+}
+void LowpassFilter::SetFilterParams(float cutoffFreq, float sampleFreq) {
+	cutoffFreq_ = cutoffFreq;
+	sampleFreq_ = sampleFreq;
+	if (sampleFreq_ <= 0.0f || cutoffFreq_ <= 0.0f) {
+		alpha_ = 1.0f;
+		return;
+	}
+	alpha_ = 1.0f / (1.0f + sampleFreq_/(2.0f * M_PI * cutoffFreq_));
+}

@@ -75,7 +75,7 @@ target_link_libraries(flightCode
 	PWMServo
 	SBUS
 	TeensyTimerTool
-	libFilter
+	Filter
 	PIDController
 	sensorFusion
 	TeensyLog

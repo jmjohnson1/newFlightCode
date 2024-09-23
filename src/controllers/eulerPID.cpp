@@ -216,16 +216,9 @@ PositionController::PositionController(const float (&Kp)[3], const float (&Ki)[3
   prevIntegral_ << 0.0, 0.0, 0.0;
   prevError_ << 0.0, 0.0, 0.0;
 
-	if (velFilterFreq > MIN_CUTOFF_FREQ) {
-		filterEnabled_ = true;
-	}
-
-  // filterObj, cutofffreq, samplefreq
-	if (filterEnabled_) {
-		biquadFilter_init(&vN_filter_, velFilterFreq, updateRate);
-		biquadFilter_init(&vE_filter_, velFilterFreq, updateRate);
-		biquadFilter_init(&vD_filter_, velFilterFreq, updateRate);
-	}
+	vNFilter.SetFilterParams(velFilterFreq, updateRate);
+	vEFilter.SetFilterParams(velFilterFreq, updateRate);
+	vDFilter.SetFilterParams(velFilterFreq, updateRate);
 }
 
 /**
@@ -265,11 +258,9 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints, const Eigen
   // derivative = (posError_ned - prevError_) / dt;
   derivative = velocitySetpoints - currentVelocity;
 
-	if (filterEnabled_) {
-		derivative(0) = biquadFilter_apply(&vN_filter_, derivative(0));
-		derivative(1) = biquadFilter_apply(&vE_filter_, derivative(1));
-		derivative(2) = biquadFilter_apply(&vD_filter_, derivative(2));
-	}
+	derivative(0) = vNFilter.Apply(derivative(0));
+	derivative(1) = vEFilter.Apply(derivative(1));
+	derivative(2) = vDFilter.Apply(derivative(2));
 
   // Calculate desired acceleration in the NED frame using PID
   desAcc_ned = Kp_ * posError_ned + Ki_ * integral + Kd_ * derivative;

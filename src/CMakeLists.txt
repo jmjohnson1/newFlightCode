@@ -13,7 +13,7 @@ list(APPEND COMMON_LIBS
 	PWMServo
 	SBUS
 	TeensyTimerTool
-	libFilter
+	Filter
 )
 
 ## Sensor Fusion ##
@@ -54,7 +54,7 @@ target_link_libraries(PIDController
 	PUBLIC
 	Teensy4
 	Eigen
-	libFilter
+	Filter
 	PRIVATE
 	TeensyLog
 )
