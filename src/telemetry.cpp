@@ -96,6 +96,7 @@ bool telem::Begin(QuadType::Quadcopter_t &quadData) {
   quadData.telemData.mavlink->extra1_stream_period_default_ms(EXTRA1_STREAM_PERIOD);
   quadData.telemData.mavlink->extra2_stream_period_default_ms(EXTRA2_STREAM_PERIOD);
   quadData.telemData.mavlink->extra3_stream_period_default_ms(EXTRA3_STREAM_PERIOD);
+	quadData.telemData.mavlink->pos_stream_period_default_ms(POS_STREAM_PERIOD);
   // Set all data streams to their default rates
   quadData.telemData.mavlink->raw_sens_stream_period_ms(0);
   quadData.telemData.mavlink->ext_status_stream_period_ms(0);
@@ -103,6 +104,10 @@ bool telem::Begin(QuadType::Quadcopter_t &quadData) {
   quadData.telemData.mavlink->extra1_stream_period_ms(0);
   quadData.telemData.mavlink->extra2_stream_period_ms(0);
   quadData.telemData.mavlink->extra3_stream_period_ms(0);
+  quadData.telemData.mavlink->pos_stream_period_ms(0);
+
+	// This should tell the GCS that the mission count is zero (since we are at startup)
+	quadData.telemData.mavlink->num_mission_items(0);
 
 
   // fix this
