@@ -779,17 +779,17 @@ class MavLink {
   }
 
   void HandleSetMsgInterval(uint32_t msgid, int32_t period_us) {
-    int32_t period_ms = period_us*1E-3;
-    switch(msgid) {
-      case MAVLINK_MSG_ID_ATTITUDE_QUATERNION:
-      case MAVLINK_MSG_ID_ATTITUDE_TARGET:
-        telem_.extra1_stream_period_ms(period_ms);
-        break;
-      case MAVLINK_MSG_ID_LOCAL_POSITION_NED:
-      case MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED:
-        telem_.pos_stream_period_ms(period_ms);
-        break;
-    }
+    /*int32_t period_ms = period_us*1E-3;*/
+    /*switch(msgid) {*/
+    /*  case MAVLINK_MSG_ID_ATTITUDE_QUATERNION:*/
+    /*  case MAVLINK_MSG_ID_ATTITUDE_TARGET:*/
+    /*    telem_.extra1_stream_period_ms(period_ms);*/
+    /*    break;*/
+    /*  case MAVLINK_MSG_ID_LOCAL_POSITION_NED:*/
+    /*  case MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED:*/
+    /*    telem_.pos_stream_period_ms(period_ms);*/
+    /*    break;*/
+    /*}*/
   }
 
   void HandleParamReset(uint32_t action) {
