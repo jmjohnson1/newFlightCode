@@ -93,16 +93,16 @@ class EKF {
     unsigned long timeWeekPrev_;
 
     // Sensor variances (as standard deviation) and models (tau)
-    Vector3f aNoiseSigma_mps2 = {0.08f, 0.08f, 0.08f}; // Std dev of accelerometer wide band noise (m/s^2)
-    Vector3f aMarkovSigma_mps2 = {0.0045, 0.0045, 0.0045}; // Std dev of accelerometer Markov bias
-    Vector3f aMarkovTau_s = {500, 500, 500}; // Correlation time or time constant
+    Vector3f aNoiseSigma_mps2 = {0.04f, 0.03f, 0.05f}; // Std dev of accelerometer wide band noise (m/s^2)
+    Vector3f aMarkovSigma_mps2 = {0.018f, 0.018f, 0.018f}; // Std dev of accelerometer Markov bias
+    Vector3f aMarkovTau_s = {400, 400, 400}; // Correlation time or time constant
 
-    Vector3f wNoiseSigma_rps {0.0014f, 0.0015f, 0.0014f}; // Std dev of rotation rate output noise (rad/s)
+    Vector3f wNoiseSigma_rps {0.0016f, 0.0015f, 0.0014f}; // Std dev of rotation rate output noise (rad/s)
     Vector3f wMarkovSigma_rps = {0.0004f, 0.0004f, 0.0004f}; // Std dev of correlated rotation rate bias
-    Vector3f wMarkovTau_s = {250, 250, 250}; // Correlation time or time constant
+    Vector3f wMarkovTau_s = {300, 300, 300}; // Correlation time or time constant
 
-    float pNoiseSigma_NE_m = 0.03; // GPS measurement noise std dev (m)
-    float pNoiseSigma_D_m = 0.04; // GPS measurement noise std dev (m)
+    float pNoiseSigma_NE_m = 0.05; // GPS measurement noise std dev (m)
+    float pNoiseSigma_D_m = 0.05; // GPS measurement noise std dev (m)
 	
     float vNoiseSigma_NE_mps = 1.0f; // GPS measurement noise std dev (m/s)  PLACEHOLDER!
     float vNoiseSigma_D_mps = 1.0f; // GPS measurement noise std dev (m/s)
@@ -110,10 +110,10 @@ class EKF {
     // Initial set of covariance
     float pErrSigma_Init_m = 1.0f; // Std dev of initial position error (m)
     float vErrSigma_Init_mps = 1.0f; // Std dev of initial velocity error (m/s)
-    float attErrSigma_Init_rad = 0.34906f; // Std dev of initial attitude (phi and theta) error (rad)
+    float attErrSigma_Init_rad = M_PI/12.0; // Std dev of initial attitude (phi and theta) error (rad)
     float hdgErrSigma_Init_rad = 3.14159f; // Std dev of initial Heading (psi) error (rad)
-    float aBiasSigma_Init_mps2 = 0.05f; // Std dev of initial acceleration bias (m/s^2)
-    float wBiasSigma_Init_rps = 0.02f; // Std dev of initial rotation rate bias (rad/s)
+    float aBiasSigma_Init_mps2 = 0.5; // Std dev of initial acceleration bias (m/s^2)
+    float wBiasSigma_Init_rps = 0.001; // Std dev of initial rotation rate bias (rad/s)
 
 
 
