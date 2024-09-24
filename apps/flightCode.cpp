@@ -183,10 +183,11 @@ float Kd_array[3] = {0.0f, 0.0f, 0.0f};
 float Kp2_array[3] = {0.0f, 0.0f, 0.0f};
 float Ki2_array[3] = {0.0f, 0.0f, 0.0f};
 float Kd2_array[3] = {0.0f, 0.0f, 0.0f};
-AngleAttitudeController angleController = AngleAttitudeController(Kp_array, Ki_array, Kd_array, 50.0f);
+AngleAttitudeController angleController = AngleAttitudeController(Kp_array, Ki_array, Kd_array, DroneConfig::ATT_INTEGRAL_LIMIT);
 PositionController posControl = PositionController(Kp_pos, Ki_pos, Kd_pos, quadProps::MAX_ANGLE, quadProps::QUAD_MASS,
-                                                   quadProps::MIN_THRUST, quadProps::MAX_THRUST, 1.0f,
-                                                   DroneConfig::LOOP_RATE_POS, DroneConfig::POS_DERIVATIVE_CUTOFF_FREQ);
+                                                   quadProps::MIN_THRUST, quadProps::MAX_THRUST, DroneConfig::POS_INTEGRAL_LIMIT,
+                                                   DroneConfig::LOOP_RATE_POS, DroneConfig::POS_DERIVATIVE_CUTOFF_FREQ, 
+																									 DroneConfig::POS_PROPORTIONAL_CUTOFF_FREQ);
 DCMAttitudeControl dcmAttControl = DCMAttitudeControl(Kp2_array, Ki2_array, Kd2_array, 1.0f, 0.8f);
 Eigen::Vector3f b1d = {-1.0f, 0.0f, 0.0f};
 uint32_t customMode = bfs::CustomMode::MANUAL;

@@ -194,7 +194,7 @@ float AngleAttitudeController::RatePID(float setpoint, float measuredRate, float
  */
 PositionController::PositionController(const float (&Kp)[3], const float (&Ki)[3], const float (&Kd)[3],
                                        float angleLimit, float mass, float minThrust, float maxThrust, float iLimit,
-                                       const float updateRate, const float velFilterFreq)
+                                       const float updateRate, const float velFilterFreq, const float posFilterFreq)
     : angleLimit_(angleLimit),
       mass_(mass),
       maxThrust_(maxThrust),
@@ -219,6 +219,10 @@ PositionController::PositionController(const float (&Kp)[3], const float (&Ki)[3
 	vNFilter.SetFilterParams(velFilterFreq, updateRate);
 	vEFilter.SetFilterParams(velFilterFreq, updateRate);
 	vDFilter.SetFilterParams(velFilterFreq, updateRate);
+
+	pNFilter.SetFilterParams(posFilterFreq, updateRate);
+	pEFilter.SetFilterParams(posFilterFreq, updateRate);
+	pDFilter.SetFilterParams(posFilterFreq, updateRate);
 }
 
 /**
@@ -245,6 +249,11 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints, const Eigen
   float maxAngle_sinArg = sin(angleLimit_ * DEG_TO_RAD);
 
   posError_ned = (posSetpoints - currentPosition).cast<float>();
+
+	posError_ned(0) = pNFilter.Apply(posError_ned(0));
+	posError_ned(1) = pEFilter.Apply(posError_ned(1));
+	posError_ned(2) = pDFilter.Apply(posError_ned(2));
+
   integral = prevIntegral_ + posError_ned * dt;
   // Prevent integral from building up if the thrust is low (noIntegral passed
   // as true).

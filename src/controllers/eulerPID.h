@@ -95,7 +95,7 @@ public:
 
   PositionController(const float (&Kp)[3], const float (&Ki)[3], const float (&Kd)[3], float angleLimit = 0.523f,
                      float mass = 1.0f, float minThrust = 0.0f, float maxThrust = 20.0f, float iLimit = 0.25f,
-                     const float updateRate = 100.0f, const float velFilterFreq = 0.0f);
+                     const float updateRate = 100.0f, const float velFilterFreq = 0.0f, const float posFilterFreq = 0.0f);
   void Update(const Eigen::Vector3d &posSetpoints,
               const Eigen::Vector3f &velocitySetpoints,
               const Eigen::Vector3d &currentPosition, 
@@ -150,9 +150,14 @@ private:
 	
 	
 	// Low pass filter
+	// Velocity error
 	LowpassFilter vNFilter;
 	LowpassFilter vEFilter;
 	LowpassFilter vDFilter;
+	// Position error
+	LowpassFilter pNFilter;
+	LowpassFilter pEFilter;
+	LowpassFilter pDFilter;
 };
 
 #endif
