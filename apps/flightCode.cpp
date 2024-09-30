@@ -206,7 +206,9 @@ int throttleCutCount = 0;
 // Flag to check if the flight loop has started yet, prevents lock in main loop when throttle killed
 bool logRunning = 0;
 int loopCount = 0;
-bool throttleEnabled = true;
+bool throttleEnabled = false;
+bool readyToArm = false;
+bool GCSArm = false;
 
 // Position vector taken from mocap
 bool positionFix = false;  // Set true if the position covariance from the EKF is less than a certain value.
@@ -386,12 +388,51 @@ void calibrateESCs() {
     current_time = micros();
     dt = (current_time - prev_time) / 1000000.0;
     digitalWrite(ledPin, HIGH); // LED on to indicate we are not in main loop
+		// Mode checking
+		// Check status of GCS arming
+		telem::Run(quadData, quadIMU);
+		GCSArm = quadData.telemData.mavlink->throttle_enabled();
+		// Check the status of the safety switch
+		switch(throCutChannel.SwitchPosition()) {
+			case SwPos::SWITCH_LOW:
+				readyToArm = true;
+				// Start logging
+				if (!logRunning) {
+					logRunning = true;
+					SD_is_present = !(logging.Setup());
+				}
+				break;
+			case SwPos::SWITCH_HIGH:
+				readyToArm = false;
+				// Force disarm
+				quadData.telemData.mavlink->throttle_enabled(false);
+				// End logging
+				if (logRunning==true) {
+					logRunning = false;
+					logging.End();
+					SD_is_present = false;
+				}
+				break;
+			default:
+				readyToArm = false;
+				break;
+		}
+
+		if (readyToArm && GCSArm) {
+			throttleEnabled = true;
+		} else {
+			throttleEnabled = false;
+		}
     getCommands();
 		quadIMU.Update();
     getDesState();
 		quadData.flightStatus.controlInputs << quadData.flightStatus.thrustSetpoint, 0, 0, 0;
 		// Convert thrust and moments from controller to angular rates
-		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs, quadProps::ALLOCATION_MATRIX_INV);
+		if (throttleEnabled) {
+			quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs, quadProps::ALLOCATION_MATRIX_INV);
+		} else {
+			quadData.flightStatus.motorRates = Eigen::Vector4f::Zero();
+		}
 		Serial.print(quadData.flightStatus.motorRates[0]);
 		Serial.print(",");
 		Serial.print(quadData.flightStatus.motorRates[0]);
@@ -705,22 +746,23 @@ void Loop() {
 	}
 
 	// Mode checking
-	// Check the status of the armed switch
+	// Check status of GCS arming
+	GCSArm = quadData.telemData.mavlink->throttle_enabled();
+	// Check the status of the safety switch
 	switch(throCutChannel.SwitchPosition()) {
 		case SwPos::SWITCH_LOW:
-      if (quadData.flightStatus.inputOverride == false) {
-        quadData.telemData.mavlink->throttle_enabled(true);
-        throttleEnabled = true;
-      }
+			readyToArm = true;
+			// Start logging
 			if (!logRunning) {
 				logRunning = true;
 				SD_is_present = !(logging.Setup());
 			}
 			break;
 		case SwPos::SWITCH_HIGH:
-      quadData.telemData.mavlink->throttle_enabled(false);
-      throttleEnabled = false;
-      quadData.flightStatus.inputOverride = false;
+			readyToArm = false;
+			// Force disarm
+			quadData.telemData.mavlink->throttle_enabled(false);
+			// End logging
 			if (logRunning==true) {
 				logRunning = false;
 				logging.End();
@@ -728,7 +770,14 @@ void Loop() {
 			}
 			break;
 		default:
+			readyToArm = false;
 			break;
+	}
+
+	if (readyToArm && GCSArm) {
+		throttleEnabled = true;
+	} else {
+		throttleEnabled = false;
 	}
 
   // Check boundary On-Off switch
@@ -864,7 +913,7 @@ if (bndryOnOff == 1) {
 		positionCtrlTimer = 0;
 		if (positionFix == true) {
       customMode = quadData.telemData.mavlink->custom_mode();
-      if (quadData.telemData.mavlink->throttle_enabled()) {
+      if (throttleEnabled) {
         if (customMode == bfs::CustomMode::MANUAL) {
 					posControl.Reset();
 				/*} else if (customMode == bfs::CustomMode::TAKEOFF && !TakeoffRampUp.Done()) {*/
@@ -933,7 +982,7 @@ if (bndryOnOff == 1) {
 	}
 
 	// Convert thrust and moments from controller to angular rates
-	if (quadData.telemData.mavlink->throttle_enabled()) {
+	if (throttleEnabled) {
 		quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs, quadProps::ALLOCATION_MATRIX_INV);
 	} else {
 		quadData.flightStatus.motorRates = Eigen::Vector4f::Zero();
