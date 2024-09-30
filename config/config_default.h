@@ -26,8 +26,8 @@ constexpr float LOOP_RATE_LOG = 1000;
 // Flight duration to allocate space for in the datalog (seconds)
 constexpr uint32_t LOG_DURATION = 1200;
 // Position PID lowpass filter cutoff frequencies (set to 0 for no filtering) (Hz)
-constexpr float POS_DERIVATIVE_CUTOFF_FREQ = 0.0f;
-constexpr float POS_PROPORTIONAL_CUTOFF_FREQ = 0.0f;
+constexpr float POS_DERIVATIVE_CUTOFF_FREQ = 25.0f;
+constexpr float POS_PROPORTIONAL_CUTOFF_FREQ = 25.0f;
 
 
 // Integrator buildup limits
