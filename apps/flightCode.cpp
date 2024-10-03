@@ -389,36 +389,21 @@ void calibrateESCs() {
     dt = (current_time - prev_time) / 1000000.0;
     digitalWrite(ledPin, HIGH); // LED on to indicate we are not in main loop
 		// Mode checking
-		// Check status of GCS arming
-		telem::Run(quadData, quadIMU);
-		GCSArm = quadData.telemData.mavlink->throttle_enabled();
+		setupBlink(10, 100, 100); // numBlinks, upTime (ms), downTime (ms)
 		// Check the status of the safety switch
 		switch(throCutChannel.SwitchPosition()) {
 			case SwPos::SWITCH_LOW:
 				readyToArm = true;
-				// Start logging
-				if (!logRunning) {
-					logRunning = true;
-					SD_is_present = !(logging.Setup());
-				}
 				break;
 			case SwPos::SWITCH_HIGH:
 				readyToArm = false;
-				// Force disarm
-				quadData.telemData.mavlink->throttle_enabled(false);
-				// End logging
-				if (logRunning==true) {
-					logRunning = false;
-					logging.End();
-					SD_is_present = false;
-				}
 				break;
 			default:
 				readyToArm = false;
 				break;
 		}
 
-		if (readyToArm && GCSArm) {
+		if (readyToArm) {
 			throttleEnabled = true;
 		} else {
 			throttleEnabled = false;
@@ -874,7 +859,7 @@ if(quadData.telemData.paramsUpdated == true) {
   	quadData.attitudeData.eulerAngles_ekf = ins.Get_OrientEst();
     quadData.attitudeData.currentDCM = Euler2DCM(quadData.attitudeData.eulerAngles_ekf);
 	}
-	Madgwick6DOF(quadIMU.GetAcc(), quadIMU.GetGyro(), quadData.attitudeData.quat_madgwick, quadData.attitudeData.eulerAngles_madgwick, dt);
+	Madgwick6DOF(quadIMU.GetAcc(), quadIMU.GetGyro(), quadData.attitudeData.quat_madgwick, quadData.attitudeData.eulerAngles_madgwick, DroneConfig::LOOP_PER_EKF_S);
 #else
 	if (EKFUpdateTimer > DroneConfig::LOOP_PER_EKF) {
 		Madgwick6DOF(quadIMU.GetAcc(), quadIMU.GetGyro(), quadData.attitudeData.quat_madgwick, quadData.attitudeData.eulerAngles_madgwick, dt);
@@ -923,7 +908,7 @@ if (bndryOnOff == 1) {
         } else {
           spHandler.UpdateSetpoint();
           posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), quadData.navData.velocitySetpoint_NED,
-                            ins.Get_PosEst(), ins.Get_VelEst(), *(quadData.attitudeData.eulerAngles_active), dt, false);
+                            ins.Get_PosEst(), ins.Get_VelEst(), *(quadData.attitudeData.eulerAngles_active), DroneConfig::LOOP_PER_POS_S, false);
           if (customMode == bfs::CustomMode::TAKEOFF || customMode == bfs::CustomMode::LANDING) {
             quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
             quadData.attitudeData.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
@@ -977,7 +962,7 @@ if (bndryOnOff == 1) {
     /*  // quadData.flightStatus.controlInputs(lastN(3)) = dcmAttControl.GetControlTorque();*/
     /*}*/
     angleController.Update(quadData.attitudeData.eulerAngleSetpoint, *(quadData.attitudeData.eulerAngles_active),
-                           gyroRates, dt, noIntegral, quadData.attitudeData.yawRateSetpoint, positionFix);
+                           gyroRates, DroneConfig::LOOP_PER_ATT_S, noIntegral, quadData.attitudeData.yawRateSetpoint, positionFix);
     quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
 	}
 

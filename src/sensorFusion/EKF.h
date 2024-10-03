@@ -109,10 +109,10 @@ class EKF {
 
     // Initial set of covariance
     float pErrSigma_Init_m = 1.0f; // Std dev of initial position error (m)
-    float vErrSigma_Init_mps = 1.0f; // Std dev of initial velocity error (m/s)
-    float attErrSigma_Init_rad = M_PI/12.0; // Std dev of initial attitude (phi and theta) error (rad)
-    float hdgErrSigma_Init_rad = 3.14159f; // Std dev of initial Heading (psi) error (rad)
-    float aBiasSigma_Init_mps2 = 0.5; // Std dev of initial acceleration bias (m/s^2)
+    float vErrSigma_Init_mps = 0.1f; // Std dev of initial velocity error (m/s)
+    float attErrSigma_Init_rad = M_PI/30.0; // Std dev of initial attitude (phi and theta) error (rad)
+    float hdgErrSigma_Init_rad = M_PI/3.0; // Std dev of initial Heading (psi) error (rad)
+    float aBiasSigma_Init_mps2 = 0.05; // Std dev of initial acceleration bias (m/s^2)
     float wBiasSigma_Init_rps = 0.001; // Std dev of initial rotation rate bias (rad/s)
 
 

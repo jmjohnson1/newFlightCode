@@ -43,6 +43,12 @@ constexpr uint64_t LOOP_PER_POS = static_cast<uint64_t>((1.0f / LOOP_RATE_POS) *
 constexpr uint64_t LOOP_PER_LOG = static_cast<uint64_t>((1.0f / LOOP_RATE_LOG) * 1.0e6);
 constexpr uint64_t LOOP_PER_EKF = static_cast<uint64_t>((1.0f / LOOP_RATE_EKF) * 1.0e6);
 
+constexpr float LOOP_PER_FC_S  = (1.0f / LOOP_RATE_FC);
+constexpr float LOOP_PER_ATT_S = (1.0f / LOOP_RATE_ATT);
+constexpr float LOOP_PER_POS_S = (1.0f / LOOP_RATE_POS);
+constexpr float LOOP_PER_LOG_S = (1.0f / LOOP_RATE_LOG);
+constexpr float LOOP_PER_EKF_S = (1.0f / LOOP_RATE_EKF);
+
 } // namespace DroneConfig
 
 #endif
