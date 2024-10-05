@@ -95,7 +95,7 @@ typedef struct Quadcopter_s {
 namespace quadProps {
 	constexpr float MAX_ANGLE = 30.0f;  // Maximum pitch/roll angle in degrees
 	constexpr float MIN_THRUST = 1.0f;  // Minimum total thrust (N)
-  constexpr float QUAD_MASS = 1.1f;  // Quadcopter mass (kg)
+  constexpr float QUAD_MASS = 1.2f;  // Quadcopter mass (kg)
 
   constexpr float DIST_X_F = 0.08665f; // x Distance from CoM to front motors [m]
   constexpr float DIST_Y_F = 0.13938f; // x Distance from CoM to front motors [m]
@@ -103,16 +103,18 @@ namespace quadProps {
   constexpr float DIST_Y_B = 0.11383f; // x Distance from CoM to front motors [m]
 
   // EMAX ECO II 1300KV with HQProp 7x4x3
-  constexpr float K_T = 4.9831e-6;  // Thrust coefficient [N/(rad/s^2)]
-  constexpr float K_M = 1.6320e-7;  // Motor torque coefficient [Nm/(rad/s^2)]
+  constexpr float K_T = 4.8e-6;  // Thrust coefficient [N/(rad/s^2)]
+  constexpr float K_M = 7.7e-8;  // Motor torque coefficient [Nm/(rad/s^2)]
   #if defined BAT_3S
 	constexpr float MAX_THRUST = 32.0f;  // Maximum total thrust (N)
   constexpr float K_W1 = -6.1875e2;
   constexpr float K_W2 = 1.7412e3;
   #elif defined BAT_4S
-	constexpr float MAX_THRUST = 44.0f;  // Maximum total thrust (N)
-  constexpr float K_W1 = -1.2349e3;
-  constexpr float K_W2 = 2.7856e3;
+	constexpr float MAX_THRUST = 35.0f;  // Maximum total thrust (N)
+  /*constexpr float K_W1 = -1.2349e3;*/
+  /*constexpr float K_W2 = 2.7856e3;*/
+	constexpr float K_W1 = 9.4e-8;
+	constexpr float K_W2 = 4.2e-4;
   #endif
 
   constexpr float DXF_KT = DIST_X_F*K_T;
@@ -128,7 +130,7 @@ namespace quadProps {
   
   static const Eigen::Matrix4f ALLOCATION_MATRIX_INV = ALLOCATION_MATRIX.inverse();
 
-  constexpr float G = 9.8065;  // Gravity acceleration m/s^2
+  constexpr float G = 9.80665;  // Gravity acceleration m/s^2
 }
 
 #endif

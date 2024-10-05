@@ -32,11 +32,11 @@ void serialDebug::PrintAccelData(float accX, float accY, float accZ) {
 
 void serialDebug::PrintRollPitchYaw(float roll, float pitch, float yaw) {
 	Serial.print(F("roll: "));
-	Serial.print(roll);
+	Serial.print(roll*RAD_TO_DEG);
 	Serial.print(F(" pitch: "));
-	Serial.print(pitch);
+	Serial.print(pitch*RAD_TO_DEG);
 	Serial.print(F(" yaw: "));
-	Serial.println(yaw);
+	Serial.println(yaw*RAD_TO_DEG);
 }
 
 void serialDebug::PrintPIDOutput(float rollPID, float pitchPID, float yawPID) {
