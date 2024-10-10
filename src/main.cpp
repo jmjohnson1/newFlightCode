@@ -236,13 +236,13 @@ const unsigned long imuUpdatePeriod = 0; // microseconds (1000 Hz)
 bool restartSineSweep = true;
 #endif
 
-// Defining the flight area (Shepherd Drone Lab)
+// Box around origin
 const float FLIGHT_AREA_X_MAX = 1;
 const float FLIGHT_AREA_X_MIN = -1;
 const float FLIGHT_AREA_Y_MAX = 1;
 const float FLIGHT_AREA_Y_MIN = -1;
 const float FLIGHT_AREA_Z_MAX = 0;
-const float FLIGHT_AREA_Z_MIN = -2.5;
+const float FLIGHT_AREA_Z_MIN = -2.0;
 int bndryOnOff;
 
 //========================================================================================================================//
@@ -267,11 +267,7 @@ void getDesState() {
   quadData.att.eulerAngleSetpoint[1] = constrain(pitch_des, -1.0, 1.0) * maxPitch;
   quadData.att.yawRateSetpoint = constrain(yawRate_des, -1.0, 1.0) * maxYawRate;
 	if (abs(yawRate_des) > YAW_DEADZONE) {
-    /*Serial.print("Yaw rate: ");*/
-    /*Serial.println(quadData.att.yawRateSetpoint);*/
 		quadData.att.eulerAngleSetpoint[2] += quadData.att.yawRateSetpoint/2000.0f; 
-    /*Serial.print("Yaw setpoint: ");*/
-    /*Serial.println(quadData.att.eulerAngleSetpoint[2]);*/
 	}
 }
 
@@ -661,7 +657,7 @@ void loop() {
 		// serialDebug::PrintDesiredState(thrust_des, roll_des, pitch_des, yaw_des);
 		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
 		/*serialDebug::PrintAccelData(quadIMU2.GetAccX(), quadIMU2.GetAccY(), quadIMU2.GetAccZ());*/
-		serialDebug::PrintRollPitchYaw(quadData.att.eulerAngles_active->coeff(0), quadData.att.eulerAngles_active->coeff(1), quadData.att.eulerAngles_active->coeff(2));
+		/*serialDebug::PrintRollPitchYaw(quadData.att.eulerAngles_active->coeff(0), quadData.att.eulerAngles_active->coeff(1), quadData.att.eulerAngles_active->coeff(2));*/
 		//serialDebug::PrintPIDOutput(angleController.GetRollPID(), angleController.GetPitchPID(), angleController.GetYawPID());
 		// float motorCommands[4] = {0, 0, 0, 0};
 		// motors.GetMotorCommands(motorCommands);
@@ -689,6 +685,7 @@ void loop() {
 			readyToArm = false;
 			// Force disarm
 			quadData.telemData.mavlink->throttle_enabled(false);
+			quadData.telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
 			// End logging
 			if (logRunning==true) {
 				logRunning = false;
@@ -828,11 +825,14 @@ if(quadData.telemData.paramsUpdated == true) {
 	if (EKFUpdateTimer > EKFPeriod) {
 		EKFUpdateTimer = 0;
 		quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
-  	ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
-		quadData.navData.position_NED = ins.Get_PosEst().cast<float>();
-		quadData.navData.velocity_NED = ins.Get_VelEst();
-  	quadData.att.eulerAngles_ekf = ins.Get_OrientEst();
-    quadData.att.currentDCM = Euler2DCM(quadData.att.eulerAngles_ekf);
+		// Only start EKF once we're getting position updates
+		if (quadData.navData.numMocapUpdates > 0){
+			ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
+			quadData.navData.position_NED = ins.Get_PosEst().cast<float>();
+			quadData.navData.velocity_NED = ins.Get_VelEst();
+			quadData.att.eulerAngles_ekf = ins.Get_OrientEst();
+			quadData.att.currentDCM = Euler2DCM(quadData.att.eulerAngles_ekf);
+		}
 	}
 	Madgwick6DOF(quadIMU, quadData, dt); // Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates
 #else
@@ -851,6 +851,7 @@ if (bndryOnOff == 1) {
 		quadData.navData.position_NED[2] < FLIGHT_AREA_Z_MIN) {
 			quadData.flightStatus.inputOverride = true;
 			quadData.telemData.mavlink->throttle_enabled(false);
+			quadData.telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
 			throttleEnabled = false;
 		}
 }
@@ -864,11 +865,25 @@ if (bndryOnOff == 1) {
 		quadData.att.eulerAngles_active = &(quadData.att.eulerAngles_ekf);
 	} else {
 		positionFix = false;
-    // positionFix = true;
+		// Cut throttle if we've lost fix
+		if (quadData.navData.numMocapUpdates > 0) {
+			quadData.flightStatus.inputOverride = true;
+			quadData.telemData.mavlink->throttle_enabled(false);
+			quadData.telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
+			throttleEnabled = false;
+		}
 		quadData.att.eulerAngles_active = &(quadData.att.eulerAngles_madgwick);
 	}
 	if (positionCtrlTimer >= positionCtrlPeriod) {
 		getDesState(); // Convert raw commands to normalized values based on saturated control limits
+		// Ad-hoc measure in case max thrust is requested (probably not really desired)
+		if (quadData.flightStatus.thrustSetpoint > quadProps::MAX_THRUST_ALLOWED) {
+			quadData.flightStatus.inputOverride = true;
+			quadData.telemData.mavlink->throttle_enabled(false);
+			quadData.telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
+			throttleEnabled = false;
+		}
+
 		positionCtrlTimer = 0;
 		if (positionFix == true) {
       customMode = quadData.telemData.mavlink->custom_mode();
