@@ -163,12 +163,16 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-Eigen::Vector3f accNS = {0.01,0.10,-0.39};
-Eigen::Vector3f gyroNS = {-0.01,-0.01,0.01};
+// Drone B: 10/5/24
+Eigen::Vector3f accNS = {0.09625,-0.08197,-0.76099};
+Eigen::Vector3f gyroNS = {-0.06021,0.00223,-0.00149};
+
 mpu6050 quadIMU = mpu6050(accNS, gyroNS);
 
-Eigen::Vector3f accNS2 = {-0.46,0.08,-0.05};
-Eigen::Vector3f gyroNS2 = Eigen::Vector3f::Zero();
+// Drone B: 10/5/24
+Eigen::Vector3f accNS2 = {-0.28325,0.08565,0.21005};
+Eigen::Vector3f gyroNS2 = {0.00001,0.00134,-0.00260};
+
 bmi088 quadIMU2 = bmi088(accNS2, gyroNS2, SPI, bmiAccCS, bmiGyrCS, 0, 0);
 
 SetpointHandler spHandler(&quadData);
@@ -462,20 +466,20 @@ void calculate_IMU_error(Generic_IMU *imu) {
 
 	Serial.println("Accelerometers: ");
 	Serial.print("{");
-  Serial.print(errorAcc[0]);
+  Serial.print(errorAcc[0], 5);
 	Serial.print(",");
-  Serial.print(errorAcc[1]);
+  Serial.print(errorAcc[1], 5);
 	Serial.print(",");
-  Serial.print(errorAcc[2]);
+  Serial.print(errorAcc[2], 5);
 	Serial.println("}");
 
 	Serial.println("Gyros: ");
 	Serial.print("{");
-  Serial.print(errorGyro[0]);
+  Serial.print(errorGyro[0], 5);
 	Serial.print(",");
-  Serial.print(errorGyro[1]);
+  Serial.print(errorGyro[1], 5);
 	Serial.print(",");
-  Serial.print(errorGyro[2]);
+  Serial.print(errorGyro[2], 5);
 	Serial.println("}");
 
 	Serial.println("Paste these values in the IMU constructor and "

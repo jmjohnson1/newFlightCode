@@ -57,7 +57,12 @@ void MavLinkHeartbeat::SendHeartbeat() {
     }
   }
 
-  mode_ = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+  mode_ = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED | aircraft_mode_;
+
+	Serial.print("mode: ");
+	Serial.print(mode_);
+	Serial.print(" acMode: ");
+	Serial.println(aircraft_mode_);
 
   switch (aircraft_state_) {
     case AircraftState::INIT: {

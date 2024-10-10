@@ -80,7 +80,14 @@ class MavLinkHeartbeat {
   /* 
   * Setters for the throttle enabled flag, aircraft mode, and aircraft state
   */
-  inline void throttle_enabled(const bool val) {throttle_enabled_ = val;}
+  inline void throttle_enabled(const bool val) {
+		throttle_enabled_ = val;
+		if (val == true) {
+			aircraft_mode_ = MAV_MODE_FLAG_SAFETY_ARMED;
+		} else {
+			aircraft_mode_ = 0;
+		}
+	}
   inline void aircraft_mode(const int8_t val) {aircraft_mode_ = val;}
   inline int8_t aircraft_mode() { return aircraft_mode_; }
   inline void aircraft_state(const int8_t val) {aircraft_state_ = val;}
@@ -102,7 +109,7 @@ class MavLinkHeartbeat {
   uint8_t msg_buf_[MAVLINK_MAX_PACKET_LEN];
   /* Data */
   bool throttle_enabled_ = false;
-  int8_t aircraft_mode_ = 0;
+  uint8_t aircraft_mode_ = 0;
   int8_t aircraft_state_ = INIT;
   /* Timing */
   static constexpr uint16_t HEARTBEAT_PERIOD_MS_ = 1000;
