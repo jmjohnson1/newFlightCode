@@ -110,12 +110,13 @@ namespace quadProps {
   constexpr float K_W1 = -6.1875e2;
   constexpr float K_W2 = 1.7412e3;
   #elif defined BAT_4S
-	constexpr float MAX_THRUST = 35.0f;  // Maximum total thrust (N)
+	constexpr float MAX_THRUST = 44.0f;  // Maximum total thrust (N)
   /*constexpr float K_W1 = -1.2349e3;*/
   /*constexpr float K_W2 = 2.7856e3;*/
 	constexpr float K_W1 = 9.4e-8;
 	constexpr float K_W2 = 4.2e-4;
   #endif
+	constexpr float MAX_THRUST_ALLOWED = 35.0f;
 
   constexpr float DXF_KT = DIST_X_F*K_T;
   constexpr float DYF_KT = DIST_Y_F*K_T;
