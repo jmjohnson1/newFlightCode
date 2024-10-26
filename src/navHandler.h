@@ -15,8 +15,8 @@ private:
   void PositionSetpoint();
   
 
-  // Keep a constant pointer to the global variables
-  const Quadcopter_t *quadData_;
+  // Keep a pointer to the global variables
+  Quadcopter_t *quadData_;
   // Because these are used a lot, pointers to these can be pulled out of
   // quadData.
   const Eigen::Vector3f *quadPos_;
