@@ -246,6 +246,9 @@ const unsigned long attitudeCtrlPeriod = 5; // milliseconds (200 Hz)
 const unsigned long positionCtrlPeriod = 5; // milliseconds (200 Hz)
 const unsigned long imuUpdatePeriod = 0; // microseconds (1000 Hz)
 
+constexpr float posCtrldt = static_cast<float>(positionCtrlPeriod)*1.0e-3;
+constexpr float attCtrldt = static_cast<float>(attitudeCtrlPeriod)*1.0e-3;
+
 #ifdef TEST_STAND
 bool restartSineSweep = true;
 #endif
@@ -925,7 +928,7 @@ if (bndryOnOff == 1) {
           spHandler.UpdateSetpoint();
           posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), 
                             quadData.navData.velocitySetpoint_NED,
-                            ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, dt, false);
+                            ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, posCtrldt, false);
           // posControl2.Update(quadData.navData.positionSetpoint_NED, quadData.navData.velocitySetpoint_NED, 
           //                    ins.Get_PosEst().cast<float>(), ins.Get_VelEst(), b1d, quadData.att, dt);
           if (customMode == bfs::CustomMode::MISSION ||
@@ -1020,7 +1023,7 @@ if (bndryOnOff == 1) {
     /*  // dcmAttControl.Update(quadData.att, gyroRates, dt);*/
     /*  // quadData.flightStatus.controlInputs(lastN(3)) = dcmAttControl.GetControlTorque();*/
     /*}*/
-    angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, dt, noIntegral, positionFix);
+    angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, attCtrldt, noIntegral, positionFix);
     quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
 	}
 

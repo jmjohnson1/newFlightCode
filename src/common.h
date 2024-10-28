@@ -67,6 +67,7 @@ typedef struct FilterData_s {
 
 typedef struct FlightStatus_s {
   bool inputOverride = false;
+	bool inAir = false;
   float thrustSetpoint = 0.0f;
   Eigen::Vector4f controlInputs = Eigen::Vector4f::Zero();
   Eigen::Vector4f motorRates = Eigen::Vector4f::Zero();
