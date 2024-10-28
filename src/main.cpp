@@ -254,12 +254,18 @@ bool restartSineSweep = true;
 #endif
 
 // Box around origin
-const float FLIGHT_AREA_X_MAX = 1;
-const float FLIGHT_AREA_X_MIN = -1;
-const float FLIGHT_AREA_Y_MAX = 1;
-const float FLIGHT_AREA_Y_MIN = -1;
-const float FLIGHT_AREA_Z_MAX = 0;
-const float FLIGHT_AREA_Z_MIN = -2.0;
+const float FLIGHT_AREA_STEP_X_MAX = 1;
+const float FLIGHT_AREA_STEP_X_MIN = -1;
+const float FLIGHT_AREA_STEP_Y_MAX = 1;
+const float FLIGHT_AREA_STEP_Y_MIN = -1;
+const float FLIGHT_AREA_STEP_Z_MAX = 0;
+const float FLIGHT_AREA_STEP_Z_MIN = -2.0;
+const float FLIGHT_AREA_TRAJ_X_MAX = 1;
+const float FLIGHT_AREA_TRAJ_X_MIN = -6.0;
+const float FLIGHT_AREA_TRAJ_Y_MAX = 2.40;
+const float FLIGHT_AREA_TRAJ_Y_MIN = -0.8;
+const float FLIGHT_AREA_TRAJ_Z_MAX = 0;
+const float FLIGHT_AREA_TRAJ_Z_MIN = -2.0;
 int bndryOnOff;
 
 TeensyTimerTool::PeriodicTimer checkinTimer(TeensyTimerTool::TMR1);
@@ -738,20 +744,6 @@ void loop() {
 	}
 
 
-  // Check boundary On-Off switch
-	switch(boundaryOnOff.SwitchPosition()) {
-		case SwPos::SWITCH_HIGH:
-	  if (1) {bndryOnOff = 1;}
-	  		break;
-		case SwPos::SWITCH_MID:
-	  if (1) {bndryOnOff = 1;}
-	  		break;
-		case SwPos::SWITCH_LOW:
-	  if (1) {bndryOnOff = 0;}
-	  		break;
-		default:
-			break;
-	}
 
   // Check autopilot mode
 
@@ -875,20 +867,49 @@ if(quadData.telemData.paramsUpdated == true) {
 #endif
 
 // Flight boundary limit
-if (bndryOnOff == 1) {
-	if (quadData.navData.position_NED[0] > FLIGHT_AREA_X_MAX ||
-		quadData.navData.position_NED[0] < FLIGHT_AREA_X_MIN ||
-		quadData.navData.position_NED[1] > FLIGHT_AREA_Y_MAX ||
-		quadData.navData.position_NED[1] < FLIGHT_AREA_Y_MIN ||
-		quadData.navData.position_NED[2] > FLIGHT_AREA_Z_MAX ||
-		quadData.navData.position_NED[2] < FLIGHT_AREA_Z_MIN ||
-		quadData.navData.numMocapUpdates < 1) {
-			quadData.flightStatus.inputOverride = true;
-			quadData.telemData.mavlink->throttle_enabled(false);
-			quadData.telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
-			throttleEnabled = false;
-		}
+// Check boundary On-Off switch
+switch(boundaryOnOff.SwitchPosition()) {
+	case SwPos::SWITCH_HIGH:
+		if (quadData.navData.position_NED[0] > FLIGHT_AREA_STEP_X_MAX ||
+			  quadData.navData.position_NED[0] < FLIGHT_AREA_STEP_X_MIN ||
+			  quadData.navData.position_NED[1] > FLIGHT_AREA_STEP_Y_MAX ||
+			  quadData.navData.position_NED[1] < FLIGHT_AREA_STEP_Y_MIN ||
+			  quadData.navData.position_NED[2] > FLIGHT_AREA_STEP_Z_MAX ||
+			  quadData.navData.position_NED[2] < FLIGHT_AREA_STEP_Z_MIN ||
+			  quadData.navData.numMocapUpdates < 1) {
+
+				quadData.flightStatus.inputOverride = true;
+				quadData.telemData.mavlink->throttle_enabled(false);
+				quadData.telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
+				throttleEnabled = false;
+			}
+			break;
+	case SwPos::SWITCH_MID:
+		if (quadData.navData.position_NED[0] > FLIGHT_AREA_TRAJ_X_MAX ||
+				quadData.navData.position_NED[0] < FLIGHT_AREA_TRAJ_X_MIN ||
+				quadData.navData.position_NED[1] > FLIGHT_AREA_TRAJ_Y_MAX ||
+				quadData.navData.position_NED[1] < FLIGHT_AREA_TRAJ_Y_MIN ||
+				quadData.navData.position_NED[2] > FLIGHT_AREA_TRAJ_Z_MAX ||
+				quadData.navData.position_NED[2] < FLIGHT_AREA_TRAJ_Z_MIN ||
+				quadData.navData.numMocapUpdates < 1) {
+
+				quadData.flightStatus.inputOverride = true;
+				quadData.telemData.mavlink->throttle_enabled(false);
+				quadData.telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
+				throttleEnabled = false;
+			}
+			break;
+	case SwPos::SWITCH_LOW:
+		// Do Nothing
+		break;
+	default:
+		quadData.flightStatus.inputOverride = true;
+		quadData.telemData.mavlink->throttle_enabled(false);
+		quadData.telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
+		throttleEnabled = false;
+		break;
 }
+
 #ifdef USE_POSITION_CONTROLLER
 	// Check if position Controller enabled
 	Eigen::Vector3f currentPosCovariance = ins.Get_CovPos();
