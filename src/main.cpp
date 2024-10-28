@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <stdint.h>
 
+#include "boardDef.h"
 #include "core_pins.h"
 #include "eigen.h"  	// Linear algebra
 #include "SBUS.h"     //sBus interface
@@ -21,6 +22,7 @@
 #include "EKF.h"
 #include "navHandler.h"
 #include "datalogger.h"
+#include "TeensyTimerTool.h"
 
 //================================================================================================//
 //                                     USER-SPECIFIED VARIABLES                                   //
@@ -167,11 +169,19 @@ bool sbusLostFrame;
 Eigen::Vector3f accNS = {0.09625,-0.08197,-0.76099};
 Eigen::Vector3f gyroNS = {-0.06021,0.00223,-0.00149};
 
+// Drone A: 10/14/24
+/*Eigen::Vector3f accNS = {-0.00920,0.08071,-0.36328};*/
+/*Eigen::Vector3f gyroNS = {-0.00890,-0.00590,0.00158};*/
+
 mpu6050 quadIMU = mpu6050(accNS, gyroNS);
 
 // Drone B: 10/5/24
 Eigen::Vector3f accNS2 = {-0.28325,0.08565,0.21005};
 Eigen::Vector3f gyroNS2 = {0.00001,0.00134,-0.00260};
+
+// Drone A: 10/14/24
+/*Eigen::Vector3f accNS2 = {-0.49718,0.06980,-0.06169};*/
+/*Eigen::Vector3f gyroNS2 = {0.00234,-0.00093,-0.00241};*/
 
 bmi088 quadIMU2 = bmi088(accNS2, gyroNS2, SPI, bmiAccCS, bmiGyrCS, 0, 0);
 
@@ -248,6 +258,9 @@ const float FLIGHT_AREA_Y_MIN = -1;
 const float FLIGHT_AREA_Z_MAX = 0;
 const float FLIGHT_AREA_Z_MIN = -2.0;
 int bndryOnOff;
+
+TeensyTimerTool::PeriodicTimer checkinTimer(TeensyTimerTool::TMR1);
+elapsedMicros lastLoopStart = 0;
 
 //========================================================================================================================//
 //                                                      FUNCTIONS                                                         //
@@ -366,6 +379,14 @@ void setupBlink(int numBlinks, int upTime, int downTime) {
     digitalWrite(ledPin, HIGH);
     delay(upTime);
   }
+}
+
+void CheckinCallback() {
+	if (lastLoopStart > 1000) {
+		Eigen::Vector4f noCommand = Eigen::Vector4f::Zero();
+		motors.ScaleCommand(noCommand);
+		motors.CommandMotor();
+	}
 }
 
 //=========================================================================================//
@@ -559,6 +580,7 @@ void LoggingSetup() {
 void setup() {
   Serial.begin(500000); // USB serial (baud rate doesn't actually matter for Teensy)
   delay(500); // Give Serial some time to initialize
+	
 
   // Initialize all pins
   pinMode(ledPin, OUTPUT); // Pin 13 LED blinker on board, do not modify
@@ -606,6 +628,9 @@ void setup() {
 
   delay(5);
 
+	lastLoopStart = 0;
+	checkinTimer.begin(CheckinCallback, 10'000);
+
   // PROPS OFF. Uncomment this to calibrate your ESCs by setting throttle stick
   // to max, powering on, and lowering throttle to zero after the beeps
   /*calibrateESCs();*/
@@ -625,6 +650,7 @@ void setup() {
 void loop() {
   // digitalWriteFast(5, HIGH);
   // Keep track of what time it is and how much time has elapsed since the last loop
+	lastLoopStart = 0;
   prev_time = current_time;
   current_time = micros();
   dt = (current_time - prev_time) / 1000000.0;
@@ -659,8 +685,8 @@ void loop() {
 		print_counter = current_time;
 		//serialDebug::PrintRadioData(); // Currently does nothing
 		// serialDebug::PrintDesiredState(thrust_des, roll_des, pitch_des, yaw_des);
-		//serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());
-		/*serialDebug::PrintAccelData(quadIMU2.GetAccX(), quadIMU2.GetAccY(), quadIMU2.GetAccZ());*/
+		/*serialDebug::PrintGyroData(quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ());*/
+		/*serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());*/
 		/*serialDebug::PrintRollPitchYaw(quadData.att.eulerAngles_active->coeff(0), quadData.att.eulerAngles_active->coeff(1), quadData.att.eulerAngles_active->coeff(2));*/
 		//serialDebug::PrintPIDOutput(angleController.GetRollPID(), angleController.GetPitchPID(), angleController.GetYawPID());
 		// float motorCommands[4] = {0, 0, 0, 0};
@@ -852,7 +878,8 @@ if (bndryOnOff == 1) {
 		quadData.navData.position_NED[1] > FLIGHT_AREA_Y_MAX ||
 		quadData.navData.position_NED[1] < FLIGHT_AREA_Y_MIN ||
 		quadData.navData.position_NED[2] > FLIGHT_AREA_Z_MAX ||
-		quadData.navData.position_NED[2] < FLIGHT_AREA_Z_MIN) {
+		quadData.navData.position_NED[2] < FLIGHT_AREA_Z_MIN ||
+		quadData.navData.numMocapUpdates < 1) {
 			quadData.flightStatus.inputOverride = true;
 			quadData.telemData.mavlink->throttle_enabled(false);
 			quadData.telemData.mavlink->custom_mode(bfs::CustomMode::MANUAL);
