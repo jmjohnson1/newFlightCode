@@ -166,22 +166,30 @@ bool sbusFailSafe;
 bool sbusLostFrame;
 
 // Drone B: 10/5/24
-Eigen::Vector3f accNS = {0.09625,-0.08197,-0.76099};
-Eigen::Vector3f gyroNS = {-0.06021,0.00223,-0.00149};
+/*Eigen::Vector3f accNS = {0.09625,-0.08197,-0.76099};*/
+/*Eigen::Vector3f gyroNS = {-0.06021,0.00223,-0.00149};*/
+
+// Drone C: 10/29/24
+/*Eigen::Vector3f accNS = {0.49741,0.03576,-1.49739};*/
+/*Eigen::Vector3f gyroNS = {-0.03902,0.00800,-0.00215};*/
 
 // Drone A: 10/14/24
-/*Eigen::Vector3f accNS = {-0.00920,0.08071,-0.36328};*/
-/*Eigen::Vector3f gyroNS = {-0.00890,-0.00590,0.00158};*/
+Eigen::Vector3f accNS = {-0.00920,0.08071,-0.36328};
+Eigen::Vector3f gyroNS = {-0.00890,-0.00590,0.00158};
 
 mpu6050 quadIMU = mpu6050(accNS, gyroNS);
 
 // Drone B: 10/5/24
-Eigen::Vector3f accNS2 = {-0.28325,0.08565,0.21005};
-Eigen::Vector3f gyroNS2 = {0.00001,0.00134,-0.00260};
+/*Eigen::Vector3f accNS2 = {-0.28325,0.08565,0.21005};*/
+/*Eigen::Vector3f gyroNS2 = {0.00001,0.00134,-0.00260};*/
+
+// Drone C: 10/29/24
+/*Eigen::Vector3f accNS2 = {-0.21642,0.02993,-0.00054};*/
+/*Eigen::Vector3f gyroNS2 = {-0.00401,0.00693,0.00047};*/
 
 // Drone A: 10/14/24
-/*Eigen::Vector3f accNS2 = {-0.49718,0.06980,-0.06169};*/
-/*Eigen::Vector3f gyroNS2 = {0.00234,-0.00093,-0.00241};*/
+Eigen::Vector3f accNS2 = {-0.49718,0.06980,-0.06169};
+Eigen::Vector3f gyroNS2 = {0.00234,-0.00093,-0.00241};
 
 bmi088 quadIMU2 = bmi088(accNS2, gyroNS2, SPI, bmiAccCS, bmiGyrCS, 0, 0);
 
@@ -265,7 +273,7 @@ const float FLIGHT_AREA_TRAJ_X_MIN = -6.0;
 const float FLIGHT_AREA_TRAJ_Y_MAX = 2.40;
 const float FLIGHT_AREA_TRAJ_Y_MIN = -0.8;
 const float FLIGHT_AREA_TRAJ_Z_MAX = 0;
-const float FLIGHT_AREA_TRAJ_Z_MIN = -2.0;
+const float FLIGHT_AREA_TRAJ_Z_MIN = -2.3;
 int bndryOnOff;
 
 TeensyTimerTool::PeriodicTimer checkinTimer(TeensyTimerTool::TMR1);
@@ -1044,7 +1052,7 @@ switch(boundaryOnOff.SwitchPosition()) {
     /*  // dcmAttControl.Update(quadData.att, gyroRates, dt);*/
     /*  // quadData.flightStatus.controlInputs(lastN(3)) = dcmAttControl.GetControlTorque();*/
     /*}*/
-    angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, attCtrldt, noIntegral, positionFix);
+    angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, attCtrldt, noIntegral, (positionFix && !(customMode == bfs::CustomMode::TAKEOFF)));
     quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
 	}
 
