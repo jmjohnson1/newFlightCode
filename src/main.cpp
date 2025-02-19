@@ -30,6 +30,8 @@
 
 // Controller yaw rate deadzone (deg/s)
 const float YAW_DEADZONE = 5.0f * DEG_TO_RAD;
+const uint64_t takeoffSpinTime_millis = 3000;
+const float TAKEOFF_SPIN_THRUST = 3.0f;
 
 // Radio channel definitions
 // Syntax: ("name", channel, slider neutral point (meaningless for switches), failsafe value, true
@@ -174,8 +176,12 @@ bool sbusLostFrame;
 /*Eigen::Vector3f gyroNS = {-0.03902,0.00800,-0.00215};*/
 
 // Drone A: 10/14/24
-Eigen::Vector3f accNS = {-0.00920,0.08071,-0.36328};
-Eigen::Vector3f gyroNS = {-0.00890,-0.00590,0.00158};
+/*Eigen::Vector3f accNS = {-0.00920,0.08071,-0.36328};*/
+/*Eigen::Vector3f gyroNS = {-0.00890,-0.00590,0.00158};*/
+
+// IEEE Drone:
+Eigen::Vector3f accNS = {0.67944,0.07583,-0.67375};
+Eigen::Vector3f gyroNS = {-0.05802,0.00201,0.00266};
 
 mpu6050 quadIMU = mpu6050(accNS, gyroNS);
 
@@ -188,8 +194,12 @@ mpu6050 quadIMU = mpu6050(accNS, gyroNS);
 /*Eigen::Vector3f gyroNS2 = {-0.00401,0.00693,0.00047};*/
 
 // Drone A: 10/14/24
-Eigen::Vector3f accNS2 = {-0.49718,0.06980,-0.06169};
-Eigen::Vector3f gyroNS2 = {0.00234,-0.00093,-0.00241};
+/*Eigen::Vector3f accNS2 = {-0.49718,0.06980,-0.06169};*/
+/*Eigen::Vector3f gyroNS2 = {0.00234,-0.00093,-0.00241};*/
+
+// IEEE Drone:
+Eigen::Vector3f accNS2 = {0.28078,0.21799,0.21584};
+Eigen::Vector3f gyroNS2 = {0.00061,0.00147,-0.00222};
 
 bmi088 quadIMU2 = bmi088(accNS2, gyroNS2, SPI, bmiAccCS, bmiGyrCS, 0, 0);
 
@@ -964,11 +974,20 @@ switch(boundaryOnOff.SwitchPosition()) {
               customMode == bfs::CustomMode::POSITION ||
               customMode == bfs::CustomMode::TAKEOFF ||
               customMode == bfs::CustomMode::LANDING) {
-            quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
-            quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
-            quadData.att.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
-            // quadData.flightStatus.thrustSetpoint = posControl2.GetDesiredThrust();
-            // quadData.att.desiredDCM = posControl2.GetDesiredDCM();
+						if (quadData.flightStatus.doTakeoffSpin) {
+							quadData.flightStatus.thrustSetpoint = TAKEOFF_SPIN_THRUST;
+							quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
+							quadData.att.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
+							if (quadData.flightStatus.takeoffSpinTimer > takeoffSpinTime_millis) {
+								quadData.flightStatus.doTakeoffSpin = false;
+							}
+						} else {
+							quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+							quadData.att.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
+							quadData.att.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
+							// quadData.flightStatus.thrustSetpoint = posControl2.GetDesiredThrust();
+							// quadData.att.desiredDCM = posControl2.GetDesiredDCM();
+						 }
           } else if (customMode == bfs::CustomMode::ALTITUDE) {
             quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
           }
@@ -1034,9 +1053,10 @@ switch(boundaryOnOff.SwitchPosition()) {
 #endif
 
 	bool noIntegral = false;
-	if (quadData.flightStatus.thrustSetpoint < 0.5f || throttleEnabled == false) {
+	if (quadData.flightStatus.thrustSetpoint < TAKEOFF_SPIN_THRUST + 0.5f || throttleEnabled == false || quadData.flightStatus.doTakeoffSpin == true) {
 		noIntegral = true;
 	}
+	bool yawMode = positionFix && !(customMode == bfs::CustomMode::TAKEOFF) && !(customMode == bfs::CustomMode::MANUAL);
 	
 	if (attitudeCtrlTimer >= attitudeCtrlPeriod) {
 		attitudeCtrlTimer = 0;
@@ -1052,7 +1072,7 @@ switch(boundaryOnOff.SwitchPosition()) {
     /*  // dcmAttControl.Update(quadData.att, gyroRates, dt);*/
     /*  // quadData.flightStatus.controlInputs(lastN(3)) = dcmAttControl.GetControlTorque();*/
     /*}*/
-    angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, attCtrldt, noIntegral, (positionFix && !(customMode == bfs::CustomMode::TAKEOFF)));
+    angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, attCtrldt, noIntegral, yawMode);
     quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
 	}
 

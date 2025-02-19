@@ -72,6 +72,8 @@ typedef struct FlightStatus_s {
   Eigen::Vector4f controlInputs = Eigen::Vector4f::Zero();
   Eigen::Vector4f motorRates = Eigen::Vector4f::Zero();
   uint64_t timeSinceBoot = micros();
+	elapsedMillis takeoffSpinTimer = 0;
+	bool doTakeoffSpin = false;
 } FlightStatus_t;
 
 typedef struct TelemData_s {
@@ -117,7 +119,7 @@ namespace quadProps {
 	constexpr float K_W1 = 9.4e-8;
 	constexpr float K_W2 = 4.2e-4;
   #endif
-	constexpr float MAX_THRUST_ALLOWED = 35.0f;
+	constexpr float MAX_THRUST_ALLOWED = 45.0f;
 
   constexpr float DXF_KT = DIST_X_F*K_T;
   constexpr float DYF_KT = DIST_Y_F*K_T;
