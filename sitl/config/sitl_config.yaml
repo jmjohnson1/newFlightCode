@@ -1,0 +1,112 @@
+# SITL Configuration File
+
+simulation:
+  # Simulation timestep and rates
+  physics_rate_hz: 1000
+  sensor_rate_hz: 1000
+  log_rate_hz: 100
+  
+  # Initial conditions
+  initial_position: [0.0, 0.0, -1.0]  # NED frame [m]
+  initial_attitude: [0.0, 0.0, 0.0]   # Roll, pitch, yaw [rad]
+  initial_velocity: [0.0, 0.0, 0.0]   # Body frame [m/s]
+
+# IMU sensor model parameters
+imu:
+  # Accelerometer noise
+  accel_noise_std: 0.02      # m/s²
+  accel_bias_std: 0.001      # m/s²
+  accel_bias_correlation_time: 3600.0  # seconds
+  
+  # Gyroscope noise
+  gyro_noise_std: 0.002      # rad/s
+  gyro_bias_std: 0.0001      # rad/s  
+  gyro_bias_correlation_time: 3600.0   # seconds
+  
+  # Magnetometer noise
+  mag_noise_std: 1e-6        # Tesla
+  
+  # Sample rate
+  sample_rate_hz: 1000
+
+# RC transmitter model
+rc_transmitter:
+  # Number of channels
+  num_channels: 16
+  
+  # Channel mappings (0-indexed)
+  throttle_channel: 0
+  roll_channel: 1  
+  pitch_channel: 2
+  yaw_channel: 3
+  
+  # Default stick positions (for autonomous flight testing)
+  default_throttle: 0.0    # 0.0 = low, 1.0 = high
+  default_roll: 0.0        # -1.0 to 1.0
+  default_pitch: 0.0       # -1.0 to 1.0  
+  default_yaw: 0.0         # -1.0 to 1.0
+  
+  # Switch positions (0 = low, 1 = mid, 2 = high)
+  throttle_cut_switch: 0   # Channel 4 (0-indexed)
+  mode_switch: 0           # Channel 5
+
+# Environment parameters
+environment:
+  gravity: 9.81            # m/s²
+  air_density: 1.225       # kg/m³
+  wind_velocity: [0.0, 0.0, 0.0]  # NED frame [m/s]
+  
+  # Magnetic field (for magnetometer)
+  magnetic_field: [0.2, 0.0, 0.4]  # Tesla, NED frame
+
+# Logging configuration  
+logging:
+  enable_csv_log: true
+  csv_filename: "sitl_log.csv"
+  enable_console_output: true
+  console_rate_hz: 10
+  
+  # What to log
+  log_position: true
+  log_attitude: true  
+  log_velocity: true
+  log_angular_velocity: true
+  log_accelerations: true
+  log_sensor_data: true
+  log_motor_commands: true
+  log_control_inputs: true
+  log_pid_outputs: true
+
+# Visualization (if enabled)
+visualization:
+  enable_3d_plot: false
+  enable_realtime_plots: true
+  plot_update_rate_hz: 30
+  
+  # What to plot in real-time
+  plot_attitude: true
+  plot_position: true
+  plot_motor_commands: true
+  plot_pid_outputs: true
+
+# Testing scenarios  
+scenarios:
+  # Hover test
+  hover_test:
+    duration_s: 30.0
+    target_altitude: -2.0  # NED frame (negative = up)
+    enable_disturbances: false
+    
+  # Step response test
+  step_response:
+    duration_s: 20.0
+    step_time_s: 5.0
+    step_amplitude: 0.2  # rad for attitude, m for position
+    step_axis: "roll"    # roll, pitch, yaw, x, y, z
+    
+  # Sine wave tracking
+  sine_tracking:
+    duration_s: 60.0
+    frequency_hz: 0.1
+    amplitude: 0.3
+    axis: "yaw"
