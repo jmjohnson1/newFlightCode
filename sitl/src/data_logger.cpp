@@ -9,11 +9,7 @@
 #include <vector>
 #include <map>
 
-#ifdef UNIX_COMPILE
 #include "Eigen/Dense"
-#else
-#include "eigen.h"
-#endif
 
 /**
  * @brief SITL Data Logger - Enhanced logging for simulation analysis

@@ -1,7 +1,13 @@
 #ifndef DCM_PID_H
 #define DCM_PID_H
 
+#ifdef SITL_BUILD
+#include <Eigen/Dense>
+#include "teensy_hal.h"
+#else
 #include "eigen.h"
+#include <Arduino.h>
+#endif
 
 class DCMPositionPID {
 public:

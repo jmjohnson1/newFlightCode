@@ -12,7 +12,6 @@ public:
   void CommandMotor();
   void ArmMotors();
   
-  // Getters
   void GetMotorCommands(float returnedMotorCommands[4]) {
     for (int motor = 0; motor < 4; motor++) {
       returnedMotorCommands[motor] = motorCommandNormalized_[motor];

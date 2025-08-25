@@ -45,8 +45,8 @@ void pinMode(uint8_t pin, uint8_t mode) {
 void digitalWrite(uint8_t pin, uint8_t value) {
     if (pin < 64 && pin_modes[pin] == OUTPUT) {
         pin_states[pin] = (value == HIGH);
-        // For LED pin, you could add visual indication
-        if (pin == 10 || pin == 13) { // Common LED pins
+        // For LED pin
+        if (pin == 10) { 
             std::cout << (pin_states[pin] ? "LED ON\n" : "LED OFF\n");
         }
     }
@@ -95,8 +95,8 @@ void SITLSerial::println() {
     std::cout << std::endl;
 }
 
+// TODO: make these do something
 bool SITLSerial::available() {
-    // Simple implementation - could be enhanced with actual input buffering
     return false;
 }
 
@@ -119,19 +119,20 @@ uint8_t SITLWire::endTransmission() {
     return 0; // Success
 }
 
+// TODO: This isn't implemented correctly
 uint8_t SITLWire::write(uint8_t data) {
     return 1; // Bytes written
 }
 
 uint8_t SITLWire::requestFrom(uint8_t address, uint8_t quantity) {
-    return quantity; // Simulate successful read
+    return quantity; // Simulate successful read (maybe)
 }
 
 uint8_t SITLWire::read() {
     static std::random_device rd;
     static std::mt19937 gen(rd());
     static std::uniform_int_distribution<> dis(0, 255);
-    return dis(gen); // Random data for simulation
+    return dis(gen); // Random data for testing simulation
 }
 
 bool SITLWire::available() {

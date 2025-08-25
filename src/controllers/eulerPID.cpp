@@ -1,8 +1,6 @@
 #include "eulerPID.h"
 
-#include <Arduino.h>
-#include <TeensyLog.h>
-#include "filter.h"
+/*#include <TeensyLog.h>*/
 
 
 // Minimum cutoff frequency for lowpass filters on pid values
@@ -21,7 +19,7 @@ const float MIN_CUTOFF_FREQ = 1.0f;
 Eigen::Vector4f ControlAllocator(const Eigen::Vector4f &inputs, const Eigen::Matrix4f &AllocationMatrixInv) {
   Eigen::Vector4f w = (AllocationMatrixInv * inputs).cwiseSqrt().real();
   for (int i = 0; i < 4; i++) {
-    if (isnan(w[i])) {
+    if (std::isnan(w[i])) {
       w[i] = 0.0f;
       /*Log.verboseln("NaN value encountered in control allocator");*/
     }

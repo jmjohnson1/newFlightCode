@@ -134,6 +134,7 @@ using std::atan;
 using std::atan2;
 using std::sqrt;
 using std::pow;
+using std::isnan;
 
 #endif // SITL_BUILD
 #endif // TEENSY_HAL_H

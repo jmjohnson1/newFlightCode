@@ -1,7 +1,6 @@
 #include "dcmPID.h"
 
-#include <Arduino.h>
-#include <TeensyLog.h>
+/*#include <TeensyLog.h>*/
 
 Eigen::Vector3f InvSkew(const Eigen::Matrix3f &m) {
 	Eigen::Vector3f v;

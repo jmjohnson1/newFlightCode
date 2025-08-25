@@ -23,7 +23,11 @@ All units meters and radians
 #pragma once
 
 #include <math.h>
+#ifdef SITL_BUILD
+#include <Eigen/Dense>
+#else
 #include "eigen.h"
+#endif
 
 using namespace Eigen;
 

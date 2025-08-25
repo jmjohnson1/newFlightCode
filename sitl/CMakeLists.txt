@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Find required packages
 find_package(Eigen3 REQUIRED)
 find_package(Threads REQUIRED)
+find_package(GSL REQUIRED)
 
 # Optional visualization
 find_package(OpenGL QUIET)
@@ -22,31 +23,32 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_CURRENT_SOURCE_DIR}/../config
-    ${CMAKE_CURRENT_SOURCE_DIR}/../lib/eigen
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib/filters
 )
 
 # Hardware Abstraction Layer
 set(HAL_SOURCES
     src/hal/teensy_hal.cpp
-    src/hal/timer.cpp
-    src/hal/serial.cpp
+    # src/hal/timer.cpp
+    # src/hal/serial.cpp
 )
 
 # Physics Engine
 set(PHYSICS_SOURCES
-    src/physics/quadcopter_dynamics.cpp
-    src/physics/sensor_models.cpp
-    src/physics/environment.cpp
+    # src/physics/quadcopter_dynamics.cpp
+    src/sensor_models.cpp
+    src/dynamics/quadcopter.cpp
+    # src/physics/environment.cpp
 )
 
 # SITL Core
 set(SITL_SOURCES
     src/sitl_main.cpp
-    src/data_logger.cpp
-    src/visualization.cpp
+    # src/data_logger.cpp
+    # src/visualization.cpp
 )
 
-# Flight code sources (adapted from main CMakeLists.txt)
+# Flight code sources
 set(FLIGHT_SOURCES
     ../src/controllers/eulerPID.cpp
     ../src/controllers/dcmPID.cpp
@@ -67,6 +69,8 @@ add_executable(sitl_quadcopter
 target_link_libraries(sitl_quadcopter
     Eigen3::Eigen
     Threads::Threads
+    GSL::gsl
+    GSL::gslcblas
     ${CMAKE_DL_LIBS}
 )
 

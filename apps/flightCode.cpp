@@ -6,9 +6,9 @@
 #undef CR
 #include <dcmPID.h>
 #include <eulerPID.h>
-#include <eigen.h> // Linear algebra
+#include <eigen.h>
 
-#include "SBUS.h"  //sBus interface
+#include "SBUS.h"
 #include "EKF.h"
 #include "IMU.h"
 #include "common.h"

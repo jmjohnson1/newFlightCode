@@ -36,7 +36,7 @@ void SITLIMUModel::update(double dt,
         mag_reading_[i] = true_mag_body[i] + noise;
     }
     
-    // For now, filtered = raw (your flight code will do the filtering)
+    // For now, filtered = raw
     accel_reading_ = accel_raw_;
     gyro_reading_ = gyro_raw_;
 }
