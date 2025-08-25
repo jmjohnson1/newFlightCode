@@ -174,6 +174,6 @@ void QuadcopterModel::Integrate(double t, double dt) {
 
   // Get body frame rotation and specific acceleration for IMU sim
   GetStateDerivative(t, s, dsdt, &params);
-  accel_ = (state_.dcm_body_ned * (Vector3d(dsdt[3], dsdt[4], dsdt[5]) - Vector3d(0, 0, dynamics_math::GRAV))).cast<float>();
-  gyro_ = state_.rot_rate_body_ned.cast<float>();
+  accel_ = state_.dcm_body_ned * (Vector3d(dsdt[3], dsdt[4], dsdt[5]) - Vector3d(0, 0, dynamics_math::GRAV));
+  gyro_ = state_.rot_rate_body_ned;
 }

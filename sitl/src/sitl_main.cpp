@@ -10,6 +10,7 @@
 #include "quadcopter.h"
 #include "sensor_models.h"
 #include "teensy_hal.h"
+#include "nav-functions.h"
 
 // Global simulation components
 SITLIMUModel* imu_sim = nullptr;
@@ -108,8 +109,16 @@ void simulationStep() {
   static int log_counter = 0;
   if (++log_counter % 100 == 0) {  // Log at 20Hz
     log_file << micros() << ",";
+
+    // Convert attitude to euler angles
+    Eigen::Vector3f attitude_euler = DCM2Euler(quad_sim->GetDCM_b_n().cast<float>())
+
     // Add position, attitude, sensor data, motor commands
     log_file << "0,0,0,0,0,0,0,0,0,0,0,0,";  // Dummy physics data
+    log_file << quad_sim->GetPositionNED() << ","
+             << quad_sim->GetVelocityNED() << ","
+             << attitude_euler() << ","
+             << quad_sim->GetOmega_b_n() << "\n";
 
     auto accel = imu_sim->getAccel();
     auto gyro = imu_sim->getGyro();

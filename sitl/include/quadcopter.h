@@ -21,7 +21,7 @@ typedef struct QuadConfig {
 } QuadConfig;
 
 typedef struct ParamsWrapper {
-  Vector4f motor_setpoint;
+  Vector4d motor_setpoint;
   QuadConfig config;
 } ParamsWrapper;
 
@@ -40,8 +40,8 @@ class QuadcopterModel {
   Vector4d GetMotorRates() { return state_.motor_rot_rate; }
   QuadState GetState() { return state_; }
 
-  Vector3f GetTrueAccel() { return accel_; }
-  Vector3f GetTrueGyro() { return gyro_; }
+  Vector3d GetTrueAccel() { return accel_; }
+  Vector3d GetTrueGyro() { return gyro_; }
 
   void SetPositionLLA(const Vector3d &pos) { state_.position_lla = pos; }
   void SetPositionNED(const Vector3d &pos) { state_.position_ned = pos; }
@@ -51,16 +51,16 @@ class QuadcopterModel {
   void SetMotorRates(const Vector4d &omega) { state_.motor_rot_rate = omega; }
   void SetState(const QuadState &state) { state_ = state; }
 
-  void SetMotorInput(const Vector4d &motor_inputs) {motor_setpoint_ = motor_inputs;}
+  void SetMotorInput(const Vector4f &motor_inputs) {motor_setpoint_ = motor_inputs.cast<double>();}
 
  private:
   // making this static so that I can pass it into the ODE framework
   static int GetStateDerivative(double t, const double y[], double dydt[], void *params);
 
-  Vector4f motor_setpoint_ = Eigen::Vector4d::Zero();
+  Vector4d motor_setpoint_ = Eigen::Vector4d::Zero();
   QuadState state_;
   QuadConfig config_;
-  Vector3f gyro_ = Vector3f::Zero();
-  Vector3f accel_ = Vector3f::Zero();
+  Vector3d gyro_ = Vector3d::Zero();
+  Vector3d accel_ = Vector3d::Zero();
   
 };
