@@ -111,14 +111,16 @@ void simulationStep() {
     log_file << micros() << ",";
 
     // Convert attitude to euler angles
-    Eigen::Vector3f attitude_euler = DCM2Euler(quad_sim->GetDCM_b_n().cast<float>())
+    Eigen::Vector3f attitude_euler = DCM2Euler(quad_sim->GetDCM_b_n().cast<float>());
+    Eigen::Vector3d pos = quad_sim->GetPositionNED();
+    Eigen::Vector3d vel = quad_sim->GetVelocityNED();
+    Eigen::Vector3d w_bn = quad_sim->GetOmega_b_n();
 
     // Add position, attitude, sensor data, motor commands
-    log_file << "0,0,0,0,0,0,0,0,0,0,0,0,";  // Dummy physics data
-    log_file << quad_sim->GetPositionNED() << ","
-             << quad_sim->GetVelocityNED() << ","
-             << attitude_euler() << ","
-             << quad_sim->GetOmega_b_n() << "\n";
+    log_file << pos[0] << "," << pos[1] << "," << pos[2] << ","
+             << vel[0] << "," << vel[1] << "," << vel[2] << ","
+             << attitude_euler[0] << "," << attitude_euler[1] << "," << attitude_euler[2] << ","
+             << w_bn[0] << "," << w_bn[1] << "," << w_bn[2] << ",";
 
     auto accel = imu_sim->getAccel();
     auto gyro = imu_sim->getGyro();
@@ -129,28 +131,6 @@ void simulationStep() {
   }
 }
 
-// Mock implementations for sensors
-extern "C" {
-// Mock IMU functions - replace the actual sensor calls
-float mock_accel_x = 0.0f, mock_accel_y = 0.0f, mock_accel_z = -9.81f;
-float mock_gyro_x = 0.0f, mock_gyro_y = 0.0f, mock_gyro_z = 0.0f;
-
-// These would be called IMU.cpp code instead of real sensor reads
-void updateMockIMUData() {
-  if (imu_sim) {
-    auto accel = imu_sim->getAccel();
-    auto gyro = imu_sim->getGyro();
-
-    mock_accel_x = accel[0];
-    mock_accel_y = accel[1];
-    mock_accel_z = accel[2];
-
-    mock_gyro_x = gyro[0];
-    mock_gyro_y = gyro[1];
-    mock_gyro_z = gyro[2];
-  }
-}
-}
 
 // Mock SBUS implementation
 void SITLSBUS::begin() {
@@ -166,22 +146,224 @@ bool SITLSBUS::read(uint16_t* channels, bool* failSafe, bool* lostFrame) {
   return rc_sim->getChannels(channels, failSafe, lostFrame);
 }
 
+// Flight code loop (Copy from flightCode.cpp, removed unwanted functions)
+void Loop() {
+  // Keep track of what time it is and how much time has elapsed since the last loop
+  prev_time = current_time;
+  current_time = micros();
+  dt = (current_time - prev_time) / 1000000.0;
+	quadData.flightStatus.timeSinceBoot = micros();
+
+  loopBlink(); // Indicate we are in main loop with short blink every 1.5 seconds
+
+  if (isnan(quadData.navData.position_NED[0])) {
+    ins.Initialize(quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
+  }
+
+
+  /*telem::Run(quadData, quadIMU);*/
+  /*// Check if parameters have updated*/
+  /*if(quadData.telemData.paramsUpdated == true) {*/
+  /*  quadData.telemData.paramsUpdated = false;*/
+  /*  // Attitude PID gains*/
+  /*  Kp_array[0] = quadData.telemData.paramValues[0]; */
+  /*  Ki_array[0] = quadData.telemData.paramValues[1];*/
+  /*  Kd_array[0] = quadData.telemData.paramValues[2];*/
+  /*  Kp_array[1] = quadData.telemData.paramValues[3]; */
+  /*  Ki_array[1] = quadData.telemData.paramValues[4];*/
+  /*  Kd_array[1] = quadData.telemData.paramValues[5];*/
+  /*  Kp_array[2] = quadData.telemData.paramValues[6]; */
+  /*  Ki_array[2] = quadData.telemData.paramValues[7];*/
+  /*  Kd_array[2] = quadData.telemData.paramValues[8];*/
+  /*  // Position PID gains*/
+  /*  Kp_pos[0] = quadData.telemData.paramValues[9];*/
+  /*  Ki_pos[0] = quadData.telemData.paramValues[10];*/
+  /*  Kd_pos[0] = quadData.telemData.paramValues[11];*/
+  /*  Kp_pos[1] = quadData.telemData.paramValues[9];*/
+  /*  Ki_pos[1] = quadData.telemData.paramValues[10];*/
+  /*  Kd_pos[1] = quadData.telemData.paramValues[11];*/
+  /*  Kp_pos[2] = quadData.telemData.paramValues[12];*/
+  /*  Ki_pos[2] = quadData.telemData.paramValues[13];*/
+  /*  Kd_pos[2] = quadData.telemData.paramValues[14];*/
+  /**/
+  /*  Kp2_array[0] = quadData.telemData.paramValues[21];*/
+  /*  Ki2_array[0] = quadData.telemData.paramValues[23];*/
+  /*  Kd2_array[0] = quadData.telemData.paramValues[22];*/
+  /*  Kp2_array[1] = quadData.telemData.paramValues[21];*/
+  /*  Ki2_array[1] = quadData.telemData.paramValues[23];*/
+  /*  Kd2_array[1] = quadData.telemData.paramValues[22];*/
+  /*  Kp2_array[2] = quadData.telemData.paramValues[21];*/
+  /*  Ki2_array[2] = quadData.telemData.paramValues[23];*/
+  /*  Kd2_array[2] = quadData.telemData.paramValues[22];*/
+  /**/
+  /**/
+  /*  angleController.SetKp(Kp_array);*/
+  /*  angleController.SetKi(Ki_array);*/
+  /*  angleController.SetKd(Kd_array);*/
+  /*  posControl.SetKp(Kp_pos);*/
+  /*  posControl.SetKi(Ki_pos);*/
+  /*  posControl.SetKd(Kd_pos);*/
+  /*  dcmAttControl.SetKp(Kp2_array);*/
+  /*  dcmAttControl.SetKi(Ki2_array);*/
+  /*  dcmAttControl.SetKd(Kd2_array);*/
+  /*}*/
+
+#ifdef USE_EKF
+    if (EKFUpdateTimer > DroneConfig::LOOP_PER_EKF) {
+      EKFUpdateTimer = 0;
+      quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
+      ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
+      quadData.navData.position_NED = ins.Get_PosEst().cast<float>();
+      quadData.navData.velocity_NED = ins.Get_VelEst();
+      quadData.attitudeData.eulerAngles_ekf = ins.Get_OrientEst();
+      quadData.attitudeData.currentDCM = Euler2DCM(quadData.attitudeData.eulerAngles_ekf);
+    }
+    Madgwick6DOF(quadIMU.GetAcc(), quadIMU.GetGyro(), quadData.attitudeData.quat_madgwick, quadData.attitudeData.eulerAngles_madgwick, dt);
+#else
+    if (EKFUpdateTimer > DroneConfig::LOOP_PER_EKF) {
+      Madgwick6DOF(imu_sim.GetAcc(), imu_sim.GetGyro(), quadData.attitudeData.quat_madgwick, quadData.attitudeData.eulerAngles_madgwick, dt);
+    }
+#endif
+
+  // Flight boundary limit
+  if (bndryOnOff == 1) {
+    if (quadData.navData.position_NED[0] > FLIGHT_AREA_X_MAX ||
+        quadData.navData.position_NED[0] < FLIGHT_AREA_X_MIN ||
+        quadData.navData.position_NED[1] > FLIGHT_AREA_Y_MAX ||
+        quadData.navData.position_NED[1] < FLIGHT_AREA_Y_MIN ||
+        quadData.navData.position_NED[2] > FLIGHT_AREA_Z_MAX ||
+        quadData.navData.position_NED[2] < FLIGHT_AREA_Z_MIN) {
+        quadData.flightStatus.inputOverride = true;
+        quadData.telemData.mavlink->throttle_enabled(false);
+        throttleEnabled = false;
+      }
+  }
+#ifdef USE_POSITION_CONTROLLER
+    // TODO: Be better
+    // Check if position Controller enabled
+    Eigen::Vector3f currentPosCovariance = ins.Get_CovPos();
+    if (currentPosCovariance[0] < positionCovarianceLimit &&
+        currentPosCovariance[1] < positionCovarianceLimit &&
+        currentPosCovariance[2] < positionCovarianceLimit) {
+      positionFix = true;
+      quadData.attitudeData.eulerAngles_active = &(quadData.attitudeData.eulerAngles_ekf);
+    } else {
+      positionFix = false;
+      /*positionFix = true;*/
+      quadData.attitudeData.eulerAngles_active = &(quadData.attitudeData.eulerAngles_madgwick);
+    }
+    if (positionCtrlTimer >= DroneConfig::LOOP_PER_POS) {
+      getDesState(); // Convert raw commands to normalized values based on saturated control limits
+      positionCtrlTimer = 0;
+      if (positionFix == true) {
+        customMode = quadData.telemData.mavlink->custom_mode();
+        if (quadData.telemData.mavlink->throttle_enabled()) {
+          if (customMode == bfs::CustomMode::MANUAL) {
+            posControl.Reset();
+          /*} else if (customMode == bfs::CustomMode::TAKEOFF && !TakeoffRampUp.Done()) {*/
+          /*	quadData.flightStatus.thrustSetpoint = TakeoffRampUp.RampIncrement(quadData.flightStatus.thrustSetpoint, DroneConfig::LOOP_PER_POS);*/
+          /*	quadData.attitudeData.eulerAngleSetpoint = *(quadData.attitudeData.eulerAngles_active);*/
+          /*	posControl.Reset();*/
+          } else {
+            spHandler.UpdateSetpoint();
+            posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), quadData.navData.velocitySetpoint_NED,
+                              ins.Get_PosEst(), ins.Get_VelEst(), *(quadData.attitudeData.eulerAngles_active), dt, false);
+            if (customMode == bfs::CustomMode::TAKEOFF || customMode == bfs::CustomMode::LANDING) {
+              quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+              quadData.attitudeData.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
+              quadData.attitudeData.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
+            } else if (customMode == bfs::CustomMode::POSITION || customMode == bfs::CustomMode::MISSION) {
+              // This is a little dirty.
+              // Reset this because we know takeoff is done and this won't cause problems with the earlier if statement.
+              TakeoffRampUp.Reset();
+              quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+              quadData.attitudeData.eulerAngleSetpoint[0] = posControl.GetDesiredRoll();
+              quadData.attitudeData.eulerAngleSetpoint[1] = posControl.GetDesiredPitch();
+
+            } else if (customMode == bfs::CustomMode::ALTITUDE) {
+              quadData.flightStatus.thrustSetpoint = posControl.GetDesiredThrust();
+            }
+          }
+        }
+      } else {
+        posControl.Reset();
+      }
+      // We can set the thrust input now
+      quadData.flightStatus.controlInputs[0] = quadData.flightStatus.thrustSetpoint;
+      // Save the setpoint as a quaternion too
+      quadData.attitudeData.quatSetpoint = Euler2Quat(quadData.attitudeData.eulerAngleSetpoint);
+    }
+    # else
+      // Compute desired state based on radio inputs
+      getDesState(); // Convert raw commands to normalized values based on saturated control limits
+      quadData.flightStatus.controlInputs[0] = quadData.flightStatus.thrustSetpoint;
+      quadData.att.quatSetpoint = Euler2Quat(quadData.att.eulerAngleSetpoint);
+#endif
+    
+
+    bool noIntegral = false;
+    if (quadData.flightStatus.thrustSetpoint < 0.5f || throttleEnabled == false) {
+      noIntegral = true;
+    }
+    
+    if (attitudeCtrlTimer >= DroneConfig::LOOP_PER_ATT) {
+      attitudeCtrlTimer = 0;
+      Eigen::Vector3f gyroRates = {quadIMU.GetGyroX(), quadIMU.GetGyroY(), quadIMU.GetGyroZ()};
+      /*if (customMode == bfs::CustomMode::MANUAL ||*/
+      /*    customMode == bfs::CustomMode::ALTITUDE) {*/
+      /*  // FIXME: Make the function take Eigen::Vector or give up on it*/
+      /*  angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, dt, noIntegral);*/
+      /*  quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();*/
+      /*} else {*/
+      /*  angleController.Update(quadData.att.eulerAngleSetpoint.data(), quadData.att, gyroRates, dt, noIntegral);*/
+      /*  quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();*/
+      /*  // dcmAttControl.Update(quadData.att, gyroRates, dt);*/
+      /*  // quadData.flightStatus.controlInputs(lastN(3)) = dcmAttControl.GetControlTorque();*/
+      /*}*/
+      angleController.Update(quadData.attitudeData.eulerAngleSetpoint, *(quadData.attitudeData.eulerAngles_active),
+                             gyroRates, dt, noIntegral, quadData.attitudeData.yawRateSetpoint, positionFix);
+      quadData.flightStatus.controlInputs(lastN(3)) = angleController.GetMoments();
+    }
+
+    // Convert thrust and moments from controller to angular rates
+    if (quadData.telemData.mavlink->throttle_enabled()) {
+      quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs, quadProps::ALLOCATION_MATRIX_INV);
+    } else {
+      quadData.flightStatus.motorRates = Eigen::Vector4f::Zero();
+    }
+    // Convert angular rates to PWM commands
+    motors.ScaleCommand(quadData.flightStatus.motorRates);
+
+    float motorCommands_norm[4];
+    motors.GetMotorCommands(motorCommands_norm);
+    for (int i = 0; i < 4; i++) {
+      quadData.flightStatus.motorRates_norm(i) = motorCommands_norm[i];
+    }
+
+    motors.CommandMotor();
+
+
+    // Get vehicle commands for next loop iteration
+    getCommands(); // Pulls current available radio commands
+    failSafe();    // Prevent failures in event of bad receiver connection, defaults to failsafe values assigned in setup
+
+
+    // Regulate loop rate
+    loopRate(DroneConfig::LOOP_RATE_FC); 
+}
 // Main simulation loop
 int main(int argc, char* argv[]) {
   initializeSITL();
 
   // Start your flight code in a separate thread
   std::thread flight_thread([]() {
-    // This is where you'd call your main flight code
-    // You'll need to modify your main flight loop to work with SITL
-    // Setup(); // Your flight code setup
+    // Setup();
     // while(sim_running) {
-    //     Loop(); // Your flight code loop
+    //     Loop();
     // }
 
     // For now, just run a simple loop
     while (sim_running) {
-      updateMockIMUData();
       std::this_thread::sleep_for(std::chrono::microseconds(500));  // 2kHz
     }
   });

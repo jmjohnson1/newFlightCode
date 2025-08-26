@@ -1,8 +1,15 @@
 #ifndef COMMON_DEFS_H
 #define COMMON_DEFS_H
+
+#ifdef BUILD_SITL
+#include <Eigen/Dense>
+#include "teensy_hal.h"
+#include "MockMavlink.h"
+#else
 #include "eigen.h"
-#include "UserDefines.h"
 #include "mavlink.h"  // BFS Mavlink implementation
+#endif
+#include "UserDefines.h"
 #include "defaultParams.h"
 
 // Define some constants for mission parameters
