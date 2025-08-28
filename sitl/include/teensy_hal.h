@@ -56,6 +56,7 @@ public:
 
 extern SITLSerial Serial;
 extern SITLSerial Serial5;
+extern SITLSerial Serial2;
 
 // elapsedMicros simulation
 class elapsedMicros {

@@ -1,14 +1,21 @@
 #ifndef IMU_H
 #define IMU_H
 
-#include <stdint.h>
-#include "Wire.h"
+#ifdef BUILD_SITL
+#include <Eigen/Dense>
+
+#include "sensor_models.h"
+#include "teensy_hal.h"
+#else
+#include "BMI088.h"
 #include "MPU6050.h"
+#include "Wire.h"
 #include "eigen.h"
+#endif
+#include <stdint.h>
+
 #include "UserDefines.h"
 #include "filter.h"
-#include "BMI088.h"
-
 
 // Setup gyro and accel full scale value selection and scale factor
 
@@ -50,101 +57,112 @@
 #endif
 
 class Generic_IMU {
-public:
-    Generic_IMU(const Eigen::Vector3f &accNullShift, const Eigen::Vector3f &gyroNullShift);
+ public:
+  Generic_IMU(const Eigen::Vector3f& accNullShift, const Eigen::Vector3f& gyroNullShift);
 
-	float GetAccX() const {return accX_;}
-	float GetAccY() const {return accY_;}
-	float GetAccZ() const {return accZ_;}
-	float GetGyroX() const {return gyroX_;}
-	float GetGyroY() const {return gyroY_;}
-	float GetGyroZ() const {return gyroZ_;}
-	float GetAccXRaw() const {return accXRaw_;}
-	float GetAccYRaw() const {return accYRaw_;}
-	float GetAccZRaw() const {return accZRaw_;}
-	float GetGyroXRaw() const {return gyroXRaw_;}
-	float GetGyroYRaw() const {return gyroYRaw_;}
-	float GetGyroZRaw() const {return gyroZRaw_;}
+  float GetAccX() const { return accX_; }
+  float GetAccY() const { return accY_; }
+  float GetAccZ() const { return accZ_; }
+  float GetGyroX() const { return gyroX_; }
+  float GetGyroY() const { return gyroY_; }
+  float GetGyroZ() const { return gyroZ_; }
+  float GetAccXRaw() const { return accXRaw_; }
+  float GetAccYRaw() const { return accYRaw_; }
+  float GetAccZRaw() const { return accZRaw_; }
+  float GetGyroXRaw() const { return gyroXRaw_; }
+  float GetGyroYRaw() const { return gyroYRaw_; }
+  float GetGyroZRaw() const { return gyroZRaw_; }
 
-	const float* GetAccXPtr() {return &(accX_);}
-	const float* GetAccYPtr() {return &(accY_);}
-	const float* GetAccZPtr() {return &(accZ_);}
-	const float* GetGyroXPtr() {return &(gyroX_);}
-	const float* GetGyroYPtr() {return &(gyroY_);}
-	const float* GetGyroZPtr() {return &(gyroZ_);}
-	const float* GetAccXPtrRaw() {return &(accXRaw_);}
-	const float* GetAccYPtrRaw() {return &(accYRaw_);}
-	const float* GetAccZPtrRaw() {return &(accZRaw_);}
-	const float* GetGyroXPtrRaw() {return &(gyroXRaw_);}
-	const float* GetGyroYPtrRaw() {return &(gyroYRaw_);}
-	const float* GetGyroZPtrRaw() {return &(gyroZRaw_);}
+  const float* GetAccXPtr() { return &(accX_); }
+  const float* GetAccYPtr() { return &(accY_); }
+  const float* GetAccZPtr() { return &(accZ_); }
+  const float* GetGyroXPtr() { return &(gyroX_); }
+  const float* GetGyroYPtr() { return &(gyroY_); }
+  const float* GetGyroZPtr() { return &(gyroZ_); }
+  const float* GetAccXPtrRaw() { return &(accXRaw_); }
+  const float* GetAccYPtrRaw() { return &(accYRaw_); }
+  const float* GetAccZPtrRaw() { return &(accZRaw_); }
+  const float* GetGyroXPtrRaw() { return &(gyroXRaw_); }
+  const float* GetGyroYPtrRaw() { return &(gyroYRaw_); }
+  const float* GetGyroZPtrRaw() { return &(gyroZRaw_); }
 
-	Eigen::Vector3f GetAcc() const {return Eigen::Vector3f(accX_, accY_, accZ_);}
-	Eigen::Vector3f GetGyro() const {return Eigen::Vector3f(gyroX_, gyroY_, gyroZ_);}
-	
-	virtual void Update() {Serial.println("wrong function dummy."); }
+  Eigen::Vector3f GetAcc() const { return Eigen::Vector3f(accX_, accY_, accZ_); }
+  Eigen::Vector3f GetGyro() const { return Eigen::Vector3f(gyroX_, gyroY_, gyroZ_); }
 
-	void SetAccNullShift(Eigen::Vector3f& NullShift) {
-		accNullShiftX_ = NullShift(0);
-		accNullShiftY_ = NullShift(1);
-		accNullShiftZ_ = NullShift(2);
-	}
-	void SetGyroNullShift(Eigen::Vector3f& NullShift) {
-		gyroNullShiftX_ = NullShift(0);
-		gyroNullShiftY_ = NullShift(1);
-		gyroNullShiftZ_ = NullShift(2);
-	}
+  virtual void Update() { Serial.println("wrong function dummy."); }
 
-	bool Init();
+  void SetAccNullShift(Eigen::Vector3f& NullShift) {
+    accNullShiftX_ = NullShift(0);
+    accNullShiftY_ = NullShift(1);
+    accNullShiftZ_ = NullShift(2);
+  }
+  void SetGyroNullShift(Eigen::Vector3f& NullShift) {
+    gyroNullShiftX_ = NullShift(0);
+    gyroNullShiftY_ = NullShift(1);
+    gyroNullShiftZ_ = NullShift(2);
+  }
 
-protected:
-	float accX_, accY_, accZ_;
-	float gyroX_, gyroY_, gyroZ_;
-	float accXRaw_, accYRaw_, accZRaw_;
-	float gyroXRaw_, gyroYRaw_, gyroZRaw_;
-	float accNullShiftX_, accNullShiftY_, accNullShiftZ_;
-	float gyroNullShiftX_, gyroNullShiftY_, gyroNullShiftZ_;
+  bool Init();
 
-    // Lowpass filters
-	butterworth2_t accelFilter_1;
-	butterworth2_t accelFilter_2;
-	butterworth2_t accelFilter_3;
-	butterworth2_t gyroFilter_1;
-	butterworth2_t gyroFilter_2;
-	butterworth2_t gyroFilter_3;
-	float gyroFilterCutoff = 50;  // Hz
-	float accelFilterCutoff = 50;  // Hz
-	// FIXME: don't hardcode this
-	float sampleFreq = 2000;  // Hz
+ protected:
+  float accX_, accY_, accZ_;
+  float gyroX_, gyroY_, gyroZ_;
+  float accXRaw_, accYRaw_, accZRaw_;
+  float gyroXRaw_, gyroYRaw_, gyroZRaw_;
+  float accNullShiftX_, accNullShiftY_, accNullShiftZ_;
+  float gyroNullShiftX_, gyroNullShiftY_, gyroNullShiftZ_;
 
+  // Lowpass filters
+  butterworth2_t accelFilter_1;
+  butterworth2_t accelFilter_2;
+  butterworth2_t accelFilter_3;
+  butterworth2_t gyroFilter_1;
+  butterworth2_t gyroFilter_2;
+  butterworth2_t gyroFilter_3;
+  float gyroFilterCutoff = 50;   // Hz
+  float accelFilterCutoff = 50;  // Hz
+  // FIXME: don't hardcode this
+  float sampleFreq = 2000;  // Hz
 };
 
+#ifndef BUILD_SITL
 class mpu6050 : public Generic_IMU {
-public:
-	mpu6050(const Eigen::Vector3f &accNullShift, const Eigen::Vector3f &gyroNullShift);
-	~mpu6050();
-	void Update();
-	bool Init(TwoWire *i2c);
+ public:
+  mpu6050(const Eigen::Vector3f& accNullShift, const Eigen::Vector3f& gyroNullShift);
+  ~mpu6050();
+  void Update();
+  bool Init(TwoWire* i2c);
 
-private:
-	MPU6050 *mpu6050_ = NULL;
-	TwoWire *i2c_ = NULL;
+ private:
+  MPU6050* mpu6050_ = nullptr;
+  TwoWire* i2c_ = nullptr;
 };
-
 
 class bmi088 : public Generic_IMU {
-public:
-  bmi088(const Eigen::Vector3f &accNullShift,
-         const Eigen::Vector3f &gyroNullShift, SPIClass &spi, uint8_t accel_cs,
+ public:
+  bmi088(const Eigen::Vector3f& accNullShift, const Eigen::Vector3f& gyroNullShift, SPIClass& spi, uint8_t accel_cs,
          uint8_t gyro_cs, const int accRange, const int gyroRange);
   ~bmi088();
   bool Init();
   void Update();
 
-private:
-	Bmi088 *bmi088_ = NULL;
-	Bmi088::AccelRange accRange = Bmi088::ACCEL_RANGE_6G;
-	Bmi088::GyroRange gyroRange = Bmi088::GYRO_RANGE_500DPS;
-
+ private:
+  Bmi088* bmi088_ = nullptr;
+  Bmi088::AccelRange accRange = Bmi088::ACCEL_RANGE_6G;
+  Bmi088::GyroRange gyroRange = Bmi088::GYRO_RANGE_500DPS;
 };
+
+#else
+
+class SITL_IMU : public Generic_IMU {
+ public:
+  SITL_IMU(SITLIMUModel *imu_model, const Eigen::Vector3f& accNullShift, const Eigen::Vector3f& gyroNullShift);
+  void Update();
+
+ private:
+  SITLIMUModel *imu_model_ = nullptr;
+};
+
+#endif
+
 #endif

@@ -1,7 +1,11 @@
 #ifndef STATFUN_H
 #define STATFUN_H
 
+#ifdef BUILD_SITL
+#include <Eigen/Dense>
+#else
 #include "eigen.h"
+#endif
 
 using namespace Eigen;
 
@@ -9,4 +13,4 @@ void LinearInterp(const Ref<const VectorXf> x, const Ref<const VectorXf> y, cons
 float RMSE(const Ref<const VectorXf> x, const Ref<const VectorXf> y);
 int NearestNeighbor(const Ref<const VectorXf> vec, float value);
 
-#endif
+#endif //STATFUN_H
