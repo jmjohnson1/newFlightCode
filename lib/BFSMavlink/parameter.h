@@ -26,10 +26,14 @@
 #ifndef MAVLINK_SRC_PARAMETER_H_  // NOLINT
 #define MAVLINK_SRC_PARAMETER_H_
 
+#ifdef SITL_BUILD
+#include "teensy_hal.h"
+#else
 #if defined(ARDUINO)
 #include "Arduino.h"
 #else
 #include "core/core.h"
+#endif
 #endif
 #include <array>
 #include <string>

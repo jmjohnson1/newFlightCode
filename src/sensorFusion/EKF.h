@@ -23,11 +23,15 @@ All units meters and radians
 
 #include <stdint.h>
 #include <math.h>
+#ifdef SITL_BUILD
+#include <Eigen/Dense>
+#else
 #include "eigen.h"
-using namespace Eigen;
+#endif
 
 #include "nav-functions.h"
 
+using namespace Eigen;
 class EKF {
   public:
     EKF() {};

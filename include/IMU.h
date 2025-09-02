@@ -1,7 +1,7 @@
 #ifndef IMU_H
 #define IMU_H
 
-#ifdef BUILD_SITL
+#ifdef SITL_BUILD
 #include <Eigen/Dense>
 
 #include "sensor_models.h"
@@ -125,7 +125,7 @@ class Generic_IMU {
   float sampleFreq = 2000;  // Hz
 };
 
-#ifndef BUILD_SITL
+#ifndef SITL_BUILD
 class mpu6050 : public Generic_IMU {
  public:
   mpu6050(const Eigen::Vector3f& accNullShift, const Eigen::Vector3f& gyroNullShift);
@@ -156,7 +156,8 @@ class bmi088 : public Generic_IMU {
 
 class SITL_IMU : public Generic_IMU {
  public:
-  SITL_IMU(SITLIMUModel *imu_model, const Eigen::Vector3f& accNullShift, const Eigen::Vector3f& gyroNullShift);
+  SITL_IMU(const Eigen::Vector3f& accNullShift, const Eigen::Vector3f& gyroNullShift);
+  bool Init(SITLIMUModel* model);
   void Update();
 
  private:

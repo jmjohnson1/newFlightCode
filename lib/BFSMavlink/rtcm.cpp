@@ -23,10 +23,14 @@
 * IN THE SOFTWARE.
 */
 
+#ifdef SITL_BUILD
+#include "teensy_hal.h"
+#else
 #if defined(ARDUINO)
 #include "Arduino.h"
 #else
 #include "core/core.h"
+#endif
 #endif
 #include "rtcm.h"  // NOLINT
 #include "mavlink/mavlink_types.h"

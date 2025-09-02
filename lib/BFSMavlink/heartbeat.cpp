@@ -23,7 +23,11 @@
 * IN THE SOFTWARE.
 */
 
+#ifdef SITL_BUILD
+#include "teensy_hal.h"
+#else
 #include "Arduino.h"
+#endif
 #include "heartbeat.h"  // NOLINT
 #include "mavlink/mavlink_types.h"
 #include "mavlink/common/mavlink.h"

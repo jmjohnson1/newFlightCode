@@ -176,7 +176,7 @@ inline void GetDefaultTelemParams(uint8_t paramBuf[PARAM_SIZE]) {
   std::memcpy(&(paramBuf[1]), &(paramDefaultVals[0]), NUM_PARAMS*sizeof(float));
 
   // This is also stupid
-  for (int i = 0; i < NUM_PARAMS; i++) {
+  for (unsigned int i = 0; i < NUM_PARAMS; i++) {
     std::memcpy(&(paramBuf[1 + NUM_PARAMS*sizeof(float) + i*sizeof(char[16])]), paramDefaultIDs[i], sizeof(char[16]));
   }
 }

@@ -1,6 +1,6 @@
 #include "radio.h"
 
-RadioChannel::RadioChannel(String name, uint8_t channel, uint16_t zeroPoint, 
+RadioChannel::RadioChannel(std::string name, uint8_t channel, uint16_t zeroPoint, 
 													 uint16_t failsafe, bool critical, uint16_t minRange, uint16_t maxRange) {
 	name_ = name;
 	rawValue_ = failsafe;

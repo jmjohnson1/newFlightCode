@@ -1,14 +1,14 @@
 #ifndef DRONE_CONFIG_H
 #define DRONE_CONFIG_H
 
-#include <TeensyLog.h>
+/*#include <TeensyLog.h>*/
 #include <stdint.h>
 
 namespace DroneConfig {
 
 // You can edit these
 // Logging
-const int LogLevel = LOG_LEVEL_VERBOSE;
+const int LogLevel = 6;
 constexpr bool LOG_VERBOSE_RADIO_PWM = false;
 constexpr bool LOG_VERBOSE_CONTROL_INPUTS = false;
 constexpr bool LOG_VERBOSE_MOTOR_COMMANDS = true;

@@ -26,7 +26,11 @@
 #ifndef MAVLINK_SRC_MAVLINK_H_  // NOLINT
 #define MAVLINK_SRC_MAVLINK_H_
 
+#ifdef SITL_BUILD
+#include "teensy_hal.h"
+#else
 #include "Arduino.h"
+#endif
 #include <string>
 #include "mavlink/mavlink_types.h"
 #include "mavlink/common/mavlink.h"

@@ -54,7 +54,7 @@ class SITLIMUModel {
   Eigen::Vector3f getAccelRaw() const { return accel_raw_.cast<float>(); }
   Eigen::Vector3f getGyroRaw() const { return gyro_raw_.cast<float>(); }
 
-  // Reset biases (simulate IMU calibration)
+  // Reset biases
   void resetBiases();
 
  private:

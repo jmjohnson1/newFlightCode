@@ -26,12 +26,17 @@
 #ifndef MAVLINK_SRC_TELEMETRY_H_  // NOLINT
 #define MAVLINK_SRC_TELEMETRY_H_
 
+#ifdef SITL_BUILD
+#include "teensy_hal.h"
+#include <optional>
+#else
 #if defined(ARDUINO)
 #include "Arduino.h"
 #include "optional.hpp"
 #else
 #include <optional>
 #include "core/core.h"
+#endif
 #endif
 #include <array>
 #include "mavlink/mavlink_types.h"

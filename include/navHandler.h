@@ -78,9 +78,9 @@ class TakeoffRamp {
   bool done_ = false;
 	bool maxThrustReached_ = false;
 	elapsedMicros timer_;
-  const uint64_t waitTime_us_;
   const float maxThrust_;
   const float rate_;
+  const uint64_t waitTime_us_;
 };
 
 #endif

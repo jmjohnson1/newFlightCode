@@ -1,6 +1,7 @@
 #ifndef MOCK_MAVLINK_H
 #define MOCK_MAVLINK_H
 
+#include <array>
 #include "teensy_hal.h"
 
 namespace bfs {
@@ -25,6 +26,13 @@ enum CustomMode : uint32_t {
   MISSION,
   TAKEOFF, 
   LANDING,
+};
+
+enum AircraftType : int8_t {
+  FIXED_WING = 0,
+  HELICOPTER = 1,
+  MULTIROTOR = 2,
+  VTOL = 3
 };
 
 template <std::size_t N, std::size_t M>
@@ -100,7 +108,7 @@ class MavLink {
   inline bool param_reset() { return false; }
   // Always return true for sim (for now)
   inline bool throttle_enabled() { return true; }
-  inline bool throttle_enabled(bool val) { (void)val; }
+  inline void throttle_enabled(bool val) { (void)val; }
 
 
   // Mission
@@ -123,10 +131,6 @@ class MavLink {
   inline float new_setpoint_z() { return newPositionSetpointRequestZ_; }
 
   // Parameters
-  inline void param(const int32_t i, const float val) {
-    (void)i;
-    (void)val;
-  }
   inline int32_t updated_param() {return -1;}
 
   // Mode
@@ -135,6 +139,42 @@ class MavLink {
   }
   inline uint32_t custom_mode() {
     return custom_mode_;
+  }
+  inline void params(const std::array<float, N> &val) {
+    for (std::size_t i = 0; i < N; i++) {
+      params_[i].val = val[i];
+    }
+  }
+  inline std::array<float, N> params() const {
+    std::array<float, N> ret;
+    for (std::size_t i = 0; i < N; i++) {
+      ret[i] = params_[i].val;
+    }
+    return ret;
+  }
+  inline float param(const int32_t idx) const {
+    if ((idx < 0) || (idx > N)) {
+      return 0.0f;
+    }
+    return params_[idx].val;
+  }
+  inline void param(const int32_t idx, const float val) {
+    if ((idx < 0) || (idx > N)) {
+      return;
+    }
+    params_[idx].val = val;
+  }
+  template<std::size_t NCHAR>
+  inline void param_id(const int32_t idx, char const (&name)[NCHAR]) {
+    static_assert(NCHAR < 18, "Parameter name limited to 16 characters");
+    if ((idx < 0) || (idx > N)) {return;}
+    params_[idx].param_id = name;
+  }
+  inline std::string param_id(const int32_t idx) const {
+    if ((idx < 0) || (idx > N)) {
+      return std::string();
+    }
+    return params_[idx].param_id;
   }
 
  private:
@@ -153,6 +193,13 @@ class MavLink {
   float newPositionSetpointRequestZ_ = 0.0f;
 
   uint32_t custom_mode_ = 0;
+
+  struct Param {
+    std::string param_id;
+    float val;
+    uint16_t param_index;
+  };
+  Param params_[N];
 };
 
 }  // namespace bfs

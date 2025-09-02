@@ -20,6 +20,7 @@ bool Generic_IMU::Init() {
 	return true;
 }
 
+#ifndef SITL_BUILD
 /**
  * The caller must pass in constant null shift values for the IMU.
 */
@@ -142,3 +143,43 @@ void bmi088::Update() {
 	gyroZ_ = butterworth2_apply(&gyroFilter_3, gyroZRaw_);
 
 }
+
+#else
+
+SITL_IMU::SITL_IMU(const Eigen::Vector3f &accNullShift, 
+                   const Eigen::Vector3f &gyroNullShift) 
+  : Generic_IMU::Generic_IMU(accNullShift, gyroNullShift) {
+}
+
+bool SITL_IMU::Init(SITLIMUModel* model) {
+  imu_model_ = model;
+  return true;
+}
+
+void SITL_IMU::Update() {
+  Eigen::Vector3f accel = imu_model_->getAccel();
+  Eigen::Vector3f gyro = imu_model_->getGyro();
+  accXRaw_ = accel(0);
+  accYRaw_ = accel(1);
+  accZRaw_ = accel(2);
+  gyroXRaw_ = gyro(0);
+  gyroYRaw_ = gyro(1);
+  gyroZRaw_ = gyro(2);
+
+	// Applying null shift bias
+	accXRaw_ -= accNullShiftX_;
+	accYRaw_ -= accNullShiftY_;
+	accZRaw_ -= accNullShiftZ_;
+	gyroXRaw_ -= gyroNullShiftX_;
+	gyroYRaw_ -= gyroNullShiftY_;
+	gyroZRaw_ -= gyroNullShiftZ_;
+
+	// Applying Filter
+	accX_ = butterworth2_apply(&accelFilter_1, accXRaw_);
+	accY_ = butterworth2_apply(&accelFilter_2, accYRaw_);
+	accZ_ = butterworth2_apply(&accelFilter_3, accZRaw_);
+	gyroX_ = butterworth2_apply(&gyroFilter_1, gyroXRaw_);
+	gyroY_ = butterworth2_apply(&gyroFilter_2, gyroYRaw_);
+	gyroZ_ = butterworth2_apply(&gyroFilter_3, gyroZRaw_);
+}
+#endif

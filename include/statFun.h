@@ -1,7 +1,7 @@
 #ifndef STATFUN_H
 #define STATFUN_H
 
-#ifdef BUILD_SITL
+#ifdef SITL_BUILD
 #include <Eigen/Dense>
 #else
 #include "eigen.h"

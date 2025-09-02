@@ -1,10 +1,11 @@
 #ifndef COMMON_DEFS_H
 #define COMMON_DEFS_H
 
-#ifdef BUILD_SITL
+#ifdef SITL_BUILD
 #include <Eigen/Dense>
 #include "teensy_hal.h"
-#include "MockMavlink.h"
+/*#include "MockMavlink.h"*/
+#include "mavlink.h"  // BFS Mavlink implementation
 #else
 #include "eigen.h"
 #include "mavlink.h"  // BFS Mavlink implementation

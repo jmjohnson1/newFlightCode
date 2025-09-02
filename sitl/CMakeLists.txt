@@ -24,29 +24,28 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_CURRENT_SOURCE_DIR}/../config
     ${CMAKE_CURRENT_SOURCE_DIR}/../lib/filters
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib/BFSChecksum
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib/BFSMavlink
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib/BFSUnits
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/sensorFusion
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controllers
 )
 
 # Hardware Abstraction Layer
 set(HAL_SOURCES
     src/hal/teensy_hal.cpp
-    # src/hal/timer.cpp
-    # src/hal/serial.cpp
+    src/hal/NetworkSerial.cpp
 )
 
 # Physics Engine
 set(PHYSICS_SOURCES
-    # src/physics/quadcopter_dynamics.cpp
     src/sensor_models.cpp
     src/dynamics/quadcopter.cpp
-    # src/physics/environment.cpp
 )
 
 # SITL Core
 set(SITL_SOURCES
     src/sitl_main.cpp
-    # src/data_logger.cpp
-    # src/visualization.cpp
 )
 
 # Flight code sources
@@ -55,7 +54,33 @@ set(FLIGHT_SOURCES
     ../src/controllers/dcmPID.cpp
     ../src/sensorFusion/madgwick.cpp
     ../src/sensorFusion/nav-functions.cpp
+    ../src/sensorFusion/EKF.cpp
+
     ../lib/filters/filter.cpp
+    ../lib/BFSChecksum/checksum.cpp
+
+    ../lib/BFSMavlink/heartbeat.cpp
+    ../lib/BFSMavlink/mission.cpp
+    ../lib/BFSMavlink/rtcm.cpp
+    ../lib/BFSMavlink/telemetry.cpp
+    
+    ../lib/BFSUnits/convacc.cpp
+    ../lib/BFSUnits/convang.cpp
+    ../lib/BFSUnits/convangacc.cpp
+    ../lib/BFSUnits/convangvel.cpp
+    ../lib/BFSUnits/convdensity.cpp
+    ../lib/BFSUnits/convforce.cpp
+    ../lib/BFSUnits/convlength.cpp
+    ../lib/BFSUnits/convmass.cpp
+    ../lib/BFSUnits/convpres.cpp
+    ../lib/BFSUnits/convtemp.cpp
+    ../lib/BFSUnits/convvel.cpp
+
+    ../src/navHandler.cpp
+    ../src/radio.cpp
+    ../src/statFun.cpp
+    ../src/telemetry.cpp
+    ../src/IMU.cpp
 )
 
 # Create SITL executable

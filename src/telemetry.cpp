@@ -1,7 +1,13 @@
-#include "EEPROM.h"
 #include "telemetry.h"
 #include "defaultParams.h"
 #include "checksum.h"
+#ifdef SITL_BUILD
+#include "eeprom_sim.h"
+#else
+#include "EEPROM.h"
+#endif
+
+
 
 uint8_t param_buf[PARAM_SIZE];
 bfs::Fletcher16 param_checksum;
