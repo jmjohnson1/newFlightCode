@@ -1,6 +1,6 @@
 # ignore build files and binaries
-build/*
-bin/*
+build/
+bin/
 
 # ignore compile_commands
 compile_commands.json
@@ -10,5 +10,5 @@ compile_commands.json
 .DS_Store
 
 # ignore lsp stuff
-.cache/*
-.vscode/*
+.cache/
+.vscode/
