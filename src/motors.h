@@ -10,6 +10,7 @@ public:
   Motors(const uint8_t motorPins[4], int minPulseDuration, int maxPulseDuration);
   void ScaleCommand(Eigen::Vector4f &angularRates);
   void CommandMotor();
+  void CommandMotor(int command);
   void ArmMotors();
   
   // Getters

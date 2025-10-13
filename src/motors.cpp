@@ -59,6 +59,16 @@ void Motors::CommandMotor() {
 }
 
 /**
+ * @brief Writes to the motor pins
+*/
+void Motors::CommandMotor(int command) {
+  command = constrain(command, 0, 180);
+	for (int i = 0; i < 4; i++) {
+		motorServos_[i].write(command);
+	}
+}
+
+/**
  * @brief Arms the motors by continually providing idle commands
 */
 void Motors::ArmMotors() {

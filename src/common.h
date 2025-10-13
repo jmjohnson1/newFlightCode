@@ -98,7 +98,8 @@ typedef struct Quadcopter_s {
 namespace quadProps {
 	constexpr float MAX_ANGLE = 30.0f;  // Maximum pitch/roll angle in degrees
 	constexpr float MIN_THRUST = 1.0f;  // Minimum total thrust (N)
-  constexpr float QUAD_MASS = 1.2f;  // Quadcopter mass (kg)
+  /*constexpr float QUAD_MASS = 1.2f;  // Quadcopter mass (kg)*/
+  constexpr float QUAD_MASS = 1.54f;  // Quadcopter mass (kg)
 
   constexpr float DIST_X_F = 0.08665f; // x Distance from CoM to front motors [m]
   constexpr float DIST_Y_F = 0.13938f; // x Distance from CoM to front motors [m]
@@ -106,7 +107,10 @@ namespace quadProps {
   constexpr float DIST_Y_B = 0.11383f; // x Distance from CoM to front motors [m]
 
   // EMAX ECO II 1300KV with HQProp 7x4x3
-  constexpr float K_T = 4.8e-6;  // Thrust coefficient [N/(rad/s^2)]
+  /*constexpr float K_T = 4.8e-6;  // Thrust coefficient [N/(rad/s^2)]*/
+  /*constexpr float K_M = 7.7e-8;  // Motor torque coefficient [Nm/(rad/s^2)]*/
+  // Brother Hobby motors with prop duct
+  constexpr float K_T = 3.6e-6;  // Thrust coefficient [N/(rad/s^2)]
   constexpr float K_M = 7.7e-8;  // Motor torque coefficient [Nm/(rad/s^2)]
   #if defined BAT_3S
 	constexpr float MAX_THRUST = 32.0f;  // Maximum total thrust (N)

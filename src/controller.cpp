@@ -134,7 +134,7 @@ float AngleAttitudeController::AnglePID(float setpoint, float measuredAngle,
 			error -= 2*M_PI;
 		}
 	}
-  float integral = *integral_prev + error * dt;
+  float integral = Ki*(*integral_prev + error * dt);
   if (noIntegral) { // Don't let integrator build if this is set
     integral = 0.0f;
   } 
@@ -142,7 +142,7 @@ float AngleAttitudeController::AnglePID(float setpoint, float measuredAngle,
   integral = constrain(integral, -iLimit_, iLimit_);
 	// This is an approximation of the error derivative
   float derivative = -gyroRate; 
-  float PIDOutput = (Kp * error + Ki * integral + Kd * derivative);
+  float PIDOutput = (Kp * error + integral + Kd * derivative);
   *integral_prev = integral;
 
   return PIDOutput;
@@ -174,12 +174,12 @@ float AngleAttitudeController::RatePID(float setpoint, float measuredRate,
     return 0.0f;
   }
   float error = setpoint - measuredRate;
-  float integral = *integral_prev + error * dt;
+  float integral = Ki*(*integral_prev + error * dt);
   if (noIntegral) {
     integral = 0.0f;
   }
   integral = constrain(integral, -iLimit_, iLimit_);
-  float PIDOutput = (Ki * integral + Kp * error);
+  float PIDOutput = (integral + Kp * error);
   *integral_prev = integral;
   *error_prev = error;
   return PIDOutput;
@@ -247,7 +247,7 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   float maxAngle_sinArg = sin(quadProps::MAX_ANGLE * DEG_TO_RAD);
 
   posError_ned = (posSetpoints - currentPosition).cast<float>();
-  integral = prevIntegral_ + posError_ned * dt;
+  integral = Ki_*(prevIntegral_ + posError_ned * dt);
   // Prevent integral from building up if the thrust is low (noIntegral passed
   // as true).
   if (noIntegral) {
@@ -261,7 +261,7 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   derivative = velocitySetpoints - currentVelocity;
 
   // Calculate desired acceleration in the NED frame using PID
-  desAcc_ned = Kp_ * posError_ned + Ki_ * integral + Kd_ * derivative;
+  desAcc_ned = Kp_ * posError_ned + integral + Kd_ * derivative;
 
 	prevError_ = posError_ned;
 	prevIntegral_ = integral;

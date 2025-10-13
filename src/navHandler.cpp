@@ -32,7 +32,7 @@ void SetpointHandler::TakeoffSetpoint() {
     // Set all setpoints to the current position
     takeoffSetpoint_ = quadData_->navData.position_NED;
     // Set the third component to the desired altitude (remember Z down)
-    takeoffSetpoint_[2] = -0.75;
+    takeoffSetpoint_[2] = -0.5;
 		// Start the timer here and tell the main loop it should spin up the props a little
 		quadData_->flightStatus.doTakeoffSpin = true;
 		quadData_->flightStatus.takeoffSpinTimer = 0;

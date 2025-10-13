@@ -175,13 +175,13 @@ bool sbusLostFrame;
 /*Eigen::Vector3f accNS = {0.49741,0.03576,-1.49739};*/
 /*Eigen::Vector3f gyroNS = {-0.03902,0.00800,-0.00215};*/
 
-// Drone A: 10/14/24
-/*Eigen::Vector3f accNS = {-0.00920,0.08071,-0.36328};*/
-/*Eigen::Vector3f gyroNS = {-0.00890,-0.00590,0.00158};*/
+// Drone A: 9/24/25
+Eigen::Vector3f accNS = {0.00832,0.12575,-0.34016};
+Eigen::Vector3f gyroNS = {-0.00904,-0.00603,0.00194};
 
 // IEEE Drone:
-Eigen::Vector3f accNS = {0.67944,0.07583,-0.67375};
-Eigen::Vector3f gyroNS = {-0.05802,0.00201,0.00266};
+/*Eigen::Vector3f accNS = {0.67944,0.07583,-0.67375};*/
+/*Eigen::Vector3f gyroNS = {-0.05802,0.00201,0.00266};*/
 
 mpu6050 quadIMU = mpu6050(accNS, gyroNS);
 
@@ -193,13 +193,13 @@ mpu6050 quadIMU = mpu6050(accNS, gyroNS);
 /*Eigen::Vector3f accNS2 = {-0.21642,0.02993,-0.00054};*/
 /*Eigen::Vector3f gyroNS2 = {-0.00401,0.00693,0.00047};*/
 
-// Drone A: 10/14/24
-/*Eigen::Vector3f accNS2 = {-0.49718,0.06980,-0.06169};*/
-/*Eigen::Vector3f gyroNS2 = {0.00234,-0.00093,-0.00241};*/
+// Drone A: 9/24/25
+Eigen::Vector3f accNS2 = {-0.00086,0.10735,-0.30284};
+Eigen::Vector3f gyroNS2 = {-0.01072,-0.00578,-0.00099};
 
 // IEEE Drone:
-Eigen::Vector3f accNS2 = {0.28078,0.21799,0.21584};
-Eigen::Vector3f gyroNS2 = {0.00061,0.00147,-0.00222};
+/*Eigen::Vector3f accNS2 = {0.28078,0.21799,0.21584};*/
+/*Eigen::Vector3f gyroNS2 = {0.00061,0.00147,-0.00222};*/
 
 bmi088 quadIMU2 = bmi088(accNS2, gyroNS2, SPI, bmiAccCS, bmiGyrCS, 0, 0);
 
@@ -298,7 +298,7 @@ elapsedMicros lastLoopStart = 0;
  * inputs obtained in getCommands(). Some of these values can be overwritten
  * later by other functions.
 */
-void getDesState() {
+void getDesState(bool constrain_thrust=true) {
 	float thrust_des; float roll_des; float pitch_des; float yawRate_des;
   thrust_des = throttleChannel.NormalizedValue(); // Between 0 and 1
   roll_des = rollChannel.NormalizedValue();  // Between -1 and 1
@@ -306,7 +306,11 @@ void getDesState() {
   yawRate_des = -yawChannel.NormalizedValue();   // Between -1 and 1
 
   // Constrain within normalized bounds
-  quadData.flightStatus.thrustSetpoint = constrain(thrust_des, 0.0, 1.0)*quadProps::MAX_THRUST;
+  if (constrain_thrust) {
+    quadData.flightStatus.thrustSetpoint = constrain(thrust_des, 0.0, 1.0)*quadProps::MAX_THRUST;
+  } else {
+    quadData.flightStatus.thrustSetpoint = constrain(thrust_des, 0.0, 1.0);
+  }
   quadData.att.eulerAngleSetpoint[0] = constrain(roll_des, -1.0, 1.0) * maxRoll;
   quadData.att.eulerAngleSetpoint[1] = constrain(pitch_des, -1.0, 1.0) * maxPitch;
   quadData.att.yawRateSetpoint = constrain(yawRate_des, -1.0, 1.0) * maxYawRate;
@@ -452,17 +456,14 @@ void calibrateESCs() {
 		}
     getCommands();
 		quadIMU.Update();
-    getDesState();
-		quadData.flightStatus.controlInputs << quadData.flightStatus.thrustSetpoint, 0, 0, 0;
-		// Convert thrust and moments from controller to angular rates
+    getDesState(false); // get desired thrust between 0 and 1
+    int motor_command = 0;
 		if (throttleEnabled) {
-			quadData.flightStatus.motorRates = ControlAllocator(quadData.flightStatus.controlInputs);
-		} else {
-			quadData.flightStatus.motorRates = Eigen::Vector4f::Zero();
+      motor_command = static_cast<int>(quadData.flightStatus.thrustSetpoint*180.0);
 		}
-		// Convert angular rates to PWM commands
-		motors.ScaleCommand(quadData.flightStatus.motorRates);
-		motors.CommandMotor();
+    Serial.println(motor_command);
+		
+		motors.CommandMotor(motor_command);
     loopRate(2000);
   }
 }
@@ -716,8 +717,8 @@ void loop() {
 		/*serialDebug::PrintAccelData(quadIMU.GetAccX(), quadIMU.GetAccY(), quadIMU.GetAccZ());*/
 		/*serialDebug::PrintRollPitchYaw(quadData.att.eulerAngles_active->coeff(0), quadData.att.eulerAngles_active->coeff(1), quadData.att.eulerAngles_active->coeff(2));*/
 		//serialDebug::PrintPIDOutput(angleController.GetRollPID(), angleController.GetPitchPID(), angleController.GetYawPID());
-		// float motorCommands[4] = {0, 0, 0, 0};
-		// motors.GetMotorCommands(motorCommands);
+		/*float motorCommands[4] = {0, 0, 0, 0};*/
+		/*motors.GetMotorCommands(motorCommands);*/
 		// serialDebug::PrintMotorCommands(motorCommands[0], motorCommands[1], motorCommands[2], motorCommands[3]);
 		//serialDebug::PrintLoopTime(dt);
 		//serialDebug::PrintZPosPID(posControl.GetTmpPropo()[2],
@@ -965,9 +966,10 @@ switch(boundaryOnOff.SwitchPosition()) {
 					posControl.Reset();
         } else {
           spHandler.UpdateSetpoint();
+          // Note that we don't want the integral term to build up when doing the takeoff spin up
           posControl.Update(quadData.navData.positionSetpoint_NED.cast<double>(), 
                             quadData.navData.velocitySetpoint_NED,
-                            ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, posCtrldt, false);
+                            ins.Get_PosEst(), ins.Get_VelEst(), quadData.att, posCtrldt, quadData.flightStatus.doTakeoffSpin);
           // posControl2.Update(quadData.navData.positionSetpoint_NED, quadData.navData.velocitySetpoint_NED, 
           //                    ins.Get_PosEst().cast<float>(), ins.Get_VelEst(), b1d, quadData.att, dt);
           if (customMode == bfs::CustomMode::MISSION ||
