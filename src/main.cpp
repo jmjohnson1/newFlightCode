@@ -289,6 +289,8 @@ int bndryOnOff;
 TeensyTimerTool::PeriodicTimer checkinTimer(TeensyTimerTool::TMR1);
 elapsedMicros lastLoopStart = 0;
 
+bool ekfInitialized = false;
+
 //========================================================================================================================//
 //                                                      FUNCTIONS                                                         //
 //========================================================================================================================//
@@ -635,7 +637,6 @@ void setup() {
 	// Initialize EKF
 #ifdef USE_EKF
   ins.Configure();
-	ins.Initialize(quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
 #endif
 
 	// Putting this here for now. Initialize the yaw angle setpoint to 180
@@ -868,7 +869,11 @@ if(quadData.telemData.paramsUpdated == true) {
 		quadData.navData.numMocapUpdates = telem::CheckForNewPosition(quadData);
 		// Only start EKF once we're getting position updates
 		if (quadData.navData.numMocapUpdates > 0){
-			ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
+      if (ins.Initialized() == false) {
+        ins.Initialize(quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
+      } else {
+        ins.Update(micros(), quadData.navData.numMocapUpdates, quadIMU.GetGyro(), quadIMU.GetAcc(), quadData.navData.mocapPosition_NED.cast<double>());
+      }
 			quadData.navData.position_NED = ins.Get_PosEst().cast<float>();
 			quadData.navData.velocity_NED = ins.Get_VelEst();
 			quadData.att.eulerAngles_ekf = ins.Get_OrientEst();
