@@ -584,19 +584,16 @@ void LoggingSetup() {
 	logging.AddItem(quadData.navData.velocitySetpoint_NED, "velocitySetpointNED_", 6);
 	logging.AddItem(quadData.navData.mocapPosition_NED, "mocapPositionNED_", 6);
 	logging.AddItem(&(quadData.navData.numMocapUpdates), "numMocapUpdates", 10);
-	logging.AddItem(&pScale_att, "pScale_att", 4);
-	logging.AddItem(&iScale_att, "iScale_att", 4);
-	logging.AddItem(&dScale_att, "dScale_att", 4);
 	// PID values
-	logging.AddItem(Kp_array, "Kp_array", 3);
-	logging.AddItem(Ki_array, "Ki_array", 3);
-	logging.AddItem(Kd_array, "Kd_array", 3);
-	logging.AddItem(Kp_pos, "Kp_pos", 3);
-	logging.AddItem(Ki_pos, "Ki_pos", 3);
-	logging.AddItem(Kd_pos, "Kd_pos", 3);
-	logging.AddItem(Kp2_array, "Kp2_array", 3);
-	logging.AddItem(Ki2_array, "Ki2_array", 3);
-	logging.AddItem(Kd2_array, "Kd2_array", 3);
+	logging.AddItem(Kp_array, "Kp_att", 3, 3);
+	logging.AddItem(Ki_array, "Ki_att", 3, 3);
+	logging.AddItem(Kd_array, "Kd_att", 3, 3);
+	logging.AddItem(Kp_pos, "Kp_pos", 3, 3);
+	logging.AddItem(Ki_pos, "Ki_pos", 3, 3);
+	logging.AddItem(Kd_pos, "Kd_pos", 3, 3);
+	logging.AddItem(Kp2_array, "Kp2_att", 3, 3);
+	logging.AddItem(Ki2_array, "Ki2_att", 3, 3);
+	logging.AddItem(Kd2_array, "Kd2_att", 3, 3);
 
 	// Flight mode
 	logging.AddItem(&customMode, "CustomMode", 10);
