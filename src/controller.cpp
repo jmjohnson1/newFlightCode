@@ -134,7 +134,7 @@ float AngleAttitudeController::AnglePID(float setpoint, float measuredAngle,
 			error -= 2*M_PI;
 		}
 	}
-  float integral = Ki*(*integral_prev + error * dt);
+  float integral = *integral_prev + Ki*error * dt;
   if (noIntegral) { // Don't let integrator build if this is set
     integral = 0.0f;
   } 
@@ -174,7 +174,7 @@ float AngleAttitudeController::RatePID(float setpoint, float measuredRate,
     return 0.0f;
   }
   float error = setpoint - measuredRate;
-  float integral = Ki*(*integral_prev + error * dt);
+  float integral = *integral_prev + Ki*error * dt;
   if (noIntegral) {
     integral = 0.0f;
   }
@@ -247,7 +247,7 @@ void PositionController::Update(const Eigen::Vector3d &posSetpoints,
   float maxAngle_sinArg = sin(quadProps::MAX_ANGLE * DEG_TO_RAD);
 
   posError_ned = (posSetpoints - currentPosition).cast<float>();
-  integral = Ki_*(prevIntegral_ + posError_ned * dt);
+  integral = prevIntegral_ + Ki_ * posError_ned * dt;
   // Prevent integral from building up if the thrust is low (noIntegral passed
   // as true).
   if (noIntegral) {
