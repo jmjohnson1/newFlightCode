@@ -167,17 +167,17 @@ uint16_t sbusChannels[16];
 bool sbusFailSafe;
 bool sbusLostFrame;
 
-// Drone B: 10/5/24
-/*Eigen::Vector3f accNS = {0.09625,-0.08197,-0.76099};*/
-/*Eigen::Vector3f gyroNS = {-0.06021,0.00223,-0.00149};*/
+// Drone B: 10/26/25
+Eigen::Vector3f accNS = {0.20881,0.06818,-0.20455};
+Eigen::Vector3f gyroNS = {-0.02585,-0.02487,-0.00736};
 
 // Drone C: 10/29/24
 /*Eigen::Vector3f accNS = {0.49741,0.03576,-1.49739};*/
 /*Eigen::Vector3f gyroNS = {-0.03902,0.00800,-0.00215};*/
 
 // Drone A: 9/24/25
-Eigen::Vector3f accNS = {0.00832,0.12575,-0.34016};
-Eigen::Vector3f gyroNS = {-0.00904,-0.00603,0.00194};
+/*Eigen::Vector3f accNS = {0.00832,0.12575,-0.34016};*/
+/*Eigen::Vector3f gyroNS = {-0.00904,-0.00603,0.00194};*/
 
 // IEEE Drone:
 /*Eigen::Vector3f accNS = {0.67944,0.07583,-0.67375};*/
@@ -185,17 +185,17 @@ Eigen::Vector3f gyroNS = {-0.00904,-0.00603,0.00194};
 
 mpu6050 quadIMU = mpu6050(accNS, gyroNS);
 
-// Drone B: 10/5/24
-/*Eigen::Vector3f accNS2 = {-0.28325,0.08565,0.21005};*/
-/*Eigen::Vector3f gyroNS2 = {0.00001,0.00134,-0.00260};*/
+// Drone B: 10/26/25
+Eigen::Vector3f accNS2 = {-0.09042,0.22147,0.16133};
+Eigen::Vector3f gyroNS2 = {0.00028,0.00567,-0.00223};
 
 // Drone C: 10/29/24
 /*Eigen::Vector3f accNS2 = {-0.21642,0.02993,-0.00054};*/
 /*Eigen::Vector3f gyroNS2 = {-0.00401,0.00693,0.00047};*/
 
 // Drone A: 9/24/25
-Eigen::Vector3f accNS2 = {-0.00086,0.10735,-0.30284};
-Eigen::Vector3f gyroNS2 = {-0.01072,-0.00578,-0.00099};
+/*Eigen::Vector3f accNS2 = {-0.00086,0.10735,-0.30284};*/
+/*Eigen::Vector3f gyroNS2 = {-0.01072,-0.00578,-0.00099};*/
 
 // IEEE Drone:
 /*Eigen::Vector3f accNS2 = {0.28078,0.21799,0.21584};*/
